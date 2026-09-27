@@ -3,27 +3,30 @@
 Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 
 ## Phase 0 — Préparation
-- [ ] Dépôt Git
-- [ ] README.md
-- [ ] CLAUDE.md
-- [ ] CONTEXTE.md
-- [ ] TASKS.md
-- [ ] ARCHITECTURE.md
-- [ ] REGLES_DEVELOPPEMENT.md
-- [ ] .gitignore
-- [ ] Vérifier Java 17
-- [ ] Vérifier Maven
-- [ ] Vérifier PostgreSQL
+- [x] Dépôt Git
+- [x] README.md
+- [x] CLAUDE.md
+- [x] CONTEXTE.md
+- [x] TASKS.md
+- [x] ARCHITECTURE.md
+- [x] REGLES_DEVELOPPEMENT.md
+- [x] .gitignore
+- [x] Vérifier Java 17
+- [x] Vérifier Maven
+- [x] Vérifier PostgreSQL
 
 ## Phase 1 — Backend
-- [ ] Initialiser Spring Boot
-- [ ] Configurer Java 17
-- [ ] Configurer PostgreSQL
-- [ ] Configurer JPA/Hibernate
-- [ ] Créer enums
-- [ ] Créer les 9 entités
-- [ ] Créer repositories
-- [ ] Vérifier relations JPA
+- [x] Initialiser Spring Boot
+- [x] Configurer Java 17
+- [x] Configurer PostgreSQL
+- [x] Configurer JPA/Hibernate
+- [x] Créer enums
+- [x] Créer les 9 entités
+- [x] Créer repositories
+- [x] Vérifier relations JPA
+- [x] Flyway : migration V1 du schéma (ddl-auto=validate)
+- [x] Tests du socle : démarrage Spring, schéma, mapping JPA
+- [x] Maven Wrapper (mvnw, mvnw.cmd)
 
 ## Phase 2 — API
 - [ ] DTO
@@ -34,6 +37,7 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 
 ## Phase 3 — Auth
 - [ ] Inscription
+- [x] Inscription : rôle restreint par construction (ADMIN impossible)
 - [ ] Connexion
 - [ ] Hash mots de passe
 - [ ] JWT

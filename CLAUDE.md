@@ -53,7 +53,7 @@ Filiere : MARAICHAGE, ELEVAGE, CEREALES, AUTRE
 ### Acheteur
 id, utilisateur_id, type_acheteur
 
-TypeAcheteur : COMMERÇANT, RESTAURATEUR, PARTICULIER
+TypeAcheteur : COMMERCANT, RESTAURATEUR, PARTICULIER
 
 ### Récolte
 id, producteur_id, produit, description, quantite_disponible, quantite_min, quantite_max, unite, prix_unitaire, image_url, localisation, date_disponibilite, statut, date_creation
