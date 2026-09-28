@@ -1,0 +1,46 @@
+.auth {
+  max-width: 30rem;
+  margin: 0 auto;
+}
+
+.auth__intro {
+  margin-bottom: var(--espace-5);
+  color: var(--couleur-texte-secondaire);
+}
+
+.auth .message {
+  margin-bottom: var(--espace-4);
+}
+
+.auth__formulaire {
+  margin-bottom: var(--espace-4);
+}
+
+.auth__roles {
+  margin: 0 0 var(--espace-4);
+  padding: 0;
+  border: 0;
+}
+
+.auth__roles legend {
+  padding: 0;
+  margin-bottom: var(--espace-2);
+}
+
+.auth__choix {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  min-height: 44px;
+  margin-right: var(--espace-5);
+  cursor: pointer;
+}
+
+.auth__formulaire .champ:last-of-type {
+  margin-bottom: var(--espace-5);
+}
+
+.auth__alternative {
+  margin: 0;
+  font-size: var(--taille-sm);
+}

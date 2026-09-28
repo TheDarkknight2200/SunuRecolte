@@ -1,0 +1,19 @@
+.pied {
+  border-top: 1px solid var(--couleur-bordure);
+  background-color: var(--couleur-surface);
+}
+
+.pied__contenu {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--espace-2) var(--espace-5);
+  padding-top: var(--espace-4);
+  padding-bottom: var(--espace-4);
+}
+
+.pied__texte {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+}

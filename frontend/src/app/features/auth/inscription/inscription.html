@@ -1,0 +1,196 @@
+<section class="auth">
+  <h1>Créer un compte</h1>
+  <p class="auth__intro">
+    Un compte producteur permet de publier des récoltes ; un compte acheteur permet de passer
+    commande auprès des producteurs.
+  </p>
+
+  @if (erreurGenerale(); as message) {
+    <div class="message message--erreur" role="alert">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+      <p>{{ message }}</p>
+    </div>
+  }
+
+  <form class="carte auth__formulaire" [formGroup]="formulaire" (ngSubmit)="soumettre()" novalidate>
+    <fieldset class="champ auth__roles">
+      <legend class="champ__libelle">
+        Je m'inscris comme <span class="champ__obligatoire">(obligatoire)</span>
+      </legend>
+      @for (role of rolesInscription; track role) {
+        <label class="auth__choix">
+          <input type="radio" formControlName="role" [value]="role" />
+          <span>{{ libelleRole(role) }}</span>
+        </label>
+      }
+      @if (invalide('role')) {
+        <p class="champ__erreur">{{ messageErreur('role') }}</p>
+      }
+    </fieldset>
+
+    <div class="champ">
+      <label class="champ__libelle" for="inscription-nom">
+        Nom <span class="champ__obligatoire">(obligatoire)</span>
+      </label>
+      <input
+        id="inscription-nom"
+        class="champ__saisie"
+        type="text"
+        formControlName="nom"
+        autocomplete="family-name"
+        maxlength="100"
+        [attr.aria-invalid]="invalide('nom')"
+        aria-describedby="inscription-nom-erreur"
+      />
+      @if (invalide('nom')) {
+        <p id="inscription-nom-erreur" class="champ__erreur">{{ messageErreur('nom') }}</p>
+      }
+    </div>
+
+    <div class="champ">
+      <label class="champ__libelle" for="inscription-prenom">
+        Prénom <span class="champ__obligatoire">(obligatoire)</span>
+      </label>
+      <input
+        id="inscription-prenom"
+        class="champ__saisie"
+        type="text"
+        formControlName="prenom"
+        autocomplete="given-name"
+        maxlength="100"
+        [attr.aria-invalid]="invalide('prenom')"
+        aria-describedby="inscription-prenom-erreur"
+      />
+      @if (invalide('prenom')) {
+        <p id="inscription-prenom-erreur" class="champ__erreur">{{ messageErreur('prenom') }}</p>
+      }
+    </div>
+
+    <div class="champ">
+      <label class="champ__libelle" for="inscription-email">
+        Adresse email <span class="champ__obligatoire">(obligatoire)</span>
+      </label>
+      <input
+        id="inscription-email"
+        class="champ__saisie"
+        type="email"
+        formControlName="email"
+        autocomplete="email"
+        maxlength="150"
+        [attr.aria-invalid]="invalide('email')"
+        aria-describedby="inscription-email-erreur"
+      />
+      @if (invalide('email')) {
+        <p id="inscription-email-erreur" class="champ__erreur">{{ messageErreur('email') }}</p>
+      }
+    </div>
+
+    <div class="champ">
+      <label class="champ__libelle" for="inscription-telephone">
+        Téléphone <span class="champ__obligatoire">(obligatoire)</span>
+      </label>
+      <input
+        id="inscription-telephone"
+        class="champ__saisie"
+        type="tel"
+        formControlName="telephone"
+        autocomplete="tel"
+        maxlength="20"
+        [attr.aria-invalid]="invalide('telephone')"
+        aria-describedby="inscription-telephone-aide inscription-telephone-erreur"
+      />
+      <p id="inscription-telephone-aide" class="champ__aide">
+        Numéro joignable par les acheteurs ou les producteurs.
+      </p>
+      @if (invalide('telephone')) {
+        <p id="inscription-telephone-erreur" class="champ__erreur">
+          {{ messageErreur('telephone') }}
+        </p>
+      }
+    </div>
+
+    <div class="champ">
+      <label class="champ__libelle" for="inscription-mot-de-passe">
+        Mot de passe <span class="champ__obligatoire">(obligatoire)</span>
+      </label>
+      <input
+        id="inscription-mot-de-passe"
+        class="champ__saisie"
+        type="password"
+        formControlName="motDePasse"
+        autocomplete="new-password"
+        [attr.aria-invalid]="invalide('motDePasse')"
+        aria-describedby="inscription-mot-de-passe-aide inscription-mot-de-passe-erreur"
+      />
+      <p id="inscription-mot-de-passe-aide" class="champ__aide">
+        6 caractères minimum.
+      </p>
+      @if (invalide('motDePasse')) {
+        <p id="inscription-mot-de-passe-erreur" class="champ__erreur">
+          {{ messageErreur('motDePasse') }}
+        </p>
+      }
+    </div>
+
+    @if (roleChoisi() === 'PRODUCTEUR') {
+      <div class="champ">
+        <label class="champ__libelle" for="inscription-filiere">
+          Filière <span class="champ__obligatoire">(obligatoire)</span>
+        </label>
+        <select
+          id="inscription-filiere"
+          class="champ__saisie"
+          formControlName="filiere"
+          [attr.aria-invalid]="invalide('filiere')"
+          aria-describedby="inscription-filiere-erreur"
+        >
+          <option [ngValue]="null">Choisir une filière</option>
+          @for (filiere of filieres; track filiere) {
+            <option [ngValue]="filiere">{{ libelleFiliere(filiere) }}</option>
+          }
+        </select>
+        @if (invalide('filiere')) {
+          <p id="inscription-filiere-erreur" class="champ__erreur">{{ messageErreur('filiere') }}</p>
+        }
+      </div>
+    }
+
+    @if (roleChoisi() === 'ACHETEUR') {
+      <div class="champ">
+        <label class="champ__libelle" for="inscription-type-acheteur">
+          Type d'acheteur <span class="champ__obligatoire">(obligatoire)</span>
+        </label>
+        <select
+          id="inscription-type-acheteur"
+          class="champ__saisie"
+          formControlName="typeAcheteur"
+          [attr.aria-invalid]="invalide('typeAcheteur')"
+          aria-describedby="inscription-type-acheteur-erreur"
+        >
+          <option [ngValue]="null">Choisir un type d'acheteur</option>
+          @for (type of typesAcheteur; track type) {
+            <option [ngValue]="type">{{ libelleTypeAcheteur(type) }}</option>
+          }
+        </select>
+        @if (invalide('typeAcheteur')) {
+          <p id="inscription-type-acheteur-erreur" class="champ__erreur">
+            {{ messageErreur('typeAcheteur') }}
+          </p>
+        }
+      </div>
+    }
+
+    <button
+      type="submit"
+      class="bouton bouton--primaire bouton--large"
+      [disabled]="enCours()"
+      [attr.aria-busy]="enCours()"
+    >
+      {{ enCours() ? '…' : 'Créer mon compte' }}
+    </button>
+  </form>
+
+  <p class="auth__alternative">
+    Vous avez déjà un compte ? <a routerLink="/connexion">Se connecter</a>
+  </p>
+</section>

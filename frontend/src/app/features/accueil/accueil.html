@@ -1,0 +1,85 @@
+<section class="accueil__presentation">
+  <h1>Récoltes de la région de Dakar, en vente directe</h1>
+  <p class="accueil__texte">
+    SunuRecolte met en relation directe les producteurs agricoles et les acheteurs : les producteurs
+    publient leurs récoltes, les acheteurs les consultent et passent commande sans intermédiaire.
+  </p>
+  <div class="accueil__actions">
+    <a class="bouton bouton--primaire" routerLink="/inscription">Créer un compte</a>
+    <a class="bouton bouton--secondaire" routerLink="/connexion">Se connecter</a>
+  </div>
+</section>
+
+<section class="accueil__catalogue" aria-labelledby="titre-catalogue">
+  <h2 id="titre-catalogue">Récoltes publiées</h2>
+
+  @if (chargement()) {
+    <div class="etat" aria-busy="true">
+      <p class="etat__texte">Chargement…</p>
+    </div>
+  } @else if (erreur(); as message) {
+    <div class="message message--erreur" role="alert">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+      <div>
+        <p>{{ message }}</p>
+        <p>
+          <button type="button" class="bouton bouton--secondaire bouton--compact" (click)="charger()">
+            Réessayer
+          </button>
+        </p>
+      </div>
+    </div>
+  } @else if (liste().length === 0) {
+    <div class="etat">
+      <p class="etat__titre">Aucune récolte publiée pour le moment.</p>
+      <p class="etat__texte">
+        Les producteurs inscrits publient ici les récoltes qu'ils mettent en vente. Revenez plus tard.
+      </p>
+    </div>
+  } @else {
+    <ul class="accueil__liste grille-2">
+      @for (recolte of liste(); track recolte.id) {
+        <li class="carte accueil__carte">
+          <div class="accueil__entete-carte">
+            <h3 class="carte__titre">{{ recolte.produit }}</h3>
+            <span
+              class="badge"
+              [class.badge--succes]="recolte.statut === 'DISPONIBLE'"
+            >
+              {{ libelleStatut(recolte) }}
+            </span>
+          </div>
+
+          <p class="accueil__producteur">
+            {{ recolte.nomProducteur }} — {{ recolte.localisationProducteur }}
+          </p>
+
+          @if (recolte.description) {
+            <p class="accueil__description">{{ recolte.description }}</p>
+          }
+
+          <dl class="accueil__mesures">
+            <div>
+              <dt>Disponible</dt>
+              <dd>
+                {{ formaterMontant(recolte.quantiteDisponible) }} {{ recolte.unite }}
+              </dd>
+            </div>
+            <div>
+              <dt>Prix unitaire</dt>
+              <dd>{{ formaterMontant(recolte.prixUnitaire) }} / {{ recolte.unite }}</dd>
+            </div>
+            <div>
+              <dt>Commande minimale</dt>
+              <dd>{{ formaterMontant(recolte.quantiteMin) }} {{ recolte.unite }}</dd>
+            </div>
+          </dl>
+
+          <p class="accueil__meta">
+            Disponible à partir du {{ formaterDate(recolte.dateDisponibilite) }} — {{ recolte.localisation }}
+          </p>
+        </li>
+      }
+    </ul>
+  }
+</section>

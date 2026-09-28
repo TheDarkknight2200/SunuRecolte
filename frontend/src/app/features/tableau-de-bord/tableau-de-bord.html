@@ -1,0 +1,59 @@
+<section class="tableau-de-bord">
+  <h1>Tableau de bord</h1>
+
+  @if (compteCree()) {
+    <div class="message message--succes" role="status">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf0be;</span>
+      <p>Votre compte a été créé et vous êtes connecté.</p>
+    </div>
+  }
+
+  @if (chargement()) {
+    <div class="etat" aria-busy="true">
+      <p class="etat__texte">Chargement…</p>
+    </div>
+  } @else if (erreur(); as message) {
+    <div class="message message--erreur" role="alert">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+      <div>
+        <p>{{ message }}</p>
+        <p>
+          <button type="button" class="bouton bouton--secondaire bouton--compact" (click)="charger()">
+            Réessayer
+          </button>
+        </p>
+      </div>
+    </div>
+  } @else if (profil(); as utilisateur) {
+    <div class="carte tableau-de-bord__carte">
+      <h2 class="carte__titre">Mon profil</h2>
+      <dl class="tableau-de-bord__identite">
+        <div>
+          <dt>Nom</dt>
+          <dd>{{ utilisateur.prenom }} {{ utilisateur.nom }}</dd>
+        </div>
+        <div>
+          <dt>Adresse email</dt>
+          <dd>{{ utilisateur.email }}</dd>
+        </div>
+        <div>
+          <dt>Téléphone</dt>
+          <dd>{{ utilisateur.telephone }}</dd>
+        </div>
+        <div>
+          <dt>Rôle</dt>
+          <dd><span class="badge">{{ libelleRole(utilisateur.role) }}</span></dd>
+        </div>
+        <div>
+          <dt>Compte actif</dt>
+          <dd>{{ utilisateur.actif ? 'Oui' : 'Non' }}</dd>
+        </div>
+      </dl>
+      <p class="tableau-de-bord__lien">
+        <a class="bouton bouton--secondaire" [routerLink]="lienEspace(utilisateur)">
+          Accéder à mon espace
+        </a>
+      </p>
+    </div>
+  }
+</section>

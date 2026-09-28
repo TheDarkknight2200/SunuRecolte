@@ -1,0 +1,26 @@
+.auth {
+  max-width: 26rem;
+  margin: 0 auto;
+}
+
+.auth__intro {
+  margin-bottom: var(--espace-5);
+  color: var(--couleur-texte-secondaire);
+}
+
+.auth .message {
+  margin-bottom: var(--espace-4);
+}
+
+.auth__formulaire {
+  margin-bottom: var(--espace-4);
+}
+
+.auth__formulaire .champ:last-of-type {
+  margin-bottom: var(--espace-5);
+}
+
+.auth__alternative {
+  margin: 0;
+  font-size: var(--taille-sm);
+}

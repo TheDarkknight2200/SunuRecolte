@@ -18,7 +18,9 @@ Hiérarchie de référence (PROJECT_RULES.md §9) :
 
 Autres documents utiles :
 - `CLAUDE.md` : spécification détaillée du modèle de données (9 entités, champs, enums) ;
-- `TASKS.md` : avancement réel par phase (une case n'est cochée que si la tâche est testée).
+- `TASKS.md` : avancement réel par phase (une case n'est cochée que si la tâche est testée) ;
+- `FRONTEND_DESIGN.md` : identité visuelle, tokens et règles d'interface — référence de toute
+  décision visuelle du frontend (logo, favicon, palette, composants, états, responsive, JWT côté client).
 
 ## Règles de travail
 
@@ -76,30 +78,57 @@ arrondies, glassmorphism gratuit, ombres multiples, animations décoratives, emo
 d'interface, faux témoignages, fausses statistiques, lorem ipsum, sections génériques sans utilité.
 Objectif : une interface sobre, crédible et réellement utile.
 
+## Règles frontend (Phase 4)
+
+- `FRONTEND_DESIGN.md` fait autorité pour toute décision visuelle (palette, tokens, composants, états,
+  responsive, accessibilité). Ne pas introduire Tailwind, Bootstrap ni aucune bibliothèque UI : la
+  bibliothèque d'icônes est unique (Material Symbols) et aucune autre ne doit être ajoutée.
+- Jamais d'emoji comme élément d'interface ; une icône seule porte toujours un `aria-label`.
+- Aucun contrat d'API inventé : le frontend s'adapte aux DTO et enums Java réels ; l'URL de l'API est
+  centralisée dans `src/environments/environment*.ts` (jamais d'URL en dur dans un service).
+- Le frontend **n'est jamais l'autorité de sécurité** : les guards et la purge du jeton sont du confort
+  d'usage, toute la sécurité réelle reste vérifiée côté backend.
+- 401 : purge de la session locale et redirection vers la connexion. 403 : message d'accès refusé sans
+  déconnexion ni redirection automatique (un 403 ne devient jamais un 401).
+- Le JWT est conservé en `localStorage` (stratégie documentée dans `FRONTEND_DESIGN.md` §19) : il n'est
+  jamais journalisé, jamais affiché, jamais committé, jamais recopié dans un fichier de test.
+- Tout message d'erreur affiché provient du `message` du backend ou d'un texte générique : jamais de
+  trace technique, de détail Spring, de requête SQL ni de contenu de jeton dans l'interface.
+
 ## Structure du dépôt
 
 ```text
 SunuRecolte/
 ├── PROJECT_RULES.md, CONTEXTE.md, ARCHITECTURE.md, REGLES_DEVELOPPEMENT.md, TASKS.md, CLAUDE.md
-└── sunurecolte-backend/            # API Spring Boot (Java 17), Maven Wrapper 3.9.15
-    └── src/main/java/com/sunurecolte/
-        ├── user/                   # Utilisateur, Producteur, Acheteur
-        ├── recolte/                # Recolte
-        ├── commande/               # Commande, LigneCommande
-        ├── paiement/               # Paiement
-        ├── notification/           # Notification
-        ├── prixmarche/             # PrixMarche
-        ├── exception/              # exceptions métier + gestion centralisée des erreurs
-        ├── config/                 # OpenApiConfig, AdminInitializer (amorçage ADMIN local)
-        └── security/               # SecurityConfig, JwtService, JwtAuthenticationFilter, ControleAcces, ...
-    └── src/main/resources/
-        ├── application.properties          # configuration versionnée (jamais de secret)
-        ├── application-local.properties    # secrets locaux, hors Git
-        └── db/migration/                   # migrations Flyway versionnées
-    └── src/test/java/com/sunurecolte/      # tests sur PostgreSQL réel (aucun mock)
-        ├── api/                            # tests HTTP MockMvc, dont AuthApiTest et SecuriteApiTest
-        ├── support/                        # IntegrationTestSupport (jetons JWT réels, fabriques)
-        └── ...                             # tests de services, mapping JPA, amorçage ADMIN
+├── FRONTEND_DESIGN.md              # identité visuelle, tokens et règles d'interface (autorité visuelle)
+├── sunurecolte-backend/            # API Spring Boot (Java 17), Maven Wrapper 3.9.15
+│   └── src/main/java/com/sunurecolte/
+│       ├── user/                   # Utilisateur, Producteur, Acheteur
+│       ├── recolte/                # Recolte
+│       ├── commande/               # Commande, LigneCommande
+│       ├── paiement/               # Paiement
+│       ├── notification/           # Notification
+│       ├── prixmarche/             # PrixMarche
+│       ├── exception/              # exceptions métier + gestion centralisée des erreurs
+│       ├── config/                 # OpenApiConfig, AdminInitializer (amorçage ADMIN local)
+│       └── security/               # SecurityConfig, JwtService, JwtAuthenticationFilter, ControleAcces, ...
+│   └── src/main/resources/
+│       ├── application.properties          # configuration versionnée (jamais de secret)
+│       ├── application-local.properties    # secrets locaux, hors Git
+│       └── db/migration/                   # migrations Flyway versionnées
+│   └── src/test/java/com/sunurecolte/      # tests sur PostgreSQL réel (aucun mock)
+│       ├── api/                            # tests HTTP MockMvc, dont AuthApiTest et SecuriteApiTest
+│       ├── support/                        # IntegrationTestSupport (jetons JWT réels, fabriques)
+│       └── ...                             # tests de services, mapping JPA, amorçage ADMIN
+└── frontend/                       # application Angular 21 (composants standalone, SCSS, Vitest)
+    └── src/
+        ├── app/
+        │   ├── core/               # modèles (DTO réels), services API, intercepteur JWT, guards
+        │   ├── partage/            # en-tête, pied de page
+        │   └── features/           # accueil, auth, tableau de bord, espaces par rôle, erreurs
+        ├── styles/                 # tokens et styles globaux SCSS
+        ├── environments/           # URL de l'API centralisée (dev et production)
+        └── public/                 # logo SVG, favicon, police Material Symbols
 ```
 
 Chaque domaine backend suit la même organisation : `controller/`, `service/`, `repository/`, `entity/`, `dto/`.
@@ -110,6 +139,12 @@ Chaque domaine backend suit la même organisation : `controller/`, `service/`, `
 cd sunurecolte-backend
 ./mvnw test              # tests (nécessitent PostgreSQL local démarré)
 ./mvnw spring-boot:run   # lancement de l'API sur http://localhost:8080
+
+cd frontend
+npm install              # dépendances
+npm start                # serveur de développement sur http://localhost:4200
+npm test                 # tests unitaires (Vitest + jsdom, aucun navigateur requis)
+npm run build            # build de production dans dist/
 ```
 
 Installation détaillée : voir la section « Installation » du `README.md`.

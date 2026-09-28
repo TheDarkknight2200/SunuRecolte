@@ -10,7 +10,8 @@ Lire ce fichier AVANT toute modification du projet.
 SunuRecolte est une plateforme web responsive mettant en relation producteurs agricoles et acheteurs dans la région de Dakar.
 
 ## Stack imposée
-- Frontend : Angular
+- Frontend : Angular 21 (composants standalone, SCSS, Reactive Forms ; tests Vitest) — identité visuelle
+  et règles d'interface dans `FRONTEND_DESIGN.md`
 - Backend : Spring Boot 3.x, Java 17
 - Base : PostgreSQL
 - ORM : Spring Data JPA / Hibernate

@@ -16,7 +16,7 @@ Plateforme web de mise en relation directe entre producteurs agricoles et achete
 
 ## 🛠 Stack Technique
 
-- **Frontend** : Angular
+- **Frontend** : Angular 21 (composants standalone, SCSS, Reactive Forms ; tests Vitest)
 - **Backend** : Spring Boot 3.x (Java 17)
 - **Base de données** : PostgreSQL
 - **ORM** : Spring Data JPA / Hibernate
@@ -51,6 +51,7 @@ Architecture générale : **Angular → Spring Boot REST API → PostgreSQL**
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) : Détail des flux et découpage en packages.
 - [`TASKS.md`](./TASKS.md) : Suivi détaillé de l'avancement par phases.
 - [`REGLES_DEVELOPPEMENT.md`](./REGLES_DEVELOPPEMENT.md) : Bonnes pratiques de code, tests et commits.
+- [`FRONTEND_DESIGN.md`](./FRONTEND_DESIGN.md) : Identité visuelle, tokens et règles d'interface du frontend.
 
 ---
 
@@ -61,7 +62,8 @@ Architecture générale : **Angular → Spring Boot REST API → PostgreSQL**
 - **Java JDK 17** (testé avec Eclipse Adoptium Temurin 17.0.19)
 - **PostgreSQL 17** démarré localement (port 5432)
 - **Maven** : inutile de l'installer, le Maven Wrapper (`mvnw` / `mvnw.cmd`, Maven 3.9.15) est fourni
-- **Node.js 18+ / Angular CLI** : uniquement pour la phase frontend
+- **Node.js 20.19+ / 22.12+ / 24+** pour le frontend Angular 21 (testé avec Node 24.18 ; le CLI Angular
+  est une dépendance locale du projet, aucune installation globale n'est nécessaire)
 
 ### 1. Créer la base de données
 
@@ -184,4 +186,26 @@ En cas d'erreur, l'API renvoie un JSON du type `{"statut": 404, "message": "..."
 
 > Le paiement est une **simulation** pour le MVP : aucune transaction réelle n'est effectuée et aucune
 > intégration Wave / Orange Money n'existe à ce stade.
+
+### 8. Frontend Angular
+
+Prérequis : Node.js (voir « Prérequis » ci-dessus) et npm. Le backend doit être démarré sur
+`http://localhost:8080` (CORS restreint à `http://localhost:4200`).
+
+```bash
+cd frontend
+npm install     # dépendances
+npm start       # serveur de développement : http://localhost:4200
+npm test        # tests unitaires (Vitest, sans navigateur)
+npm run build   # build de production (frontend/dist/)
+```
+
+L'URL de l'API est centralisée dans `src/environments/` : `http://localhost:8080/api` en développement,
+`/api` en production (reverse proxy). Aucun service n'écrit d'URL en dur.
+
+> **Rappel** : le frontend n'est jamais l'autorité de sécurité. Les guards et l'intercepteur gèrent la
+> navigation et l'expérience (redirection, purge locale) ; toute autorisation est rendue par l'API.
+
+L'identité visuelle, les tokens de design et les règles d'interface font foi dans
+[`FRONTEND_DESIGN.md`](./FRONTEND_DESIGN.md).
 

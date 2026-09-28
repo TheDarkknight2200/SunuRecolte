@@ -41,6 +41,10 @@ Sécurité : Spring Security + JWT.
 ORM : JPA/Hibernate.
 Documentation : Swagger/OpenAPI.
 
+Frontend : Angular 21 (composants standalone, SCSS, Reactive Forms, tests Vitest). L'identité visuelle,
+les tokens et les règles d'interface sont décrits dans `FRONTEND_DESIGN.md`, qui fait autorité pour
+toute décision visuelle.
+
 ## Paiement
 Développement progressif :
 - simulation/sandbox d'abord ;

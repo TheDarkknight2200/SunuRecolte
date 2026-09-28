@@ -1,0 +1,10 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.contenu-principal {
+  flex: 1;
+  padding: var(--espace-6) 0 var(--espace-7);
+}

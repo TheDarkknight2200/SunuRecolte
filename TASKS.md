@@ -99,13 +99,14 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [ ] Statistiques
 
 ## Phase 9 — Angular
-- [ ] Initialiser Angular
-- [ ] Structure features
-- [ ] Services API
-- [ ] Auth
-- [ ] Intercepteur JWT
-- [ ] Guards
-- [ ] Auth UI
+- [x] Initialiser Angular
+- [x] Identité visuelle et design system (`FRONTEND_DESIGN.md`, logo, favicon, tokens SCSS)
+- [x] Structure features (`core/`, `partage/`, `features/`, styles globaux)
+- [x] Services API (`AuthService`, `RecolteService`, `UtilisateurService` ; URL centralisée)
+- [x] Auth (inscription, connexion, déconnexion, jeton en `localStorage`)
+- [x] Intercepteur JWT (Bearer, 401 → purge et redirection, 403 non transformé)
+- [x] Guards (`authGuard` puis `roleGuard`)
+- [x] Auth UI (connexion, inscription, tableau de bord, pages d'erreur)
 - [ ] Producteur UI
 - [ ] Acheteur UI
 - [ ] Admin UI
@@ -114,7 +115,7 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [ ] Commandes
 - [ ] Paiement
 - [ ] Notifications
-- [ ] Responsive
+- [ ] Responsive (vérifié écran par écran au fil des pages métier)
 
 ## Phase 10 — Intégration
 - [ ] Angular ↔ backend

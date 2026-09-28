@@ -1,0 +1,29 @@
+.tableau-de-bord .message {
+  margin-bottom: var(--espace-5);
+}
+
+.tableau-de-bord__carte {
+  max-width: 36rem;
+}
+
+.tableau-de-bord__identite {
+  display: grid;
+  gap: var(--espace-3);
+  margin: 0 0 var(--espace-5);
+}
+
+.tableau-de-bord__identite dt {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.tableau-de-bord__identite dd {
+  margin: var(--espace-1) 0 0;
+}
+
+.tableau-de-bord__lien {
+  margin: 0;
+}

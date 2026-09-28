@@ -121,20 +121,48 @@ Acheteur
 ## Paiement
 Le workflow doit fonctionner en simulation/sandbox avant toute intégration réelle.
 
-## Frontend
+## Frontend (Phase 4)
 
-src/app/
-├── core/
-│   ├── auth/
-│   ├── guards/
-│   ├── interceptors/
-│   └── services/
-├── features/
-│   ├── auth/
-│   ├── producteur/
-│   ├── acheteur/
-│   └── admin/
-└── shared/
+Angular 21, composants standalone, SCSS, Reactive Forms, tests Vitest. Flux d'une requête authentifiée :
+
+```text
+Composant (features/…)
+  → Service Angular (core/services)          construit la requête HTTP
+  → authInterceptor (core/intercepteurs)     ajoute Authorization: Bearer <jeton>
+  → HttpClient
+  → API Spring Boot
+```
+
+Arborescence réelle :
+
+```text
+frontend/src/
+├── app/
+│   ├── core/
+│   │   ├── intercepteurs/   authInterceptor
+│   │   ├── guards/          authGuard (authentifié), roleGuard (rôles autorisés)
+│   │   ├── modeles/         modèles TypeScript alignés sur les DTO Java réels
+│   │   ├── services/        AuthService, RecolteService, UtilisateurService
+│   │   └── utilitaires/     message d'erreur API, résolution de l'espace par rôle
+│   ├── features/            accueil, auth, tableau-de-bord, producteur, acheteur, admin, erreurs
+│   └── partage/             en-tête, pied de page
+├── environments/            environment.ts / environment.production.ts
+├── styles/                  tokens, base, composants, icônes
+└── public/                  logo, favicon, police d'icônes Material Symbols
+```
+
+Points clés :
+
+- **URL de l'API centralisée** dans `environment.apiUrl` (`http://localhost:8080/api` en développement,
+  `/api` en production) : aucune URL d'API en dur dans les services.
+- **Le jeton n'est lu que par `AuthService`** (clés `sunurecolte.jeton` / `sunurecolte.utilisateur`) ;
+  l'`authInterceptor` l'ajoute à chaque requête sortante. Il n'est jamais journalisé ni affiché.
+- **Le frontend n'est jamais l'autorité de sécurité** : guards et intercepteur ne sont qu'un confort
+  d'usage (navigation, redirection, purge locale) ; toute autorisation est rendue par l'API.
+- **401** : purge de la session locale puis redirection vers `/connexion` (avec paramètre `retour`).
+  **403** : message d'erreur affiché, session conservée — un 403 n'est jamais transformé en 401.
+- **Design** : l'identité visuelle, les tokens et les règles d'interface font foi dans
+  `FRONTEND_DESIGN.md`.
 
 ## Déploiement cible
 Navigateur → Frontend Angular → API Spring Boot → PostgreSQL

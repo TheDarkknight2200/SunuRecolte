@@ -1,0 +1,6 @@
+// Points de rupture — voir FRONTEND_DESIGN.md §12.
+// Les media queries utilisent ces variables, jamais une valeur littérale.
+
+$point-mobile: 480px;
+$point-tablette: 768px;
+$point-desktop: 1100px;

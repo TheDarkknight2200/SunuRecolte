@@ -1,0 +1,294 @@
+// Composants transverses — voir FRONTEND_DESIGN.md §10 et §11.
+// Un composant Angular réutilise ces classes ; il ne les redéfinit pas.
+
+/* --- Boutons --- */
+.bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-2);
+  min-height: 40px;
+  padding: 0 var(--espace-4);
+  border: 1px solid transparent;
+  border-radius: var(--rayon-md);
+  font-family: inherit;
+  font-size: var(--taille-md);
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--duree-transition) ease-out,
+    border-color var(--duree-transition) ease-out,
+    color var(--duree-transition) ease-out;
+}
+
+.bouton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bouton--primaire {
+  background-color: var(--couleur-primaire);
+  border-color: var(--couleur-primaire);
+  color: var(--couleur-texte-inverse);
+}
+
+.bouton--primaire:hover:not(:disabled) {
+  background-color: var(--couleur-primaire-sombre);
+  border-color: var(--couleur-primaire-sombre);
+}
+
+.bouton--secondaire {
+  background-color: var(--couleur-surface);
+  border-color: var(--couleur-bordure);
+  color: var(--couleur-primaire);
+}
+
+.bouton--secondaire:hover:not(:disabled) {
+  border-color: var(--couleur-primaire);
+}
+
+.bouton--discret {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--couleur-primaire);
+  padding: 0 var(--espace-3);
+}
+
+.bouton--discret:hover:not(:disabled) {
+  background-color: var(--couleur-primaire-clair);
+}
+
+.bouton--danger {
+  background-color: var(--couleur-erreur);
+  border-color: var(--couleur-erreur);
+  color: var(--couleur-texte-inverse);
+}
+
+.bouton--danger:hover:not(:disabled) {
+  background-color: var(--couleur-erreur-sombre);
+  border-color: var(--couleur-erreur-sombre);
+}
+
+.bouton--large {
+  width: 100%;
+}
+
+.bouton--compact {
+  min-height: 36px;
+  padding: 0 var(--espace-3);
+  font-size: var(--taille-sm);
+}
+
+/* --- Formulaires --- */
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+  margin-bottom: var(--espace-4);
+}
+
+.champ__libelle {
+  font-size: var(--taille-sm);
+  font-weight: 600;
+}
+
+.champ__obligatoire {
+  color: var(--couleur-texte-secondaire);
+  font-weight: 400;
+}
+
+.champ__saisie {
+  width: 100%;
+  min-height: 40px;
+  padding: var(--espace-2) var(--espace-3);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
+  background-color: var(--couleur-surface);
+  color: var(--couleur-texte);
+  font-family: inherit;
+  font-size: var(--taille-md);
+  line-height: 1.4;
+}
+
+.champ__saisie:focus-visible {
+  border-color: var(--couleur-primaire);
+  outline: 2px solid var(--couleur-primaire);
+  outline-offset: 1px;
+}
+
+.champ__saisie[aria-invalid="true"] {
+  border-color: var(--couleur-erreur);
+}
+
+.champ__saisie:disabled {
+  background-color: var(--couleur-fond);
+  color: var(--couleur-texte-secondaire);
+  cursor: not-allowed;
+}
+
+textarea.champ__saisie {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.champ__aide {
+  font-size: var(--taille-sm);
+  color: var(--couleur-texte-secondaire);
+}
+
+.champ__erreur {
+  font-size: var(--taille-sm);
+  color: var(--couleur-erreur);
+}
+
+/* --- Messages --- */
+.message {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-bordure);
+  border-left-width: 3px;
+  border-radius: var(--rayon-md);
+  font-size: var(--taille-sm);
+  line-height: 1.5;
+}
+
+.message__icone {
+  flex: none;
+}
+
+.message--succes {
+  background-color: var(--couleur-succes-clair);
+  border-left-color: var(--couleur-succes);
+}
+
+.message--succes .message__icone {
+  color: var(--couleur-succes);
+}
+
+.message--erreur {
+  background-color: var(--couleur-erreur-clair);
+  border-left-color: var(--couleur-erreur);
+}
+
+.message--erreur .message__icone {
+  color: var(--couleur-erreur);
+}
+
+.message--info {
+  background-color: var(--couleur-info-clair);
+  border-left-color: var(--couleur-info);
+}
+
+.message--info .message__icone {
+  color: var(--couleur-info);
+}
+
+.message--avertissement {
+  background-color: var(--couleur-avertissement-clair);
+  border-left-color: var(--couleur-avertissement);
+}
+
+.message--avertissement .message__icone {
+  color: var(--couleur-avertissement);
+}
+
+/* --- Cartes --- */
+.carte {
+  background-color: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-lg);
+  padding: var(--espace-5);
+}
+
+.carte__titre {
+  margin: 0 0 var(--espace-3);
+  font-size: var(--taille-lg);
+  font-weight: 600;
+}
+
+/* --- Tableaux --- */
+.tableau {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--taille-sm);
+}
+
+.tableau th {
+  padding: var(--espace-2) var(--espace-3);
+  border-bottom: 1px solid var(--couleur-bordure);
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.tableau td {
+  padding: var(--espace-3);
+  border-bottom: 1px solid var(--couleur-bordure);
+}
+
+.tableau .nombre {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Badges --- */
+.badge {
+  display: inline-block;
+  padding: 2px var(--espace-2);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-sm);
+  background-color: var(--couleur-surface);
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge--succes {
+  background-color: var(--couleur-succes-clair);
+  border-color: var(--couleur-succes);
+  color: var(--couleur-succes);
+}
+
+.badge--erreur {
+  background-color: var(--couleur-erreur-clair);
+  border-color: var(--couleur-erreur);
+  color: var(--couleur-erreur);
+}
+
+.badge--info {
+  background-color: var(--couleur-info-clair);
+  border-color: var(--couleur-info);
+  color: var(--couleur-info);
+}
+
+/* --- États d'interface (idle, chargement, succès, vide, erreur) --- */
+.etat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espace-2);
+  padding: var(--espace-5);
+  border: 1px dashed var(--couleur-bordure);
+  border-radius: var(--rayon-lg);
+  background-color: var(--couleur-surface);
+}
+
+.etat__titre {
+  margin: 0;
+  font-size: var(--taille-lg);
+  font-weight: 600;
+}
+
+.etat__texte {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+}

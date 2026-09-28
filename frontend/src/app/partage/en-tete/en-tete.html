@@ -1,0 +1,67 @@
+<header class="entete">
+  <div class="conteneur entete__contenu">
+    <a class="entete__marque" routerLink="/">
+      <img
+        class="entete__logo"
+        src="logo-sunu-recolte.svg"
+        alt=""
+        width="28"
+        height="28"
+      />
+      <span>SunuRecolte</span>
+    </a>
+
+    <nav class="entete__navigation" aria-label="Navigation principale">
+      @if (session(); as utilisateur) {
+        <a
+          class="entete__lien"
+          routerLink="/tableau-de-bord"
+          routerLinkActive="entete__lien--actif"
+          ariaCurrentWhenActive="page"
+        >
+          Tableau de bord
+        </a>
+        <a
+          class="entete__lien"
+          [routerLink]="lienEspace()"
+          routerLinkActive="entete__lien--actif"
+          ariaCurrentWhenActive="page"
+        >
+          {{ libelleEspace() }}
+        </a>
+        <span class="entete__identite">
+          {{ utilisateur.prenom }} {{ utilisateur.nom }}
+          <span class="badge">{{ libelleRole() }}</span>
+        </span>
+        <button
+          type="button"
+          class="bouton bouton--discret bouton--compact"
+          (click)="seDeconnecter()"
+        >
+          Se déconnecter
+        </button>
+      } @else {
+        <a
+          class="entete__lien"
+          routerLink="/"
+          routerLinkActive="entete__lien--actif"
+          [routerLinkActiveOptions]="{ exact: true }"
+          ariaCurrentWhenActive="page"
+        >
+          Accueil
+        </a>
+        <a
+          class="entete__lien"
+          routerLink="/connexion"
+          routerLinkActive="entete__lien--actif"
+          ariaCurrentWhenActive="page"
+        >
+          Connexion
+        </a>
+        <a class="bouton bouton--primaire bouton--compact" routerLink="/inscription">
+          Créer un compte
+        </a>
+      }
+    </nav>
+  </div>
+</header>

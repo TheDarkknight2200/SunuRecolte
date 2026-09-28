@@ -1,0 +1,58 @@
+// Design tokens SunuRecolte — voir FRONTEND_DESIGN.md §5 et §8.
+// Seuls les tokens documentés sont définis ici ; tout nouveau token doit d'abord
+// être ajouté à FRONTEND_DESIGN.md, puis implémenté ici.
+
+:root {
+  /* Couleurs de la palette */
+  --couleur-primaire: #2f5d3a;
+  --couleur-primaire-sombre: #24482d;
+  --couleur-primaire-clair: #e8efe8;
+  --couleur-accent: #a4652f;
+  --couleur-fond: #f7f6f2;
+  --couleur-surface: #ffffff;
+  --couleur-texte: #1e2420;
+  --couleur-texte-secondaire: #5a6159;
+  --couleur-texte-inverse: #ffffff;
+  --couleur-bordure: #ddd9d0;
+  --couleur-succes: #1f7a46;
+  --couleur-avertissement: #8a6512;
+  --couleur-erreur: #b3261e;
+  --couleur-erreur-sombre: #8f1e17;
+  --couleur-info: #29527a;
+
+  /* Fonds très clairs des messages et badges (dérivés des couleurs ci-dessus) */
+  --couleur-succes-clair: #e7f2ea;
+  --couleur-avertissement-clair: #f7f0e2;
+  --couleur-erreur-clair: #fbeae9;
+  --couleur-info-clair: #e9eff5;
+
+  /* Typographie */
+  --police-texte: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --taille-xs: 0.75rem;
+  --taille-sm: 0.875rem;
+  --taille-md: 1rem;
+  --taille-lg: 1.125rem;
+  --taille-xl: 1.375rem;
+  --taille-2xl: 1.75rem;
+  --taille-3xl: 2.25rem;
+
+  /* Espacements */
+  --espace-1: 4px;
+  --espace-2: 8px;
+  --espace-3: 12px;
+  --espace-4: 16px;
+  --espace-5: 24px;
+  --espace-6: 32px;
+  --espace-7: 48px;
+  --espace-8: 64px;
+
+  /* Rayons et ombre */
+  --rayon-sm: 4px;
+  --rayon-md: 6px;
+  --rayon-lg: 8px;
+  --ombre-surface: 0 1px 2px rgba(30, 36, 32, 0.08);
+
+  /* Mise en page */
+  --largeur-contenu: 1140px;
+  --duree-transition: 150ms;
+}

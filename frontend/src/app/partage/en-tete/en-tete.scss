@@ -1,0 +1,68 @@
+@use "points-rupture" as pr;
+
+.entete {
+  background-color: var(--couleur-surface);
+  border-bottom: 1px solid var(--couleur-bordure);
+}
+
+.entete__contenu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3) var(--espace-4);
+  min-height: 64px;
+  padding-top: var(--espace-2);
+  padding-bottom: var(--espace-2);
+}
+
+.entete__marque {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  color: var(--couleur-texte);
+  font-size: var(--taille-lg);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.entete__logo {
+  display: block;
+  flex: none;
+}
+
+.entete__navigation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-2) var(--espace-4);
+}
+
+.entete__lien {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.entete__lien:hover {
+  color: var(--couleur-primaire);
+}
+
+.entete__lien--actif {
+  color: var(--couleur-primaire);
+}
+
+.entete__identite {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}
+
+@media (min-width: pr.$point-mobile) {
+  .entete__navigation {
+    flex-wrap: nowrap;
+  }
+}
