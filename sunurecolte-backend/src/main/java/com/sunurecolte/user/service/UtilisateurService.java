@@ -1,0 +1,38 @@
+package com.sunurecolte.user.service;
+
+import com.sunurecolte.exception.ResourceNotFoundException;
+import com.sunurecolte.user.dto.UtilisateurResponse;
+import com.sunurecolte.user.entity.Utilisateur;
+import com.sunurecolte.user.repository.UtilisateurRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Consultation des comptes utilisateurs (le mot de passe n'est jamais exposé).
+ */
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class UtilisateurService {
+
+    private final UtilisateurRepository utilisateurRepository;
+
+    public UtilisateurResponse findById(Long id) {
+        Utilisateur utilisateur = utilisateurRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", id));
+        return versResponse(utilisateur);
+    }
+
+    static UtilisateurResponse versResponse(Utilisateur utilisateur) {
+        return new UtilisateurResponse(
+                utilisateur.getId(),
+                utilisateur.getNom(),
+                utilisateur.getPrenom(),
+                utilisateur.getEmail(),
+                utilisateur.getTelephone(),
+                utilisateur.getRole(),
+                utilisateur.getDateCreation(),
+                utilisateur.isActif());
+    }
+}

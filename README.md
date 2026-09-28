@@ -94,8 +94,9 @@ de `src/main/resources/db/migration/`, puis Hibernate **vérifie** la correspond
 (`ddl-auto=validate`) sans jamais modifier le schéma. Toute évolution du schéma passe donc par une nouvelle
 migration versionnée (`V2__...`).
 
-> Tant que la configuration de sécurité JWT n'est pas implémentée (phase authentification), Spring Security
-> protège toutes les routes avec un mot de passe généré, affiché dans les logs au démarrage.
+> **Sécurité provisoire (Phase 2)** : tant que l'authentification JWT n'est pas implémentée (Phase 3),
+> la configuration de sécurité autorise toutes les requêtes (`permitAll`). Aucune route n'est donc protégée
+> à ce stade : c'est un état de développement volontaire, pas une configuration de production.
 
 ### 4. Lancer les tests
 
@@ -112,5 +113,41 @@ annulées automatiquement (rollback).
 
 Application démarrée :
 
-- Interface Swagger UI : `http://localhost:8080/swagger-ui.html`
-- Spécification OpenAPI JSON : `http://localhost:8080/api-docs`
+- Interface Swagger UI : `http://localhost:8080/swagger-ui.html` (ou `http://localhost:8080/swagger-ui/index.html`)
+- Spécification OpenAPI JSON : `http://localhost:8080/v3/api-docs`
+
+### 6. Principales routes de l'API
+
+Toutes les routes sont exposées sous `http://localhost:8080`. L'organisation suit le flux
+`Controller → Service → Repository` ; la logique métier (stock, calculs, transitions de statut) est
+appliquée côté serveur.
+
+| Domaine | Méthode et route | Rôle |
+| --- | --- | --- |
+| Récoltes | `GET /api/recoltes` | Liste, filtres optionnels `statut`, `filiere`, `recherche` |
+| Récoltes | `GET /api/recoltes/{id}` | Détail d'une récolte |
+| Récoltes | `POST /api/recoltes` | Création (producteur existant obligatoire) |
+| Récoltes | `PUT /api/recoltes/{id}` | Modification |
+| Récoltes | `DELETE /api/recoltes/{id}` | Suppression (refusée si la récolte est commandée) |
+| Commandes | `GET /api/commandes` | Liste, filtre optionnel `acheteurId` |
+| Commandes | `GET /api/commandes/{id}` | Détail avec ses lignes |
+| Commandes | `POST /api/commandes` | Création : total calculé serveur, stock décrémenté et contrôlé |
+| Commandes | `PATCH /api/commandes/{id}/statut` | Changement de statut (transitions contrôlées) |
+| Paiements | `GET /api/paiements/{id}` | Détail d'un paiement |
+| Paiements | `GET /api/paiements/commande/{commandeId}` | Paiement d'une commande |
+| Paiements | `POST /api/paiements` | Paiement **simulé** (WAVE / ORANGE_MONEY, aucune transaction réelle) |
+| Notifications | `GET /api/notifications` | Liste, filtre optionnel `utilisateurId` |
+| Notifications | `GET /api/notifications/{id}` | Détail |
+| Notifications | `PUT /api/notifications/{id}/lue` | Marquer comme lue |
+| Prix du marché | `GET /api/prix-marche` | Liste des prix indicatifs |
+| Prix du marché | `GET /api/prix-marche/{id}` | Détail |
+| Profils | `GET /api/utilisateurs/{id}` | Compte utilisateur (sans mot de passe) |
+| Profils | `GET /api/producteurs/{id}` · `PUT /api/producteurs/{id}` | Profil producteur |
+| Profils | `GET /api/acheteurs/{id}` | Profil acheteur |
+
+En cas d'erreur, l'API renvoie un JSON du type `{"statut": 404, "message": "...", "timestamp": "..."}`
+(ou `erreurs` par champ en cas d'échec de validation), sans jamais exposer de détails internes.
+
+> Le paiement est une **simulation** pour le MVP : aucune transaction réelle n'est effectuée et aucune
+> intégration Wave / Orange Money n'existe à ce stade.
+

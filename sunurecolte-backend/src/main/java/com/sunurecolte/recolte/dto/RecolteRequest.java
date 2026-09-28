@@ -12,6 +12,9 @@ import java.time.LocalDate;
  */
 public record RecolteRequest(
 
+        @NotNull(message = "L'identifiant du producteur est obligatoire")
+        Long producteurId,
+
         @NotBlank(message = "Le produit est obligatoire")
         @Size(max = 150, message = "Le produit ne peut pas dépasser 150 caractères")
         String produit,

@@ -14,6 +14,9 @@ import java.util.List;
  */
 public record CommandeRequest(
 
+        @NotNull(message = "L'identifiant de l'acheteur est obligatoire")
+        Long acheteurId,
+
         @NotNull(message = "Le mode de réception est obligatoire")
         ModeReception modeReception,
 

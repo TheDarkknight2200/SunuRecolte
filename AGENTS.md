@@ -33,6 +33,18 @@ Autres documents utiles :
   `sunurecolte-backend/src/main/resources/db/migration/` — jamais par `ddl-auto` autre que `validate`.
 - Ne jamais supprimer ou renommer un élément existant sans vérifier ses usages.
 
+## Règles de la couche API (Phase 2)
+
+- Les controllers ne manipulent **que des DTO** (`record`), jamais les entités JPA : ils reçoivent la requête,
+  appellent le service, renvoient la réponse. Aucune règle métier et aucun accès repository dans un controller.
+- `spring.jpa.open-in-view=false` : le chargement paresseux est résolu dans les services `@Transactional`,
+  où les entités sont converties en DTO. Ne jamais renvoyer une entité hors d'une transaction.
+- Erreurs métier : `BusinessException` (400), `ResourceNotFoundException` (404), `ForbiddenException` (403),
+  traduites par `GlobalExceptionHandler` en JSON `{"statut", "message", "timestamp"}` ; les erreurs de
+  validation ajoutent un objet `erreurs` par champ. Ne pas créer une exception par cas d'erreur.
+- Toute évolution d'API se répercute dans les tests d'intégration PostgreSQL réels
+  (`src/test/java/com/sunurecolte/api/`) et dans le tableau des routes du `README.md`.
+
 ## Sécurité (non négociable)
 
 - Aucun secret dans Git : mot de passe PostgreSQL et clé JWT restent dans
@@ -42,6 +54,15 @@ Autres documents utiles :
 - Une inscription publique ne peut créer que `PRODUCTEUR` ou `ACHETEUR` : `ADMIN` est impossible
   par construction (enum `RoleInscription`), et non par une simple validation.
 - Ne jamais exposer les détails internes d'une exception dans une réponse HTTP ; les journaliser côté serveur.
+- **État provisoire (Phase 2)** : `SecurityConfig` autorise actuellement toutes les requêtes (`permitAll`),
+  CSRF désactivé, sessions `STATELESS`, sans JWT — c'est volontaire et temporaire jusqu'à la phase
+  authentification. Ne pas en déduire que l'API est protégée : aucune route ne vérifie l'identité ni la
+  propriété d'une ressource. Le contrôle de propriétaire (un producteur ne modifie que ses récoltes, un
+  acheteur ne voit que ses commandes) fait partie des phases suivantes, pas de la Phase 2.
+- Les montants et quantités ne sont **jamais** acceptés depuis le client : `total`, `sousTotal`,
+  `prixUnitaire` et le décrément de stock sont calculés ou vérifiés côté serveur (voir `CommandeService`).
+- Le paiement est **simulé** (référence `SIMU-...`) : aucune transaction réelle Wave / Orange Money
+  n'est effectuée, et il est interdit de le laisser croire dans le code, les logs ou les documents.
 
 ## Contrainte frontend (phases Angular)
 
@@ -63,13 +84,16 @@ SunuRecolte/
         ├── paiement/               # Paiement
         ├── notification/           # Notification
         ├── prixmarche/             # PrixMarche
-        └── exception/              # exceptions métier + gestion centralisée des erreurs
-        # config/ et security/ : à créer lors des phases suivantes
+        ├── exception/              # exceptions métier + gestion centralisée des erreurs
+        ├── config/                 # OpenApiConfig
+        └── security/               # SecurityConfig (provisoire, voir ci-dessous)
     └── src/main/resources/
         ├── application.properties          # configuration versionnée
         ├── application-local.properties    # secrets locaux, hors Git
         └── db/migration/                   # migrations Flyway versionnées
 ```
+
+Chaque domaine backend suit la même organisation : `controller/`, `service/`, `repository/`, `entity/`, `dto/`.
 
 ## Commandes utiles
 

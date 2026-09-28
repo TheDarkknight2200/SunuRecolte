@@ -8,4 +8,6 @@ import java.util.List;
 public interface CommandeRepository extends JpaRepository<Commande, Long> {
 
     List<Commande> findByAcheteurIdOrderByDateCreationDesc(Long acheteurId);
+
+    List<Commande> findAllByOrderByDateCreationDesc();
 }

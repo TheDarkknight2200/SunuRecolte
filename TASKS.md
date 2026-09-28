@@ -29,11 +29,20 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [x] Maven Wrapper (mvnw, mvnw.cmd)
 
 ## Phase 2 — API
-- [ ] DTO
-- [ ] Validation
-- [ ] @ControllerAdvice
-- [ ] Codes HTTP cohérents
-- [ ] Swagger/OpenAPI
+- [x] DTO (réutilisés ; ajout de AcheteurResponse, PaiementResponse, NotificationResponse, PrixMarcheResponse, StatutCommandeRequest)
+- [x] Validation (`@Valid` + Jakarta Bean Validation sur les DTO d'entrée)
+- [x] @ControllerAdvice (GlobalExceptionHandler : 400, 403, 404, 405, 415, 500)
+- [x] Codes HTTP cohérents (200, 201, 204, 400, 404, 405, 415)
+- [x] Swagger/OpenAPI (titre, description, version ; `/swagger-ui.html` et `/v3/api-docs`)
+- [x] API récoltes : GET liste (filtres statut, filière, recherche), GET par id, POST, PUT, DELETE
+- [x] API profils : GET utilisateur, GET/PUT producteur, GET acheteur
+- [x] API commandes : GET liste (filtre acheteur), GET par id, POST (total calculé serveur, stock contrôlé), PATCH statut
+- [x] API paiements : GET par id, GET par commande, POST (paiement simulé, aucune transaction réelle)
+- [x] API notifications : GET liste (filtre utilisateur), GET par id, PUT marquage comme lue
+- [x] API prix du marché : GET liste, GET par id
+- [x] Contrôle du stock et verrou pessimiste à la création de commande (jamais de stock négatif)
+- [x] Transitions de statut contrôlées en service (EN_ATTENTE → CONFIRMEE → PRETE → LIVREE ; ANNULEE terminale)
+- [x] Tests Phase 2 : services métier + API MockMvc (codes HTTP, contrat d'erreur, documentation OpenAPI)
 
 ## Phase 3 — Auth
 - [ ] Inscription
