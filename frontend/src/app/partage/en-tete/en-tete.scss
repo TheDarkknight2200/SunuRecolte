@@ -24,6 +24,12 @@
   font-size: var(--taille-lg);
   font-weight: 600;
   text-decoration: none;
+  flex-shrink: 0;
+
+  &:hover {
+    color: var(--couleur-primaire);
+    text-decoration: none;
+  }
 }
 
 .entete__logo {
@@ -39,26 +45,51 @@
 }
 
 .entete__lien {
+  position: relative;
   color: var(--couleur-texte-secondaire);
   font-size: var(--taille-sm);
   font-weight: 600;
   text-decoration: none;
-}
+  padding-bottom: 2px;
 
-.entete__lien:hover {
-  color: var(--couleur-primaire);
+  &:hover {
+    color: var(--couleur-primaire);
+    text-decoration: none;
+  }
 }
 
 .entete__lien--actif {
   color: var(--couleur-primaire);
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -3px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--couleur-primaire);
+    border-radius: 1px;
+  }
 }
 
+/* Identité utilisateur connecté */
 .entete__identite {
   display: inline-flex;
-  align-items: center;
-  gap: var(--espace-2);
-  color: var(--couleur-texte-secondaire);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.entete__identite-nom {
   font-size: var(--taille-sm);
+  font-weight: 600;
+  color: var(--couleur-texte);
+  line-height: 1.2;
+}
+
+.entete__identite-role {
+  /* hérite des styles .badge */
 }
 
 @media (min-width: pr.$point-mobile) {

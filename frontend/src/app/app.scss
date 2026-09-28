@@ -1,3 +1,5 @@
+@use "points-rupture" as pr;
+
 :host {
   display: flex;
   flex-direction: column;
@@ -6,5 +8,12 @@
 
 .contenu-principal {
   flex: 1;
-  padding: var(--espace-6) 0 var(--espace-7);
+  padding: var(--espace-6) var(--espace-4) var(--espace-7);
+}
+
+@media (min-width: pr.$point-tablette) {
+  .contenu-principal {
+    padding-left: var(--espace-5);
+    padding-right: var(--espace-5);
+  }
 }

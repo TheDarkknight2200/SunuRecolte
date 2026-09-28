@@ -1,27 +1,150 @@
-.accueil__presentation {
-  max-width: 46rem;
+@use "points-rupture" as pr;
+
+/* === Hero === */
+
+.hero {
+  /* Bleed horizontal pour que le fond vert couvre toute la largeur
+     malgré le padding de .contenu-principal */
+  margin-top: calc(-1 * var(--espace-6));
+  margin-left: calc(-1 * var(--espace-4));
+  margin-right: calc(-1 * var(--espace-4));
   margin-bottom: var(--espace-7);
+  padding: var(--espace-7) 0;
+  background-color: var(--couleur-primaire);
+  color: var(--couleur-texte-inverse);
+
+  @media (min-width: pr.$point-tablette) {
+    margin-left: calc(-1 * var(--espace-5));
+    margin-right: calc(-1 * var(--espace-5));
+    padding: var(--espace-8) 0;
+  }
 }
 
-.accueil__texte {
-  margin-bottom: var(--espace-5);
-  color: var(--couleur-texte-secondaire);
+.hero__contenu {
+  display: grid;
+  gap: var(--espace-6);
+
+  @media (min-width: pr.$point-tablette) {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: var(--espace-7);
+  }
+}
+
+.hero__gauche {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+}
+
+.hero__accroche {
+  margin: 0;
+  font-size: var(--taille-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.hero__titre {
+  margin: 0;
+  font-size: var(--taille-2xl);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--couleur-texte-inverse);
+
+  @media (min-width: pr.$point-tablette) {
+    font-size: var(--taille-3xl);
+  }
+}
+
+.hero__description {
+  margin: 0;
   font-size: var(--taille-lg);
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.82);
 }
 
-.accueil__actions {
+.hero__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--espace-3);
+  margin-top: var(--espace-2);
 }
 
+/* Boutons adaptés au fond vert du hero */
+.hero__btn-primaire {
+  background-color: var(--couleur-texte-inverse);
+  border: 1px solid var(--couleur-texte-inverse);
+  color: var(--couleur-primaire-sombre);
+  font-weight: 600;
+  border-radius: var(--rayon-md);
+  min-height: 40px;
+  padding: 0 var(--espace-4);
+  font-size: var(--taille-md);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: background-color var(--duree-transition) ease-out,
+              border-color var(--duree-transition) ease-out;
+
+  &:hover {
+    background-color: var(--couleur-primaire-clair);
+    border-color: var(--couleur-primaire-clair);
+    color: var(--couleur-primaire-sombre);
+  }
+}
+
+.hero__btn-secondaire {
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: var(--couleur-texte-inverse);
+  font-weight: 600;
+  border-radius: var(--rayon-md);
+  min-height: 40px;
+  padding: 0 var(--espace-4);
+  font-size: var(--taille-md);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: border-color var(--duree-transition) ease-out,
+              background-color var(--duree-transition) ease-out;
+
+  &:hover {
+    border-color: var(--couleur-texte-inverse);
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* Visuel agricole SVG */
+.hero__droite {
+  display: none;
+
+  @media (min-width: pr.$point-tablette) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+}
+
+.hero__svg {
+  width: 320px;
+  height: 213px;
+  border-radius: var(--rayon-lg);
+  flex-shrink: 0;
+}
+
+/* === Catalogue === */
+
 .accueil__catalogue h2 {
-  margin-bottom: var(--espace-4);
+  margin-bottom: var(--espace-5);
+}
+
+.accueil__erreur {
+  max-width: 36rem;
 }
 
 .accueil__liste {
-  display: grid;
-  gap: var(--espace-4);
   margin: 0;
   padding: 0;
   list-style: none;

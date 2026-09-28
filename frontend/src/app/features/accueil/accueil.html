@@ -1,85 +1,126 @@
-<section class="accueil__presentation">
-  <h1>Récoltes de la région de Dakar, en vente directe</h1>
-  <p class="accueil__texte">
-    SunuRecolte met en relation directe les producteurs agricoles et les acheteurs : les producteurs
-    publient leurs récoltes, les acheteurs les consultent et passent commande sans intermédiaire.
-  </p>
-  <div class="accueil__actions">
-    <a class="bouton bouton--primaire" routerLink="/inscription">Créer un compte</a>
-    <a class="bouton bouton--secondaire" routerLink="/connexion">Se connecter</a>
+<section class="hero">
+  <div class="conteneur hero__contenu">
+    <div class="hero__gauche">
+      <p class="hero__accroche">Plateforme agricole · Région de Dakar</p>
+      <h1 class="hero__titre">Des récoltes locales, directement des producteurs.</h1>
+      <p class="hero__description">
+        Les producteurs publient leurs récoltes, les acheteurs passent commande directement,
+        sans intermédiaire.
+      </p>
+      <div class="hero__actions">
+        <a class="bouton hero__btn-primaire" routerLink="/inscription">Créer un compte</a>
+        <a class="bouton hero__btn-secondaire" routerLink="/connexion">Se connecter</a>
+      </div>
+    </div>
+
+    <div class="hero__droite" aria-hidden="true">
+      <svg class="hero__svg" viewBox="0 0 360 240" xmlns="http://www.w3.org/2000/svg">
+        <rect width="360" height="240" rx="4" fill="#24482d"/>
+        <rect y="168" width="360" height="72" fill="#1d3a23"/>
+        <g fill="#3d7549">
+          <ellipse cx="30" cy="162" rx="13" ry="26"/>
+          <ellipse cx="75" cy="160" rx="13" ry="28"/>
+          <ellipse cx="120" cy="162" rx="13" ry="26"/>
+          <ellipse cx="165" cy="160" rx="13" ry="28"/>
+          <ellipse cx="210" cy="162" rx="13" ry="26"/>
+          <ellipse cx="255" cy="160" rx="13" ry="28"/>
+          <ellipse cx="300" cy="162" rx="13" ry="26"/>
+          <ellipse cx="340" cy="160" rx="11" ry="24"/>
+        </g>
+        <g fill="#4a9460">
+          <ellipse cx="10" cy="178" rx="11" ry="22"/>
+          <ellipse cx="52" cy="174" rx="15" ry="34"/>
+          <ellipse cx="98" cy="174" rx="15" ry="34"/>
+          <ellipse cx="144" cy="174" rx="15" ry="34"/>
+          <ellipse cx="190" cy="174" rx="15" ry="34"/>
+          <ellipse cx="236" cy="174" rx="15" ry="34"/>
+          <ellipse cx="282" cy="174" rx="15" ry="34"/>
+          <ellipse cx="328" cy="176" rx="13" ry="30"/>
+          <ellipse cx="356" cy="178" rx="9" ry="22"/>
+        </g>
+        <circle cx="290" cy="62" r="38" fill="#a4652f" opacity="0.12"/>
+        <circle cx="290" cy="62" r="23" fill="#a4652f" opacity="0.22"/>
+        <circle cx="290" cy="62" r="13" fill="#a4652f"/>
+        <circle cx="52" cy="143" r="7" fill="#a4652f" opacity="0.75"/>
+        <circle cx="98" cy="137" r="6" fill="#a4652f" opacity="0.7"/>
+        <circle cx="144" cy="141" r="8" fill="#a4652f" opacity="0.8"/>
+        <circle cx="190" cy="136" r="6" fill="#a4652f" opacity="0.7"/>
+        <circle cx="236" cy="143" r="7" fill="#a4652f" opacity="0.75"/>
+        <circle cx="282" cy="137" r="6" fill="#a4652f" opacity="0.7"/>
+        <circle cx="328" cy="143" r="7" fill="#a4652f" opacity="0.7"/>
+      </svg>
+    </div>
   </div>
 </section>
 
 <section class="accueil__catalogue" aria-labelledby="titre-catalogue">
-  <h2 id="titre-catalogue">Récoltes publiées</h2>
+  <div class="conteneur">
+    <h2 id="titre-catalogue">Récoltes publiées</h2>
 
-  @if (chargement()) {
-    <div class="etat" aria-busy="true">
-      <p class="etat__texte">Chargement…</p>
-    </div>
-  } @else if (erreur(); as message) {
-    <div class="message message--erreur" role="alert">
-      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
-      <div>
-        <p>{{ message }}</p>
-        <p>
+    @if (chargement()) {
+      <div class="etat" aria-busy="true">
+        <p class="etat__texte">Chargement…</p>
+      </div>
+    } @else if (erreur(); as message) {
+      <div class="message message--erreur accueil__erreur" role="alert">
+        <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+        <div>
+          <p>{{ message }}</p>
           <button type="button" class="bouton bouton--secondaire bouton--compact" (click)="charger()">
             Réessayer
           </button>
+        </div>
+      </div>
+    } @else if (liste().length === 0) {
+      <div class="etat">
+        <p class="etat__titre">Aucune récolte publiée pour le moment.</p>
+        <p class="etat__texte">
+          Les producteurs inscrits publient ici les récoltes qu'ils mettent en vente.
         </p>
       </div>
-    </div>
-  } @else if (liste().length === 0) {
-    <div class="etat">
-      <p class="etat__titre">Aucune récolte publiée pour le moment.</p>
-      <p class="etat__texte">
-        Les producteurs inscrits publient ici les récoltes qu'ils mettent en vente. Revenez plus tard.
-      </p>
-    </div>
-  } @else {
-    <ul class="accueil__liste grille-2">
-      @for (recolte of liste(); track recolte.id) {
-        <li class="carte accueil__carte">
-          <div class="accueil__entete-carte">
-            <h3 class="carte__titre">{{ recolte.produit }}</h3>
-            <span
-              class="badge"
-              [class.badge--succes]="recolte.statut === 'DISPONIBLE'"
-            >
-              {{ libelleStatut(recolte) }}
-            </span>
-          </div>
-
-          <p class="accueil__producteur">
-            {{ recolte.nomProducteur }} — {{ recolte.localisationProducteur }}
-          </p>
-
-          @if (recolte.description) {
-            <p class="accueil__description">{{ recolte.description }}</p>
-          }
-
-          <dl class="accueil__mesures">
-            <div>
-              <dt>Disponible</dt>
-              <dd>
-                {{ formaterMontant(recolte.quantiteDisponible) }} {{ recolte.unite }}
-              </dd>
+    } @else {
+      <ul class="accueil__liste grille-2">
+        @for (recolte of liste(); track recolte.id) {
+          <li class="carte accueil__carte">
+            <div class="accueil__entete-carte">
+              <h3 class="carte__titre">{{ recolte.produit }}</h3>
+              <span
+                class="badge"
+                [class.badge--succes]="recolte.statut === 'DISPONIBLE'"
+              >
+                {{ libelleStatut(recolte) }}
+              </span>
             </div>
-            <div>
-              <dt>Prix unitaire</dt>
-              <dd>{{ formaterMontant(recolte.prixUnitaire) }} / {{ recolte.unite }}</dd>
-            </div>
-            <div>
-              <dt>Commande minimale</dt>
-              <dd>{{ formaterMontant(recolte.quantiteMin) }} {{ recolte.unite }}</dd>
-            </div>
-          </dl>
 
-          <p class="accueil__meta">
-            Disponible à partir du {{ formaterDate(recolte.dateDisponibilite) }} — {{ recolte.localisation }}
-          </p>
-        </li>
-      }
-    </ul>
-  }
+            <p class="accueil__producteur">
+              {{ recolte.nomProducteur }} — {{ recolte.localisationProducteur }}
+            </p>
+
+            @if (recolte.description) {
+              <p class="accueil__description">{{ recolte.description }}</p>
+            }
+
+            <dl class="accueil__mesures">
+              <div>
+                <dt>Disponible</dt>
+                <dd>{{ formaterMontant(recolte.quantiteDisponible) }} {{ recolte.unite }}</dd>
+              </div>
+              <div>
+                <dt>Prix unitaire</dt>
+                <dd>{{ formaterMontant(recolte.prixUnitaire) }} / {{ recolte.unite }}</dd>
+              </div>
+              <div>
+                <dt>Commande minimale</dt>
+                <dd>{{ formaterMontant(recolte.quantiteMin) }} {{ recolte.unite }}</dd>
+              </div>
+            </dl>
+
+            <p class="accueil__meta">
+              Disponible à partir du {{ formaterDate(recolte.dateDisponibilite) }} — {{ recolte.localisation }}
+            </p>
+          </li>
+        }
+      </ul>
+    }
+  </div>
 </section>

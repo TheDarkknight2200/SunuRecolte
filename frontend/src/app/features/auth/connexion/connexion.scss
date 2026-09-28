@@ -3,6 +3,26 @@
   margin: 0 auto;
 }
 
+.auth__marque {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  color: var(--couleur-texte);
+  font-size: var(--taille-xl);
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: var(--espace-6);
+
+  &:hover {
+    color: var(--couleur-primaire);
+    text-decoration: none;
+  }
+}
+
+.auth h1 {
+  margin-bottom: var(--espace-2);
+}
+
 .auth__intro {
   margin-bottom: var(--espace-5);
   color: var(--couleur-texte-secondaire);

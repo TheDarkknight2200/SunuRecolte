@@ -441,7 +441,58 @@ Sont interdits, sans exception :
   - `403` : l'utilisateur est authentifié mais n'a pas les droits → aucun déconnexion, affichage d'un
     message d'accès refusé ; un `403` n'est jamais transformé en `401`.
 
-## 20. Faire évoluer l'interface
+## 20. Discipline des conteneurs et mise en page globale (Phase 4.1)
+
+- **`.contenu-principal`** (dans `app.scss`) est le conteneur racine du contenu routable.
+  Il a un padding **horizontal** de `--espace-4` (mobile) / `--espace-5` (≥ 768 px), ce qui garantit
+  qu'aucun contenu ne touche jamais les bords de l'écran.
+- Les pages qui ont besoin d'un fond pleine largeur (hero, bandeaux) utilisent des **marges négatives**
+  pour annuler ce padding : `margin-left: calc(-1 * var(--espace-4))` et le padding correspondant est
+  rétabli dans la section.
+- Le contenu interne de chaque section utilise `.conteneur` pour contraindre sa largeur à
+  `--largeur-contenu` (1140 px) et centrer.
+- **Pattern `.page-interieure`** : page avec un `<h1>` et un bloc `.etat` contenant un `.etat__icone`
+  (icône Material Symbols à 40 px), un titre et une description. Largeur max 32 rem. Utilisé pour les
+  pages coquilles (espace producteur, acheteur, admin) et les pages d'erreur (403, 404).
+
+## 21. Section hero (Phase 4.1)
+
+- La homepage comporte une section `.hero` avec le fond `--couleur-primaire` (vert profond) qui
+  s'étend sur toute la largeur de la zone de contenu (full-bleed via marges négatives).
+- Sur mobile (< 768 px) : mise en page monocolonne, texte uniquement.
+- Sur tablette/desktop (≥ 768 px) : mise en page bicolonne — texte à gauche, illustration SVG
+  agricole à droite (`hero__svg`, 320 × 213 px, `border-radius: --rayon-lg`).
+- L'illustration est un SVG inline en couleurs de la palette (vert profond, vert végétal, accent
+  terre), représentant un champ de récoltes stylisé. Elle est `aria-hidden="true"`.
+- Les boutons du hero sont des variantes inversées (`hero__btn-primaire` = blanc sur vert,
+  `hero__btn-secondaire` = transparent + bordure blanche) définies dans `accueil.scss` — ils ne
+  modifient pas les classes `.bouton` globales.
+- Le texte d'accroche (« Plateforme agricole · Région de Dakar ») est en `--taille-sm`, 600,
+  majuscules, opacité 65%.
+- Le titre hero utilise `--taille-2xl` (mobile) / `--taille-3xl` (≥ 768 px) pour maximiser la
+  lisibilité selon l'espace disponible.
+
+## 22. Navbar — état actif et identité utilisateur (Phase 4.1)
+
+- **État actif** : le lien actif dans la navbar a une couleur `--couleur-primaire` et un trait
+  horizontal de 2 px `border-radius: 1px` positionné 3 px sous le texte (pseudo-élément `::after`).
+  C'est un traitement discret, sans gros badge ni fond coloré.
+- **Identité connectée** : le bloc identité est un `flex-direction: column` avec le nom en
+  `.entete__identite-nom` (font-weight: 600, couleur texte principale) et le badge de rôle en
+  dessous. La hiérarchie visuelle est immédiate : nom > rôle.
+- **Bouton de déconnexion** : porte l'icône `logout` (&#xe9ba;) pour accélérer la reconnaissance
+  visuelle ; le texte « Se déconnecter » reste présent pour l'accessibilité.
+
+## 23. Pages d'authentification — branding (Phase 4.1)
+
+- Les pages `/connexion` et `/inscription` affichent un lien `.auth__marque` en tête de section,
+  avec le logo SVG à 40 px et le wordmark « SunuRecolte » en `--taille-xl`, 600.
+- Ce lien renvoie à l'accueil (`routerLink="/"`).
+- Sur les pages d'authentification, la navbar globale reste présente, mais le logo répété dans le
+  formulaire renforce le contexte de marque pour un utilisateur non connecté qui arrive directement
+  sur ces pages.
+
+## 24. Faire évoluer l'interface
 
 Pour ajouter un écran :
 

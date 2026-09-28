@@ -275,11 +275,16 @@ textarea.champ__saisie {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--espace-2);
+  gap: var(--espace-3);
   padding: var(--espace-5);
   border: 1px dashed var(--couleur-bordure);
   border-radius: var(--rayon-lg);
   background-color: var(--couleur-surface);
+}
+
+.etat__icone {
+  font-size: 40px;
+  color: var(--couleur-texte-secondaire);
 }
 
 .etat__titre {
@@ -291,4 +296,19 @@ textarea.champ__saisie {
 .etat__texte {
   margin: 0;
   color: var(--couleur-texte-secondaire);
+}
+
+/* Page intérieure : section avec titre h1 + état centré */
+.page-interieure {
+  max-width: 32rem;
+}
+
+.page-interieure__etat {
+  margin-top: var(--espace-5);
+}
+
+.page-interieure__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
 }

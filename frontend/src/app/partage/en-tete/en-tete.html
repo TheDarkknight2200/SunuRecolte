@@ -30,14 +30,15 @@
           {{ libelleEspace() }}
         </a>
         <span class="entete__identite">
-          {{ utilisateur.prenom }} {{ utilisateur.nom }}
-          <span class="badge">{{ libelleRole() }}</span>
+          <span class="entete__identite-nom">{{ utilisateur.prenom }} {{ utilisateur.nom }}</span>
+          <span class="badge entete__identite-role">{{ libelleRole() }}</span>
         </span>
         <button
           type="button"
           class="bouton bouton--discret bouton--compact"
           (click)="seDeconnecter()"
         >
+          <span class="materiel-icone" aria-hidden="true">&#xe9ba;</span>
           Se déconnecter
         </button>
       } @else {
