@@ -85,6 +85,7 @@ class RecolteApiTest extends IntegrationTestSupport {
         corps.put("prixUnitaire", "450.00");
 
         mockMvc.perform(post("/api/recoltes")
+                        .with(avecJetonDe(producteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(corps)))
                 .andExpect(status().isCreated())
@@ -96,6 +97,8 @@ class RecolteApiTest extends IntegrationTestSupport {
 
     @Test
     void creerUneRecolteAvecUnProducteurInconnuRepond404() throws Exception {
+        Producteur producteur = creerProducteur();
+
         Map<String, Object> corps = new HashMap<>();
         corps.put("producteurId", 999_999L);
         corps.put("produit", "Tomate");
@@ -104,6 +107,7 @@ class RecolteApiTest extends IntegrationTestSupport {
         corps.put("prixUnitaire", "450.00");
 
         mockMvc.perform(post("/api/recoltes")
+                        .with(avecJetonDe(producteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(corps)))
                 .andExpect(status().isNotFound())
@@ -112,6 +116,8 @@ class RecolteApiTest extends IntegrationTestSupport {
 
     @Test
     void creerUneRecolteInvalideRepond400AvecLeDetailDesChamps() throws Exception {
+        Producteur producteur = creerProducteur();
+
         Map<String, Object> corps = new HashMap<>();
         corps.put("produit", " ");
         corps.put("quantiteDisponible", "0.00");
@@ -119,6 +125,7 @@ class RecolteApiTest extends IntegrationTestSupport {
         corps.put("prixUnitaire", "-5.00");
 
         mockMvc.perform(post("/api/recoltes")
+                        .with(avecJetonDe(producteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(corps)))
                 .andExpect(status().isBadRequest())
@@ -131,7 +138,10 @@ class RecolteApiTest extends IntegrationTestSupport {
 
     @Test
     void creerUneRecolteAvecUnCorpsMalformeRepond400SansDetailInterne() throws Exception {
+        Producteur producteur = creerProducteur();
+
         mockMvc.perform(post("/api/recoltes")
+                        .with(avecJetonDe(producteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"produit\": \"Tomate\", "))
                 .andExpect(status().isBadRequest())
@@ -156,6 +166,7 @@ class RecolteApiTest extends IntegrationTestSupport {
         corps.put("prixUnitaire", "500.00");
 
         mockMvc.perform(put("/api/recoltes/{id}", recolte.getId())
+                        .with(avecJetonDe(producteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(corps)))
                 .andExpect(status().isOk())
@@ -178,6 +189,7 @@ class RecolteApiTest extends IntegrationTestSupport {
         corps.put("prixUnitaire", "450.00");
 
         mockMvc.perform(put("/api/recoltes/{id}", recolte.getId())
+                        .with(avecJetonDe(producteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(corps)))
                 .andExpect(status().isBadRequest())
@@ -189,9 +201,11 @@ class RecolteApiTest extends IntegrationTestSupport {
 
     @Test
     void supprimerUneRecolteNonCommandeeRepond204() throws Exception {
-        Recolte recolte = creerRecolte(creerProducteur(), "Tomate", "100.00", "450.00");
+        Producteur producteur = creerProducteur();
+        Recolte recolte = creerRecolte(producteur, "Tomate", "100.00", "450.00");
 
-        mockMvc.perform(delete("/api/recoltes/{id}", recolte.getId()))
+        mockMvc.perform(delete("/api/recoltes/{id}", recolte.getId())
+                        .with(avecJetonDe(producteur.getUtilisateur())))
                 .andExpect(status().isNoContent());
 
         assertThat(recolteRepository.findById(recolte.getId())).isEmpty();
@@ -200,10 +214,12 @@ class RecolteApiTest extends IntegrationTestSupport {
     @Test
     void supprimerUneRecolteUtiliseeDansUneCommandeRepond400() throws Exception {
         Acheteur acheteur = creerAcheteur();
-        Recolte recolte = creerRecolte(creerProducteur(), "Tomate", "100.00", "450.00");
+        Producteur producteur = creerProducteur();
+        Recolte recolte = creerRecolte(producteur, "Tomate", "100.00", "450.00");
         creerCommandePour(recolte, acheteur);
 
-        mockMvc.perform(delete("/api/recoltes/{id}", recolte.getId()))
+        mockMvc.perform(delete("/api/recoltes/{id}", recolte.getId())
+                        .with(avecJetonDe(producteur.getUtilisateur())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
                         .value("Cette récolte est utilisée dans une commande et ne peut pas être supprimée."));
@@ -215,21 +231,32 @@ class RecolteApiTest extends IntegrationTestSupport {
 
     @Test
     void uneUrlInconnueRepond404SansDetailInterne() throws Exception {
-        mockMvc.perform(get("/api/route-inexistante"))
+        // Authentifie pour atteindre le DispatcherServlet : une URL inconnue reste
+        // un 404 applicatif, et non un 401 de securite.
+        Producteur producteur = creerProducteur();
+
+        mockMvc.perform(get("/api/route-inexistante")
+                        .with(avecJetonDe(producteur.getUtilisateur())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Aucune ressource disponible pour cette URL."));
     }
 
     @Test
     void uneMethodeHttpNonAutoriseeRepond405() throws Exception {
-        mockMvc.perform(delete("/api/recoltes"))
+        Producteur producteur = creerProducteur();
+
+        mockMvc.perform(delete("/api/recoltes")
+                        .with(avecJetonDe(producteur.getUtilisateur())))
                 .andExpect(status().isMethodNotAllowed())
                 .andExpect(jsonPath("$.message").value("Méthode HTTP non autorisée pour cette URL."));
     }
 
     @Test
     void unTypeDeContenuNonSupporteRepond415() throws Exception {
+        Producteur producteur = creerProducteur();
+
         mockMvc.perform(post("/api/recoltes")
+                        .with(avecJetonDe(producteur.getUtilisateur()))
                         .contentType(MediaType.TEXT_PLAIN)
                         .content("produit=Tomate"))
                 .andExpect(status().isUnsupportedMediaType())

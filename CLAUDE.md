@@ -83,7 +83,7 @@ id, utilisateur_id, titre, message, lu, date_creation
 
 MVP sans WebSocket :
 - GET /api/notifications
-- PUT /api/notifications/{id}/lu
+- PUT /api/notifications/{id}/lue
 
 ### PrixMarche
 id, produit, unite, prix_moyen, marche_reference, date_mise_a_jour

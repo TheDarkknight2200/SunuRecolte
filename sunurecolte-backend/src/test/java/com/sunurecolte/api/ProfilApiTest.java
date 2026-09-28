@@ -26,7 +26,8 @@ class ProfilApiTest extends IntegrationTestSupport {
     void consulterUnUtilisateurRepond200SansMotDePasse() throws Exception {
         Utilisateur utilisateur = creerUtilisateur(Role.PRODUCTEUR);
 
-        mockMvc.perform(get("/api/utilisateurs/{id}", utilisateur.getId()))
+        mockMvc.perform(get("/api/utilisateurs/{id}", utilisateur.getId())
+                        .with(avecJetonDe(utilisateur)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(utilisateur.getId()))
                 .andExpect(jsonPath("$.nom").value("Diop"))
@@ -38,7 +39,12 @@ class ProfilApiTest extends IntegrationTestSupport {
 
     @Test
     void unUtilisateurInconnuRepond404() throws Exception {
-        mockMvc.perform(get("/api/utilisateurs/{id}", 999_999L))
+        // UtilisateurService controle l'acces avant le chargement : un non-admin
+        // recevrait 403. Le contrat 404 est donc verifie avec un jeton ADMIN.
+        Utilisateur admin = creerAdministrateur();
+
+        mockMvc.perform(get("/api/utilisateurs/{id}", 999_999L)
+                        .with(avecJetonDe(admin)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Utilisateur introuvable avec l'id : 999999"));
     }
@@ -49,7 +55,8 @@ class ProfilApiTest extends IntegrationTestSupport {
     void consulterUnProducteurRepond200() throws Exception {
         Producteur producteur = creerProducteur(Filiere.MARAICHAGE);
 
-        mockMvc.perform(get("/api/producteurs/{id}", producteur.getId()))
+        mockMvc.perform(get("/api/producteurs/{id}", producteur.getId())
+                        .with(avecJetonDe(producteur.getUtilisateur())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.utilisateurId").value(producteur.getUtilisateur().getId()))
                 .andExpect(jsonPath("$.filiere").value("MARAICHAGE"))
@@ -62,6 +69,7 @@ class ProfilApiTest extends IntegrationTestSupport {
         Producteur producteur = creerProducteur(Filiere.MARAICHAGE);
 
         mockMvc.perform(put("/api/producteurs/{id}", producteur.getId())
+                        .with(avecJetonDe(producteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"filiere": "ELEVAGE", "localisationExploitation": "Thies",
@@ -78,6 +86,7 @@ class ProfilApiTest extends IntegrationTestSupport {
         Producteur producteur = creerProducteur();
 
         mockMvc.perform(put("/api/producteurs/{id}", producteur.getId())
+                        .with(avecJetonDe(producteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"localisationExploitation\": \"Thies\"}"))
                 .andExpect(status().isBadRequest())
@@ -86,7 +95,10 @@ class ProfilApiTest extends IntegrationTestSupport {
 
     @Test
     void unProducteurInconnuRepond404() throws Exception {
-        mockMvc.perform(get("/api/producteurs/{id}", 999_999L))
+        Utilisateur admin = creerAdministrateur();
+
+        mockMvc.perform(get("/api/producteurs/{id}", 999_999L)
+                        .with(avecJetonDe(admin)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Producteur introuvable avec l'id : 999999"));
     }
@@ -97,7 +109,8 @@ class ProfilApiTest extends IntegrationTestSupport {
     void consulterUnAcheteurRepond200() throws Exception {
         Acheteur acheteur = creerAcheteur();
 
-        mockMvc.perform(get("/api/acheteurs/{id}", acheteur.getId()))
+        mockMvc.perform(get("/api/acheteurs/{id}", acheteur.getId())
+                        .with(avecJetonDe(acheteur.getUtilisateur())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.utilisateurId").value(acheteur.getUtilisateur().getId()))
                 .andExpect(jsonPath("$.typeAcheteur").value("RESTAURATEUR"))
@@ -106,7 +119,10 @@ class ProfilApiTest extends IntegrationTestSupport {
 
     @Test
     void unAcheteurInconnuRepond404() throws Exception {
-        mockMvc.perform(get("/api/acheteurs/{id}", 999_999L))
+        Utilisateur admin = creerAdministrateur();
+
+        mockMvc.perform(get("/api/acheteurs/{id}", 999_999L)
+                        .with(avecJetonDe(admin)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Acheteur introuvable avec l'id : 999999"));
     }

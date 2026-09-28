@@ -14,6 +14,7 @@ import com.sunurecolte.paiement.entity.Paiement;
 import com.sunurecolte.paiement.entity.StatutPaiement;
 import com.sunurecolte.recolte.entity.Recolte;
 import com.sunurecolte.recolte.entity.StatutRecolte;
+import com.sunurecolte.security.UtilisateurPrincipal;
 import com.sunurecolte.support.IntegrationTestSupport;
 import com.sunurecolte.user.entity.Acheteur;
 import com.sunurecolte.user.entity.Producteur;
@@ -44,12 +45,13 @@ class CommandeServiceTest extends IntegrationTestSupport {
     @Test
     void creerAvecUnAcheteurInexistantLeveUne404() {
         Recolte recolte = creerRecolte(creerProducteur(), "Tomate", "100.00", "450.00");
+        UtilisateurPrincipal admin = principalDe(creerAdministrateur());
 
         CommandeRequest request = new CommandeRequest(
                 999_999L, ModeReception.RETRAIT, null, null, null,
                 List.of(new LigneCommandeRequest(recolte.getId(), new BigDecimal("2.00"))));
 
-        assertThatThrownBy(() -> commandeService.creer(request))
+        assertThatThrownBy(() -> commandeService.creer(request, admin))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Acheteur introuvable avec l'id : 999999");
     }
@@ -62,7 +64,7 @@ class CommandeServiceTest extends IntegrationTestSupport {
                 acheteur.getId(), ModeReception.RETRAIT, null, null, null,
                 List.of(new LigneCommandeRequest(999_999L, new BigDecimal("2.00"))));
 
-        assertThatThrownBy(() -> commandeService.creer(request))
+        assertThatThrownBy(() -> commandeService.creer(request, principalDe(acheteur.getUtilisateur())))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Recolte introuvable avec l'id : 999999");
     }
@@ -80,7 +82,8 @@ class CommandeServiceTest extends IntegrationTestSupport {
                 acheteur.getId(), ModeReception.RETRAIT, null, null, null,
                 List.of(
                         new LigneCommandeRequest(tomate.getId(), new BigDecimal("2.00")),
-                        new LigneCommandeRequest(oignon.getId(), new BigDecimal("3.00")))));
+                        new LigneCommandeRequest(oignon.getId(), new BigDecimal("3.00")))),
+                principalDe(acheteur.getUtilisateur()));
 
         assertThat(response.statut()).isEqualTo(StatutCommande.EN_ATTENTE);
         assertThat(response.total()).isEqualByComparingTo("1801.00");
@@ -100,7 +103,8 @@ class CommandeServiceTest extends IntegrationTestSupport {
                 acheteur.getId(), ModeReception.RETRAIT, null, null, null,
                 List.of(
                         new LigneCommandeRequest(tomate.getId(), new BigDecimal("2.00")),
-                        new LigneCommandeRequest(tomate.getId(), new BigDecimal("3.00")))));
+                        new LigneCommandeRequest(tomate.getId(), new BigDecimal("3.00")))),
+                principalDe(acheteur.getUtilisateur()));
 
         assertThat(response.lignes()).hasSize(1);
         assertThat(response.lignes().get(0).quantite()).isEqualByComparingTo("5.00");
@@ -112,11 +116,13 @@ class CommandeServiceTest extends IntegrationTestSupport {
     @Test
     void creerDecrementeLeStockEtMarqueLaRecolteEpuisee() {
         Acheteur acheteur = creerAcheteur();
+        UtilisateurPrincipal principal = principalDe(acheteur.getUtilisateur());
         Recolte tomate = creerRecolte(creerProducteur(), "Tomate", "100.00", "500.00");
 
         commandeService.creer(new CommandeRequest(
                 acheteur.getId(), ModeReception.RETRAIT, null, null, null,
-                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("30.00")))));
+                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("30.00")))),
+                principal);
 
         Recolte rechargee = recolteRepository.findById(tomate.getId()).orElseThrow();
         assertThat(rechargee.getQuantiteDisponible()).isEqualByComparingTo("70.00");
@@ -124,7 +130,8 @@ class CommandeServiceTest extends IntegrationTestSupport {
 
         commandeService.creer(new CommandeRequest(
                 acheteur.getId(), ModeReception.RETRAIT, null, null, null,
-                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("70.00")))));
+                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("70.00")))),
+                principal);
 
         Recolte vide = recolteRepository.findById(tomate.getId()).orElseThrow();
         assertThat(vide.getQuantiteDisponible()).isEqualByComparingTo("0.00");
@@ -141,7 +148,7 @@ class CommandeServiceTest extends IntegrationTestSupport {
                 acheteur.getId(), ModeReception.RETRAIT, null, null, null,
                 List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("11.00"))));
 
-        assertThatThrownBy(() -> commandeService.creer(request))
+        assertThatThrownBy(() -> commandeService.creer(request, principalDe(acheteur.getUtilisateur())))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Stock insuffisant pour « Tomate » : disponible 10.00, demandé 11.00.");
 
@@ -162,7 +169,7 @@ class CommandeServiceTest extends IntegrationTestSupport {
                 acheteur.getId(), ModeReception.RETRAIT, null, null, null,
                 List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("1.00"))));
 
-        assertThatThrownBy(() -> commandeService.creer(request))
+        assertThatThrownBy(() -> commandeService.creer(request, principalDe(acheteur.getUtilisateur())))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("La récolte « Tomate » n'est pas disponible.");
     }
@@ -176,7 +183,7 @@ class CommandeServiceTest extends IntegrationTestSupport {
                 acheteur.getId(), ModeReception.LIVRAISON, " ", null, null,
                 List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("1.00"))));
 
-        assertThatThrownBy(() -> commandeService.creer(request))
+        assertThatThrownBy(() -> commandeService.creer(request, principalDe(acheteur.getUtilisateur())))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Une livraison exige une adresse et un numéro de téléphone de livraison.");
     }
@@ -186,16 +193,18 @@ class CommandeServiceTest extends IntegrationTestSupport {
     @Test
     void creerConserveLePrixHistoriqueDeLaRecolte() {
         Acheteur acheteur = creerAcheteur();
+        UtilisateurPrincipal principal = principalDe(acheteur.getUtilisateur());
         Recolte tomate = creerRecolte(creerProducteur(), "Tomate", "50.00", "500.00");
 
         CommandeResponse commande = commandeService.creer(new CommandeRequest(
                 acheteur.getId(), ModeReception.RETRAIT, null, null, null,
-                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("2.00")))));
+                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("2.00")))),
+                principal);
 
         tomate.setPrixUnitaire(new BigDecimal("900.00"));
         recolteRepository.save(tomate);
 
-        CommandeResponse relue = commandeService.findById(commande.id());
+        CommandeResponse relue = commandeService.findById(commande.id(), principal);
         assertThat(relue.lignes().get(0).prixUnitaire()).isEqualByComparingTo("500.00");
         assertThat(relue.total()).isEqualByComparingTo("1000.00");
     }
@@ -208,7 +217,8 @@ class CommandeServiceTest extends IntegrationTestSupport {
 
         CommandeResponse response = commandeService.creer(new CommandeRequest(
                 acheteur.getId(), ModeReception.RETRAIT, null, null, null,
-                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("2.00")))));
+                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("2.00")))),
+                principalDe(acheteur.getUtilisateur()));
 
         List<Notification> notifications = notificationRepository
                 .findByUtilisateurIdOrderByDateCreationDesc(producteur.getUtilisateur().getId());
@@ -225,13 +235,16 @@ class CommandeServiceTest extends IntegrationTestSupport {
     @Test
     void changerStatutAppliqueUneTransitionValideEtNotifieLAcheteur() {
         Acheteur acheteur = creerAcheteur();
-        Recolte tomate = creerRecolte(creerProducteur(), "Tomate", "50.00", "500.00");
+        Producteur producteur = creerProducteur();
+        UtilisateurPrincipal principalProducteur = principalDe(producteur.getUtilisateur());
+        Recolte tomate = creerRecolte(producteur, "Tomate", "50.00", "500.00");
         CommandeResponse commande = commandeService.creer(new CommandeRequest(
                 acheteur.getId(), ModeReception.RETRAIT, null, null, null,
-                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("2.00")))));
+                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("2.00")))),
+                principalDe(acheteur.getUtilisateur()));
 
         CommandeResponse confirmee = commandeService.changerStatut(
-                commande.id(), new StatutCommandeRequest(StatutCommande.CONFIRMEE));
+                commande.id(), new StatutCommandeRequest(StatutCommande.CONFIRMEE), principalProducteur);
         assertThat(confirmee.statut()).isEqualTo(StatutCommande.CONFIRMEE);
 
         List<Notification> notifications = notificationRepository
@@ -243,22 +256,25 @@ class CommandeServiceTest extends IntegrationTestSupport {
     @Test
     void changerStatutRefuseUneTransitionInterdite() {
         Acheteur acheteur = creerAcheteur();
-        Recolte tomate = creerRecolte(creerProducteur(), "Tomate", "50.00", "500.00");
+        Producteur producteur = creerProducteur();
+        UtilisateurPrincipal principal = principalDe(producteur.getUtilisateur());
+        Recolte tomate = creerRecolte(producteur, "Tomate", "50.00", "500.00");
         CommandeResponse commande = commandeService.creer(new CommandeRequest(
                 acheteur.getId(), ModeReception.RETRAIT, null, null, null,
-                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("2.00")))));
+                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("2.00")))),
+                principalDe(acheteur.getUtilisateur()));
 
-        commandeService.changerStatut(commande.id(), new StatutCommandeRequest(StatutCommande.CONFIRMEE));
-        commandeService.changerStatut(commande.id(), new StatutCommandeRequest(StatutCommande.PRETE));
-        commandeService.changerStatut(commande.id(), new StatutCommandeRequest(StatutCommande.LIVREE));
+        commandeService.changerStatut(commande.id(), new StatutCommandeRequest(StatutCommande.CONFIRMEE), principal);
+        commandeService.changerStatut(commande.id(), new StatutCommandeRequest(StatutCommande.PRETE), principal);
+        commandeService.changerStatut(commande.id(), new StatutCommandeRequest(StatutCommande.LIVREE), principal);
 
         assertThatThrownBy(() -> commandeService.changerStatut(
-                commande.id(), new StatutCommandeRequest(StatutCommande.EN_ATTENTE)))
+                commande.id(), new StatutCommandeRequest(StatutCommande.EN_ATTENTE), principal))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Transition de statut interdite : LIVREE vers EN_ATTENTE.");
 
         assertThatThrownBy(() -> commandeService.changerStatut(
-                commande.id(), new StatutCommandeRequest(StatutCommande.CONFIRMEE)))
+                commande.id(), new StatutCommandeRequest(StatutCommande.CONFIRMEE), principal))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Transition de statut interdite : LIVREE vers CONFIRMEE.");
     }
@@ -266,13 +282,16 @@ class CommandeServiceTest extends IntegrationTestSupport {
     @Test
     void changerStatutAvecLeMemeStatutEstRefuse() {
         Acheteur acheteur = creerAcheteur();
-        Recolte tomate = creerRecolte(creerProducteur(), "Tomate", "50.00", "500.00");
+        Producteur producteur = creerProducteur();
+        UtilisateurPrincipal principal = principalDe(producteur.getUtilisateur());
+        Recolte tomate = creerRecolte(producteur, "Tomate", "50.00", "500.00");
         CommandeResponse commande = commandeService.creer(new CommandeRequest(
                 acheteur.getId(), ModeReception.RETRAIT, null, null, null,
-                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("2.00")))));
+                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("2.00")))),
+                principalDe(acheteur.getUtilisateur()));
 
         assertThatThrownBy(() -> commandeService.changerStatut(
-                commande.id(), new StatutCommandeRequest(StatutCommande.EN_ATTENTE)))
+                commande.id(), new StatutCommandeRequest(StatutCommande.EN_ATTENTE), principal))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("La commande est déjà au statut EN_ATTENTE.");
     }
@@ -282,10 +301,12 @@ class CommandeServiceTest extends IntegrationTestSupport {
     @Test
     void annulerRestaureLeStockEtAnnuleLePaiementEnAttente() {
         Acheteur acheteur = creerAcheteur();
+        UtilisateurPrincipal principal = principalDe(acheteur.getUtilisateur());
         Recolte tomate = creerRecolte(creerProducteur(), "Tomate", "50.00", "500.00");
         CommandeResponse commande = commandeService.creer(new CommandeRequest(
                 acheteur.getId(), ModeReception.RETRAIT, null, null, null,
-                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("50.00")))));
+                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("50.00")))),
+                principal);
 
         assertThat(recolteRepository.findById(tomate.getId()).orElseThrow().getStatut())
                 .isEqualTo(StatutRecolte.EPUISEE);
@@ -298,7 +319,7 @@ class CommandeServiceTest extends IntegrationTestSupport {
         paiementRepository.save(paiement);
 
         CommandeResponse annulee = commandeService.changerStatut(
-                commande.id(), new StatutCommandeRequest(StatutCommande.ANNULEE));
+                commande.id(), new StatutCommandeRequest(StatutCommande.ANNULEE), principal);
 
         assertThat(annulee.statut()).isEqualTo(StatutCommande.ANNULEE);
         Recolte restauree = recolteRepository.findById(tomate.getId()).orElseThrow();
@@ -312,7 +333,9 @@ class CommandeServiceTest extends IntegrationTestSupport {
 
     @Test
     void consulterUneCommandeInconnueLeveUne404() {
-        assertThatThrownBy(() -> commandeService.findById(999_999L))
+        UtilisateurPrincipal admin = principalDe(creerAdministrateur());
+
+        assertThatThrownBy(() -> commandeService.findById(999_999L, admin))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Commande introuvable avec l'id : 999999");
     }
@@ -325,13 +348,16 @@ class CommandeServiceTest extends IntegrationTestSupport {
 
         commandeService.creer(new CommandeRequest(
                 premier.getId(), ModeReception.RETRAIT, null, null, null,
-                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("1.00")))));
+                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("1.00")))),
+                principalDe(premier.getUtilisateur()));
         commandeService.creer(new CommandeRequest(
                 second.getId(), ModeReception.RETRAIT, null, null, null,
-                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("1.00")))));
+                List.of(new LigneCommandeRequest(tomate.getId(), new BigDecimal("1.00")))),
+                principalDe(second.getUtilisateur()));
 
-        assertThat(commandeService.rechercher(premier.getId())).hasSize(1);
-        assertThat(commandeService.rechercher(premier.getId()).get(0).acheteurId())
-                .isEqualTo(premier.getId());
+        List<CommandeResponse> commandes = commandeService.rechercher(
+                premier.getId(), principalDe(premier.getUtilisateur()));
+        assertThat(commandes).hasSize(1);
+        assertThat(commandes.get(0).acheteurId()).isEqualTo(premier.getId());
     }
 }

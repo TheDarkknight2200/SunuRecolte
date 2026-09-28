@@ -18,10 +18,14 @@ import com.sunurecolte.paiement.repository.PaiementRepository;
 import com.sunurecolte.recolte.entity.Recolte;
 import com.sunurecolte.recolte.entity.StatutRecolte;
 import com.sunurecolte.recolte.repository.RecolteRepository;
+import com.sunurecolte.security.ControleAcces;
+import com.sunurecolte.security.UtilisateurPrincipal;
 import com.sunurecolte.user.entity.Acheteur;
 import com.sunurecolte.user.entity.Producteur;
+import com.sunurecolte.user.entity.Role;
 import com.sunurecolte.user.entity.Utilisateur;
 import com.sunurecolte.user.repository.AcheteurRepository;
+import com.sunurecolte.user.repository.ProducteurRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +52,15 @@ import java.util.TreeMap;
  *   EN_ATTENTE → {CONFIRMEE, ANNULEE} ; CONFIRMEE → {PRETE, ANNULEE} ;
  *   PRETE → {LIVREE} ; LIVREE et ANNULEE sont terminaux ;
  * - l'annulation restaure le stock et annule un paiement encore en attente.
+ *
+ * Règles d'accès (Phase 3) :
+ * - une commande n'est visible que par l'acheteur propriétaire, les producteurs
+ *   concernés par au moins une ligne, et l'administrateur (403 sinon) ;
+ * - seul l'acheteur propriétaire peut créer une commande (l'administrateur peut
+ *   le faire pour lui) ;
+ * - le cycle de vie (CONFIRMEE, PRETE, LIVREE) est piloté par un producteur
+ *   concerné ou l'administrateur ; l'annulation est ouverte à l'acheteur
+ *   propriétaire comme au producteur concerné.
  */
 @Service
 @RequiredArgsConstructor
@@ -63,25 +76,33 @@ public class CommandeService {
 
     private final CommandeRepository commandeRepository;
     private final AcheteurRepository acheteurRepository;
+    private final ProducteurRepository producteurRepository;
     private final RecolteRepository recolteRepository;
     private final PaiementRepository paiementRepository;
     private final NotificationService notificationService;
 
-    public List<CommandeResponse> rechercher(Long acheteurId) {
-        List<Commande> commandes = (acheteurId == null)
-                ? commandeRepository.findAllByOrderByDateCreationDesc()
-                : commandeRepository.findByAcheteurIdOrderByDateCreationDesc(acheteurId);
+    public List<CommandeResponse> rechercher(Long acheteurId, UtilisateurPrincipal principal) {
+        List<Commande> commandes = switch (principal.getRole()) {
+            case ADMIN -> (acheteurId == null)
+                    ? commandeRepository.findAllByOrderByDateCreationDesc()
+                    : commandeRepository.findByAcheteurIdOrderByDateCreationDesc(acheteurId);
+            case ACHETEUR -> commandesDeLAcheteur(acheteurId, principal);
+            case PRODUCTEUR -> commandesDuProducteur(acheteurId, principal);
+        };
         return commandes.stream().map(this::versResponse).toList();
     }
 
-    public CommandeResponse findById(Long id) {
-        return versResponse(trouver(id));
+    public CommandeResponse findById(Long id, UtilisateurPrincipal principal) {
+        Commande commande = trouver(id);
+        verifierAcces(commande, principal);
+        return versResponse(commande);
     }
 
     @Transactional
-    public CommandeResponse creer(CommandeRequest request) {
+    public CommandeResponse creer(CommandeRequest request, UtilisateurPrincipal principal) {
         Acheteur acheteur = acheteurRepository.findById(request.acheteurId())
                 .orElseThrow(() -> new ResourceNotFoundException("Acheteur", request.acheteurId()));
+        ControleAcces.exigerProprietaireOuAdmin(principal, acheteur.getUtilisateur().getId());
 
         if (request.modeReception() == ModeReception.LIVRAISON
                 && (estVide(request.adresseLivraison()) || estVide(request.telephoneLivraison()))) {
@@ -148,10 +169,13 @@ public class CommandeService {
     }
 
     @Transactional
-    public CommandeResponse changerStatut(Long id, StatutCommandeRequest request) {
+    public CommandeResponse changerStatut(Long id, StatutCommandeRequest request,
+                                          UtilisateurPrincipal principal) {
         Commande commande = trouver(id);
         StatutCommande actuel = commande.getStatut();
         StatutCommande cible = request.statut();
+
+        verifierDroitDeChangerStatut(commande, cible, principal);
 
         if (cible == actuel) {
             throw new BusinessException("La commande est déjà au statut " + actuel + ".");
@@ -176,6 +200,84 @@ public class CommandeService {
                         + " est désormais : " + cible + ".");
 
         return versResponse(enregistree);
+    }
+
+    /**
+     * Vérifie que le demandeur est partie prenante de la commande : l'acheteur
+     * propriétaire, un producteur concerné par au moins une ligne, ou l'administrateur.
+     * Utilisé également par PaiementService.
+     */
+    public void verifierAcces(Commande commande, UtilisateurPrincipal principal) {
+        if (ControleAcces.estAdmin(principal)
+                || estAcheteurProprietaire(commande, principal)
+                || estProducteurConcerne(commande, principal)) {
+            return;
+        }
+        throw ControleAcces.accesRefuse();
+    }
+
+    private List<Commande> commandesDeLAcheteur(Long acheteurId, UtilisateurPrincipal principal) {
+        Acheteur acheteur = acheteurDe(principal);
+        if (acheteurId != null && !acheteurId.equals(acheteur.getId())) {
+            throw ControleAcces.accesRefuse();
+        }
+        return commandeRepository.findByAcheteurIdOrderByDateCreationDesc(acheteur.getId());
+    }
+
+    private List<Commande> commandesDuProducteur(Long acheteurId, UtilisateurPrincipal principal) {
+        List<Commande> commandes = commandeRepository.findByProducteurIdOrderByDateCreationDesc(
+                producteurDe(principal).getId());
+        if (acheteurId == null) {
+            return commandes;
+        }
+        return commandes.stream()
+                .filter(commande -> commande.getAcheteur().getId().equals(acheteurId))
+                .toList();
+    }
+
+    /**
+     * CONFIRMEE, PRETE et LIVREE relèvent du producteur concerné ou de l'administrateur.
+     * L'annulation reste ouverte aux deux parties prenantes.
+     */
+    private void verifierDroitDeChangerStatut(Commande commande, StatutCommande cible,
+                                              UtilisateurPrincipal principal) {
+        if (ControleAcces.estAdmin(principal)) {
+            return;
+        }
+        if (cible == StatutCommande.ANNULEE) {
+            verifierAcces(commande, principal);
+            return;
+        }
+        if (estProducteurConcerne(commande, principal)) {
+            return;
+        }
+        throw ControleAcces.accesRefuse();
+    }
+
+    private boolean estAcheteurProprietaire(Commande commande, UtilisateurPrincipal principal) {
+        return principal.getRole() == Role.ACHETEUR
+                && commande.getAcheteur().getUtilisateur().getId().equals(principal.getId());
+    }
+
+    private boolean estProducteurConcerne(Commande commande, UtilisateurPrincipal principal) {
+        if (principal.getRole() != Role.PRODUCTEUR) {
+            return false;
+        }
+        return producteurRepository.findByUtilisateurId(principal.getId())
+                .map(producteur -> commande.getLignes().stream()
+                        .anyMatch(ligne -> ligne.getRecolte().getProducteur().getId()
+                                .equals(producteur.getId())))
+                .orElse(false);
+    }
+
+    private Acheteur acheteurDe(UtilisateurPrincipal principal) {
+        return acheteurRepository.findByUtilisateurId(principal.getId())
+                .orElseThrow(ControleAcces::accesRefuse);
+    }
+
+    private Producteur producteurDe(UtilisateurPrincipal principal) {
+        return producteurRepository.findByUtilisateurId(principal.getId())
+                .orElseThrow(ControleAcces::accesRefuse);
     }
 
     private Map<Long, BigDecimal> agregerQuantites(List<LigneCommandeRequest> lignes) {

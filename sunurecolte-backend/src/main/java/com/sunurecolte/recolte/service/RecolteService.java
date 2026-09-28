@@ -8,6 +8,8 @@ import com.sunurecolte.recolte.dto.RecolteResponse;
 import com.sunurecolte.recolte.entity.Recolte;
 import com.sunurecolte.recolte.entity.StatutRecolte;
 import com.sunurecolte.recolte.repository.RecolteRepository;
+import com.sunurecolte.security.ControleAcces;
+import com.sunurecolte.security.UtilisateurPrincipal;
 import com.sunurecolte.user.entity.Filiere;
 import com.sunurecolte.user.entity.Producteur;
 import com.sunurecolte.user.entity.Utilisateur;
@@ -27,6 +29,10 @@ import java.util.List;
  * - une récolte utilisée dans une commande ne peut pas être supprimée ;
  * - le statut EPUISEE est attribué automatiquement quand le stock tombe à zéro
  *   (voir CommandeService) et redevient DISPONIBLE si du stock est réapprovisionné.
+ *
+ * Règles d'accès (Phase 3) : la consultation reste publique ; la création,
+ * la modification et la suppression sont réservées au producteur propriétaire
+ * ou à l'administrateur (403 sinon).
  */
 @Service
 @RequiredArgsConstructor
@@ -50,9 +56,10 @@ public class RecolteService {
     }
 
     @Transactional
-    public RecolteResponse creer(RecolteRequest request) {
+    public RecolteResponse creer(RecolteRequest request, UtilisateurPrincipal principal) {
         Producteur producteur = producteurRepository.findById(request.producteurId())
                 .orElseThrow(() -> new ResourceNotFoundException("Producteur", request.producteurId()));
+        ControleAcces.exigerProprietaireOuAdmin(principal, producteur.getUtilisateur().getId());
         validerCoherenceQuantites(request);
 
         Recolte recolte = new Recolte();
@@ -63,8 +70,10 @@ public class RecolteService {
     }
 
     @Transactional
-    public RecolteResponse modifier(Long id, RecolteRequest request) {
+    public RecolteResponse modifier(Long id, RecolteRequest request, UtilisateurPrincipal principal) {
         Recolte recolte = trouver(id);
+        ControleAcces.exigerProprietaireOuAdmin(
+                principal, recolte.getProducteur().getUtilisateur().getId());
         if (!recolte.getProducteur().getId().equals(request.producteurId())) {
             throw new BusinessException("Le producteur d'une récolte ne peut pas être modifié.");
         }
@@ -79,8 +88,10 @@ public class RecolteService {
     }
 
     @Transactional
-    public void supprimer(Long id) {
+    public void supprimer(Long id, UtilisateurPrincipal principal) {
         Recolte recolte = trouver(id);
+        ControleAcces.exigerProprietaireOuAdmin(
+                principal, recolte.getProducteur().getUtilisateur().getId());
         if (ligneCommandeRepository.existsByRecolteId(id)) {
             throw new BusinessException(
                     "Cette récolte est utilisée dans une commande et ne peut pas être supprimée.");

@@ -1,5 +1,7 @@
 package com.sunurecolte.user.dto;
 
+import com.sunurecolte.user.entity.Filiere;
+import com.sunurecolte.user.entity.TypeAcheteur;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +13,10 @@ import jakarta.validation.constraints.Size;
  * Le rôle est de type {@link RoleInscription} (PRODUCTEUR ou ACHETEUR) :
  * un compte ADMIN ne peut pas être obtenu via l'inscription publique,
  * y compris par un appel HTTP forgé manuellement.
+ *
+ * L'inscription crée aussi le profil correspondant. Les colonnes filiere
+ * (producteur) et type_acheteur (acheteur) sont obligatoires en base :
+ * le champ correspondant au rôle choisi est donc exigé par le service.
  */
 public record InscriptionRequest(
 
@@ -36,5 +42,11 @@ public record InscriptionRequest(
         String motDePasse,
 
         @NotNull(message = "Le rôle est obligatoire")
-        RoleInscription role
+        RoleInscription role,
+
+        /** Obligatoire pour un compte PRODUCTEUR. */
+        Filiere filiere,
+
+        /** Obligatoire pour un compte ACHETEUR. */
+        TypeAcheteur typeAcheteur
 ) {}

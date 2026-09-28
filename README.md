@@ -75,11 +75,28 @@ Créer le fichier `sunurecolte-backend/src/main/resources/application-local.prop
 
 ```properties
 spring.datasource.password=VOTRE_MOT_DE_PASSE_POSTGRES
-jwt.secret=CHANGER_CETTE_CLE_SECRETE_32_CARACTERES_MINIMUM
-jwt.expiration=86400000
+jwt.secret=UNE_CLE_ALEATOIRE_D_AU_MOINS_32_CARACTERES
+app.admin.email=admin@sunurecolte.sn
+app.admin.password=UN_MOT_DE_PASSE_LOCAL_D_AU_MOINS_6_CARACTERES
+```
+
+Générer la clé JWT (jamais recopiée d'un exemple, jamais versionnée) :
+
+```bash
+openssl rand -base64 48
 ```
 
 Ce fichier est ignoré par Git : ne jamais le committer, ne jamais écrire de mot de passe réel dans le dépôt.
+En alternative, tout ou partie de ces valeurs peut venir de variables d'environnement (`JWT_SECRET`,
+`APP_ADMIN_EMAIL`, `APP_ADMIN_PASSWORD`), ce qui évite d'écrire un secret sur disque.
+
+La durée de validité d'un jeton est définie par `jwt.expiration` (millisecondes) dans le fichier versionné
+`application.properties` — une heure par défaut. Ce fichier a volontairement une priorité supérieure à
+`application-local.properties` : c'est pourquoi `jwt.secret` n'y est **jamais** déclaré, afin qu'une valeur
+de développement ne puisse pas écraser le vrai secret.
+
+L'application **refuse de démarrer** si `jwt.secret` est absent ou fait moins de 32 octets (minimum HS256) :
+cette validation est volontaire, pour qu'aucun environnement ne tourne avec une clé manquante ou trop courte.
 
 ### 3. Lancer le backend
 
@@ -94,11 +111,23 @@ de `src/main/resources/db/migration/`, puis Hibernate **vérifie** la correspond
 (`ddl-auto=validate`) sans jamais modifier le schéma. Toute évolution du schéma passe donc par une nouvelle
 migration versionnée (`V2__...`).
 
-> **Sécurité provisoire (Phase 2)** : tant que l'authentification JWT n'est pas implémentée (Phase 3),
-> la configuration de sécurité autorise toutes les requêtes (`permitAll`). Aucune route n'est donc protégée
-> à ce stade : c'est un état de développement volontaire, pas une configuration de production.
+> **Sécurité (Phase 3)** : l'API est authentifiée par JWT. Seules l'inscription, la connexion,
+> la documentation OpenAPI et la consultation du catalogue (`GET /api/recoltes`, `GET /api/prix-marche`)
+> sont publiques ; toutes les autres routes exigent un en-tête `Authorization: Bearer <jeton>`.
+> Les refus renvoient un JSON (`401` sans jeton valide, `403` sans les droits), jamais une page HTML.
 
-### 4. Lancer les tests
+### 4. Compte administrateur initial
+
+Aucune migration Flyway ne contient de mot de passe : un compte ADMIN ne peut pas être obtenu depuis le
+dépôt. Pour en amorcer un localement, renseigner `app.admin.email` et `app.admin.password`
+(ou `APP_ADMIN_EMAIL` / `APP_ADMIN_PASSWORD`) puis démarrer l'application : le compte est créé au premier
+démarrage si aucun utilisateur ne porte déjà cet email, avec un mot de passe haché BCrypt. L'amorçage est
+idempotent (un second démarrage ne recrée ni n'écrase rien) et n'affiche jamais le mot de passe dans les journaux.
+
+Le mot de passe source ne doit **jamais** apparaître dans Git. L'inscription publique, elle, ne peut créer
+que des comptes PRODUCTEUR ou ACHETEUR (enum `RoleInscription`), jamais ADMIN.
+
+### 5. Lancer les tests
 
 ```bash
 cd sunurecolte-backend
@@ -109,41 +138,46 @@ Les tests d'intégration s'exécutent contre la base PostgreSQL locale (aucune b
 PostgreSQL doit donc être démarré et `application-local.properties` configuré. Les données de test sont
 annulées automatiquement (rollback).
 
-### 5. Documentation API (Swagger)
+### 6. Documentation API (Swagger)
 
 Application démarrée :
 
 - Interface Swagger UI : `http://localhost:8080/swagger-ui.html` (ou `http://localhost:8080/swagger-ui/index.html`)
 - Spécification OpenAPI JSON : `http://localhost:8080/v3/api-docs`
 
-### 6. Principales routes de l'API
+Les endpoints protégés portent un cadenas : le bouton **Authorize** accepte un jeton JWT (`Bearer`)
+obtenu via `POST /api/auth/connexion`, ce qui permet de tester l'API depuis Swagger UI.
+
+### 7. Principales routes de l'API
 
 Toutes les routes sont exposées sous `http://localhost:8080`. L'organisation suit le flux
 `Controller → Service → Repository` ; la logique métier (stock, calculs, transitions de statut) est
-appliquée côté serveur.
+appliquée côté serveur. Sauf mention « public », une route exige `Authorization: Bearer <jeton>`.
 
-| Domaine | Méthode et route | Rôle |
+| Domaine | Méthode et route | Accès |
 | --- | --- | --- |
-| Récoltes | `GET /api/recoltes` | Liste, filtres optionnels `statut`, `filiere`, `recherche` |
-| Récoltes | `GET /api/recoltes/{id}` | Détail d'une récolte |
-| Récoltes | `POST /api/recoltes` | Création (producteur existant obligatoire) |
-| Récoltes | `PUT /api/recoltes/{id}` | Modification |
-| Récoltes | `DELETE /api/recoltes/{id}` | Suppression (refusée si la récolte est commandée) |
-| Commandes | `GET /api/commandes` | Liste, filtre optionnel `acheteurId` |
-| Commandes | `GET /api/commandes/{id}` | Détail avec ses lignes |
-| Commandes | `POST /api/commandes` | Création : total calculé serveur, stock décrémenté et contrôlé |
-| Commandes | `PATCH /api/commandes/{id}/statut` | Changement de statut (transitions contrôlées) |
-| Paiements | `GET /api/paiements/{id}` | Détail d'un paiement |
-| Paiements | `GET /api/paiements/commande/{commandeId}` | Paiement d'une commande |
-| Paiements | `POST /api/paiements` | Paiement **simulé** (WAVE / ORANGE_MONEY, aucune transaction réelle) |
-| Notifications | `GET /api/notifications` | Liste, filtre optionnel `utilisateurId` |
-| Notifications | `GET /api/notifications/{id}` | Détail |
-| Notifications | `PUT /api/notifications/{id}/lue` | Marquer comme lue |
-| Prix du marché | `GET /api/prix-marche` | Liste des prix indicatifs |
-| Prix du marché | `GET /api/prix-marche/{id}` | Détail |
-| Profils | `GET /api/utilisateurs/{id}` | Compte utilisateur (sans mot de passe) |
-| Profils | `GET /api/producteurs/{id}` · `PUT /api/producteurs/{id}` | Profil producteur |
-| Profils | `GET /api/acheteurs/{id}` | Profil acheteur |
+| Authentification | `POST /api/auth/inscription` | Public — crée un compte PRODUCTEUR ou ACHETEUR et renvoie un jeton |
+| Authentification | `POST /api/auth/connexion` | Public — renvoie un jeton (`{email, motDePasse}`) |
+| Récoltes | `GET /api/recoltes` | Public — filtres optionnels `statut`, `filiere`, `recherche` |
+| Récoltes | `GET /api/recoltes/{id}` | Public — détail d'une récolte |
+| Récoltes | `POST /api/recoltes` | PRODUCTEUR (propriétaire) ou ADMIN |
+| Récoltes | `PUT /api/recoltes/{id}` | Producteur propriétaire ou ADMIN |
+| Récoltes | `DELETE /api/recoltes/{id}` | Producteur propriétaire ou ADMIN (refusée si la récolte est commandée) |
+| Commandes | `GET /api/commandes` | Connecté — filtre optionnel `acheteurId`, restreint aux ressources accessibles |
+| Commandes | `GET /api/commandes/{id}` | Acheteur propriétaire, producteur concerné ou ADMIN |
+| Commandes | `POST /api/commandes` | ACHETEUR — total calculé serveur, stock décrémenté et contrôlé |
+| Commandes | `PATCH /api/commandes/{id}/statut` | Acheteur propriétaire, producteur concerné ou ADMIN |
+| Paiements | `GET /api/paiements/{id}` | Acheteur propriétaire ou ADMIN |
+| Paiements | `GET /api/paiements/commande/{commandeId}` | Acheteur propriétaire ou ADMIN |
+| Paiements | `POST /api/paiements` | ACHETEUR — paiement **simulé** (WAVE / ORANGE_MONEY, aucune transaction réelle) |
+| Notifications | `GET /api/notifications` | Connecté — restreint à ses propres notifications (ADMIN : toutes) |
+| Notifications | `GET /api/notifications/{id}` | Destinataire ou ADMIN |
+| Notifications | `PUT /api/notifications/{id}/lue` | Destinataire ou ADMIN |
+| Prix du marché | `GET /api/prix-marche` | Public |
+| Prix du marché | `GET /api/prix-marche/{id}` | Public |
+| Profils | `GET /api/utilisateurs/{id}` | Utilisateur concerné ou ADMIN (jamais de mot de passe) |
+| Profils | `GET /api/producteurs/{id}` · `PUT /api/producteurs/{id}` | Producteur concerné ou ADMIN |
+| Profils | `GET /api/acheteurs/{id}` | Acheteur concerné ou ADMIN |
 
 En cas d'erreur, l'API renvoie un JSON du type `{"statut": 404, "message": "...", "timestamp": "..."}`
 (ou `erreurs` par champ en cas d'échec de validation), sans jamais exposer de détails internes.

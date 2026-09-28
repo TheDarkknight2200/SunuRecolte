@@ -7,12 +7,15 @@ Navigateur
 Angular
   ↓
 Spring Boot / Java 17
-  ├── Controllers
-  ├── Services
-  ├── Repositories
-  └── Spring Security + JWT
-  ↓ JPA/Hibernate
-PostgreSQL
+  └── Chaîne de filtres de sécurité (JwtAuthenticationFilter)
+        ↓
+      Controllers
+        ↓
+      Services
+        ↓
+      Repositories
+        ↓ JPA/Hibernate
+      PostgreSQL
 
 Spring Boot
   ↓
@@ -60,21 +63,48 @@ Les entités JPA ne sont jamais exposées directement (conversion en DTO dans le
 (`@RestControllerAdvice`) : 400 `BusinessException`, 403 `ForbiddenException`,
 404 `ResourceNotFoundException`, 500 sans détail interne.
 
-Le contrôle de propriété (un utilisateur ne modifie que ses propres ressources) n'est pas encore en
-place : il dépend de l'authentification (Phase 3).
+## Authentification et autorisation (Phase 3)
 
-## Authentification
+Requête protégée — l'identité vient uniquement du jeton, jamais d'un identifiant transmis par le client :
 
+```text
+Client (Angular)
+  → en-tête Authorization: Bearer <jeton>
+  → JwtAuthenticationFilter      lit le jeton, vérifie signature et expiration
+  → CustomUserDetailsService     recharge l'utilisateur en base (rôle et statut réels)
+  → SecurityContext              identité authentifiée
+  → SecurityConfig               autorisation par rôle sur l'URL
+  → Controller
+  → Service                      contrôle de propriété (403 si refus)
+  → Repository
+  → PostgreSQL
+```
+
+Émission du jeton :
+
+```text
 Angular
-→ POST /api/auth/login
-→ AuthController
-→ AuthService
-→ UserRepository
-→ PostgreSQL
-→ JWT
-→ Angular
+  → POST /api/auth/inscription ou /api/auth/connexion
+  → AuthController
+  → AuthService
+  → PasswordEncoder (BCrypt) + UtilisateurRepository
+  → PostgreSQL
+  → JWT signé (HS256)
+  → Angular
+```
 
-Les requêtes protégées utilisent ensuite le JWT.
+Points clés :
+
+- **Sans état** : `SessionCreationPolicy.STATELESS`, aucun cookie de session ; CSRF désactivé car sans
+  objet (justification détaillée dans la Javadoc de `SecurityConfig`).
+- **Rôle relu en base** à chaque requête : un rôle forgé dans le jeton n'accorde aucun droit.
+- **Refus en JSON** : `RestAuthenticationEntryPoint` (401) et `RestAccessDeniedHandler` (403), jamais de
+  page HTML ni de détail interne.
+- **CORS** restreint aux origines de `app.cors.origines-autorisees` (`http://localhost:4200`), sans
+  credentials puisque le jeton circule dans l'en-tête `Authorization`.
+- **Secret JWT hors Git**, validé au démarrage (≥ 32 octets, minimum HS256), jamais journalisé.
+- **Compte ADMIN** amorcé par `AdminInitializer` : aucune migration Flyway ne contient de secret,
+  l'amorçage est idempotent.
 
 ## Commande
 

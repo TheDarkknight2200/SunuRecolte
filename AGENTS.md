@@ -48,17 +48,22 @@ Autres documents utiles :
 ## Sécurité (non négociable)
 
 - Aucun secret dans Git : mot de passe PostgreSQL et clé JWT restent dans
-  `sunurecolte-backend/src/main/resources/application-local.properties` (ignoré par Git, ne pas retirer cette protection).
-- Aucun mot de passe stocké en clair (hashage à la phase authentification).
+  `sunurecolte-backend/src/main/resources/application-local.properties` (ignoré par Git, ne pas retirer cette protection),
+  ou viennent des variables d'environnement `JWT_SECRET`, `APP_ADMIN_EMAIL`, `APP_ADMIN_PASSWORD`.
+- Aucun mot de passe stocké en clair : hashage BCrypt (`PasswordEncoder`), et jamais de champ de mot de passe
+  dans une réponse API ni dans un journal.
 - Les permissions et validations sont vérifiées côté backend, jamais uniquement côté frontend.
 - Une inscription publique ne peut créer que `PRODUCTEUR` ou `ACHETEUR` : `ADMIN` est impossible
   par construction (enum `RoleInscription`), et non par une simple validation.
 - Ne jamais exposer les détails internes d'une exception dans une réponse HTTP ; les journaliser côté serveur.
-- **État provisoire (Phase 2)** : `SecurityConfig` autorise actuellement toutes les requêtes (`permitAll`),
-  CSRF désactivé, sessions `STATELESS`, sans JWT — c'est volontaire et temporaire jusqu'à la phase
-  authentification. Ne pas en déduire que l'API est protégée : aucune route ne vérifie l'identité ni la
-  propriété d'une ressource. Le contrôle de propriétaire (un producteur ne modifie que ses récoltes, un
-  acheteur ne voit que ses commandes) fait partie des phases suivantes, pas de la Phase 2.
+- **Authentification (Phase 3)** : toutes les routes applicatives exigent un JWT, sauf l'inscription, la
+  connexion, la documentation OpenAPI et le catalogue public (`GET /api/recoltes`, `GET /api/prix-marche`).
+  L'identité (id, rôle) vient toujours du jeton — jamais d'un paramètre transmis par le client — et le rôle
+  est relu en base à chaque requête : ne jamais faire confiance au rôle porté par un jeton.
+- Contrôle de propriété : la ressource est chargée puis l'accès est vérifié dans le service
+  (`ControleAcces`), avec **403** en cas de refus (jamais 404 pour masquer un refus). L'ADMIN est le seul
+  rôle transverse. L'ordre exact « 404 avant 403 » varie volontairement selon les services (certains
+  chargent la ressource avant de contrôler l'accès) : l'ordre réel de chaque service est couvert par les tests.
 - Les montants et quantités ne sont **jamais** acceptés depuis le client : `total`, `sousTotal`,
   `prixUnitaire` et le décrément de stock sont calculés ou vérifiés côté serveur (voir `CommandeService`).
 - Le paiement est **simulé** (référence `SIMU-...`) : aucune transaction réelle Wave / Orange Money
@@ -85,12 +90,16 @@ SunuRecolte/
         ├── notification/           # Notification
         ├── prixmarche/             # PrixMarche
         ├── exception/              # exceptions métier + gestion centralisée des erreurs
-        ├── config/                 # OpenApiConfig
-        └── security/               # SecurityConfig (provisoire, voir ci-dessous)
+        ├── config/                 # OpenApiConfig, AdminInitializer (amorçage ADMIN local)
+        └── security/               # SecurityConfig, JwtService, JwtAuthenticationFilter, ControleAcces, ...
     └── src/main/resources/
-        ├── application.properties          # configuration versionnée
+        ├── application.properties          # configuration versionnée (jamais de secret)
         ├── application-local.properties    # secrets locaux, hors Git
         └── db/migration/                   # migrations Flyway versionnées
+    └── src/test/java/com/sunurecolte/      # tests sur PostgreSQL réel (aucun mock)
+        ├── api/                            # tests HTTP MockMvc, dont AuthApiTest et SecuriteApiTest
+        ├── support/                        # IntegrationTestSupport (jetons JWT réels, fabriques)
+        └── ...                             # tests de services, mapping JPA, amorçage ADMIN
 ```
 
 Chaque domaine backend suit la même organisation : `controller/`, `service/`, `repository/`, `entity/`, `dto/`.

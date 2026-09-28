@@ -24,6 +24,7 @@ class NotificationApiTest extends IntegrationTestSupport {
         creerNotification(utilisateur, "Commande 2");
 
         mockMvc.perform(get("/api/notifications")
+                        .with(avecJetonDe(utilisateur))
                         .param("utilisateurId", String.valueOf(utilisateur.getId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
@@ -33,7 +34,13 @@ class NotificationApiTest extends IntegrationTestSupport {
 
     @Test
     void laListePourUnUtilisateurInconnuRepond404() throws Exception {
-        mockMvc.perform(get("/api/notifications").param("utilisateurId", "999999"))
+        // Seul un administrateur peut viser l'identifiant d'un autre utilisateur :
+        // le contrat 404 est donc verifie avec un jeton ADMIN.
+        Utilisateur admin = creerAdministrateur();
+
+        mockMvc.perform(get("/api/notifications")
+                        .with(avecJetonDe(admin))
+                        .param("utilisateurId", "999999"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Utilisateur introuvable avec l'id : 999999"));
     }
@@ -43,7 +50,8 @@ class NotificationApiTest extends IntegrationTestSupport {
         Utilisateur utilisateur = creerUtilisateur(Role.PRODUCTEUR);
         Notification notification = creerNotification(utilisateur, "Nouvelle commande");
 
-        mockMvc.perform(get("/api/notifications/{id}", notification.getId()))
+        mockMvc.perform(get("/api/notifications/{id}", notification.getId())
+                        .with(avecJetonDe(utilisateur)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.titre").value("Nouvelle commande"))
                 .andExpect(jsonPath("$.message").value("Contenu de la notification."))
@@ -55,11 +63,13 @@ class NotificationApiTest extends IntegrationTestSupport {
         Utilisateur utilisateur = creerUtilisateur(Role.ACHETEUR);
         Notification notification = creerNotification(utilisateur, "Suivi de commande");
 
-        mockMvc.perform(put("/api/notifications/{id}/lue", notification.getId()))
+        mockMvc.perform(put("/api/notifications/{id}/lue", notification.getId())
+                        .with(avecJetonDe(utilisateur)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.lu").value(true));
 
-        mockMvc.perform(get("/api/notifications/{id}", notification.getId()))
+        mockMvc.perform(get("/api/notifications/{id}", notification.getId())
+                        .with(avecJetonDe(utilisateur)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.lu").value(true));
     }
@@ -69,16 +79,21 @@ class NotificationApiTest extends IntegrationTestSupport {
         Utilisateur utilisateur = creerUtilisateur(Role.ACHETEUR);
         Notification notification = creerNotification(utilisateur, "Suivi de commande");
 
-        mockMvc.perform(put("/api/notifications/{id}/lue", notification.getId()))
+        mockMvc.perform(put("/api/notifications/{id}/lue", notification.getId())
+                        .with(avecJetonDe(utilisateur)))
                 .andExpect(status().isOk());
-        mockMvc.perform(put("/api/notifications/{id}/lue", notification.getId()))
+        mockMvc.perform(put("/api/notifications/{id}/lue", notification.getId())
+                        .with(avecJetonDe(utilisateur)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.lu").value(true));
     }
 
     @Test
     void uneNotificationInconnueRepond404() throws Exception {
-        mockMvc.perform(get("/api/notifications/{id}", 999_999L))
+        Utilisateur admin = creerAdministrateur();
+
+        mockMvc.perform(get("/api/notifications/{id}", 999_999L)
+                        .with(avecJetonDe(admin)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Notification introuvable avec l'id : 999999"));
     }

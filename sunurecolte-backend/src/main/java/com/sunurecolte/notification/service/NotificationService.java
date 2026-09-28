@@ -4,6 +4,8 @@ import com.sunurecolte.exception.ResourceNotFoundException;
 import com.sunurecolte.notification.dto.NotificationResponse;
 import com.sunurecolte.notification.entity.Notification;
 import com.sunurecolte.notification.repository.NotificationRepository;
+import com.sunurecolte.security.ControleAcces;
+import com.sunurecolte.security.UtilisateurPrincipal;
 import com.sunurecolte.user.entity.Utilisateur;
 import com.sunurecolte.user.repository.UtilisateurRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +16,10 @@ import java.util.List;
 
 /**
  * Notifications internes (pas de temps réel : consultation REST uniquement).
+ *
+ * Règles d'accès (Phase 3) : un utilisateur ne consulte et ne marque comme lues
+ * que ses propres notifications ; préciser l'identifiant d'un autre utilisateur
+ * est refusé (403). L'administrateur reste transverse.
  */
 @Service
 @RequiredArgsConstructor
@@ -23,26 +29,37 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UtilisateurRepository utilisateurRepository;
 
-    public List<NotificationResponse> rechercher(Long utilisateurId) {
+    public List<NotificationResponse> rechercher(Long utilisateurId, UtilisateurPrincipal principal) {
+        Long cible = utilisateurId;
+        if (!ControleAcces.estAdmin(principal)) {
+            if (cible != null && !cible.equals(principal.getId())) {
+                throw ControleAcces.accesRefuse();
+            }
+            cible = principal.getId();
+        }
+
         List<Notification> notifications;
-        if (utilisateurId == null) {
+        if (cible == null) {
             notifications = notificationRepository.findAllByOrderByDateCreationDesc();
         } else {
-            if (!utilisateurRepository.existsById(utilisateurId)) {
-                throw new ResourceNotFoundException("Utilisateur", utilisateurId);
+            if (!utilisateurRepository.existsById(cible)) {
+                throw new ResourceNotFoundException("Utilisateur", cible);
             }
-            notifications = notificationRepository.findByUtilisateurIdOrderByDateCreationDesc(utilisateurId);
+            notifications = notificationRepository.findByUtilisateurIdOrderByDateCreationDesc(cible);
         }
         return notifications.stream().map(this::versResponse).toList();
     }
 
-    public NotificationResponse findById(Long id) {
-        return versResponse(trouver(id));
+    public NotificationResponse findById(Long id, UtilisateurPrincipal principal) {
+        Notification notification = trouver(id);
+        verifierDestinataire(notification, principal);
+        return versResponse(notification);
     }
 
     @Transactional
-    public NotificationResponse marquerLue(Long id) {
+    public NotificationResponse marquerLue(Long id, UtilisateurPrincipal principal) {
         Notification notification = trouver(id);
+        verifierDestinataire(notification, principal);
         notification.setLu(true);
         return versResponse(notificationRepository.save(notification));
     }
@@ -57,6 +74,10 @@ public class NotificationService {
         notification.setTitre(titre);
         notification.setMessage(message);
         notificationRepository.save(notification);
+    }
+
+    private void verifierDestinataire(Notification notification, UtilisateurPrincipal principal) {
+        ControleAcces.exigerProprietaireOuAdmin(principal, notification.getUtilisateur().getId());
     }
 
     private Notification trouver(Long id) {

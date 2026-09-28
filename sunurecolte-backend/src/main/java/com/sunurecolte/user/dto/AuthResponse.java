@@ -2,10 +2,9 @@ package com.sunurecolte.user.dto;
 
 import com.sunurecolte.user.entity.Role;
 
-import java.time.LocalDateTime;
-
 /**
  * DTO de réponse contenant le JWT et les informations de l'utilisateur connecté.
+ * Ne contient jamais le mot de passe ni son empreinte.
  */
 public record AuthResponse(
         String token,

@@ -45,14 +45,18 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [x] Tests Phase 2 : services métier + API MockMvc (codes HTTP, contrat d'erreur, documentation OpenAPI)
 
 ## Phase 3 — Auth
-- [ ] Inscription
+- [x] Inscription (`POST /api/auth/inscription`, jeton JWT renvoyé immédiatement)
 - [x] Inscription : rôle restreint par construction (ADMIN impossible)
-- [ ] Connexion
-- [ ] Hash mots de passe
-- [ ] JWT
-- [ ] SecurityFilterChain
-- [ ] Autorisation par rôle
-- [ ] Tests auth
+- [x] Connexion (`POST /api/auth/connexion`, email ou mot de passe erroné → 401 générique)
+- [x] Hash mots de passe (BCrypt, jamais de mot de passe en clair ni dans les réponses)
+- [x] JWT (JJWT 0.12, HS256, secret hors Git validé au démarrage, expiration configurable)
+- [x] SecurityFilterChain (stateless, routes publiques limitées, 401/403 en JSON)
+- [x] Autorisation par rôle (PRODUCTEUR, ACHETEUR, ADMIN transverse)
+- [x] Contrôle de propriété des ressources (403, identité issue du JWT)
+- [x] CORS (`http://localhost:4200`, sans credentials)
+- [x] Compte ADMIN initial (`AdminInitializer`, aucun secret dans Git)
+- [x] Swagger : schéma `bearerAuth` (bouton Authorize)
+- [x] Tests auth (inscription, connexion, 401/403, jetons forgés/expirés, CORS, amorçage ADMIN)
 
 ## Phase 4 — Producteur
 - [ ] Profil

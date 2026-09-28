@@ -1,6 +1,8 @@
 package com.sunurecolte.user.service;
 
 import com.sunurecolte.exception.ResourceNotFoundException;
+import com.sunurecolte.security.ControleAcces;
+import com.sunurecolte.security.UtilisateurPrincipal;
 import com.sunurecolte.user.dto.ProducteurRequest;
 import com.sunurecolte.user.dto.ProducteurResponse;
 import com.sunurecolte.user.entity.Producteur;
@@ -12,6 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Consultation et mise à jour du profil producteur.
+ *
+ * Règles d'accès (Phase 3) : le profil expose l'email et le téléphone ; il est
+ * donc réservé au producteur propriétaire ou à l'administrateur (403 sinon).
  */
 @Service
 @RequiredArgsConstructor
@@ -20,17 +25,25 @@ public class ProducteurService {
 
     private final ProducteurRepository producteurRepository;
 
-    public ProducteurResponse findById(Long id) {
-        return versResponse(trouver(id));
+    public ProducteurResponse findById(Long id, UtilisateurPrincipal principal) {
+        Producteur producteur = trouver(id);
+        verifierAcces(producteur, principal);
+        return versResponse(producteur);
     }
 
     @Transactional
-    public ProducteurResponse modifier(Long id, ProducteurRequest request) {
+    public ProducteurResponse modifier(Long id, ProducteurRequest request,
+                                       UtilisateurPrincipal principal) {
         Producteur producteur = trouver(id);
+        verifierAcces(producteur, principal);
         producteur.setLocalisationExploitation(request.localisationExploitation());
         producteur.setFiliere(request.filiere());
         producteur.setDescription(request.description());
         return versResponse(producteurRepository.save(producteur));
+    }
+
+    private void verifierAcces(Producteur producteur, UtilisateurPrincipal principal) {
+        ControleAcces.exigerProprietaireOuAdmin(principal, producteur.getUtilisateur().getId());
     }
 
     private Producteur trouver(Long id) {

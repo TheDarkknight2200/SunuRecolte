@@ -7,6 +7,7 @@ import com.sunurecolte.paiement.entity.StatutPaiement;
 import com.sunurecolte.recolte.entity.Recolte;
 import com.sunurecolte.support.IntegrationTestSupport;
 import com.sunurecolte.user.entity.Acheteur;
+import com.sunurecolte.user.entity.Utilisateur;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
@@ -29,9 +30,11 @@ class PaiementApiTest extends IntegrationTestSupport {
 
     @Test
     void initierUnPaiementRepond201AvecLeMontantDeLaCommande() throws Exception {
-        CommandeResponse commande = creerCommande("2.00");
+        Acheteur acheteur = creerAcheteur();
+        CommandeResponse commande = creerCommande(acheteur, "2.00");
 
         mockMvc.perform(post("/api/paiements")
+                        .with(avecJetonDe(acheteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandeId\": " + commande.id() + ", \"moyenPaiement\": \"WAVE\"}"))
                 .andExpect(status().isCreated())
@@ -44,14 +47,17 @@ class PaiementApiTest extends IntegrationTestSupport {
 
     @Test
     void initierUnPaiementPourUneCommandeDejaPayeeRepond400() throws Exception {
-        CommandeResponse commande = creerCommande("2.00");
+        Acheteur acheteur = creerAcheteur();
+        CommandeResponse commande = creerCommande(acheteur, "2.00");
 
         mockMvc.perform(post("/api/paiements")
+                        .with(avecJetonDe(acheteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandeId\": " + commande.id() + ", \"moyenPaiement\": \"WAVE\"}"))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/paiements")
+                        .with(avecJetonDe(acheteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandeId\": " + commande.id() + ", \"moyenPaiement\": \"ORANGE_MONEY\"}"))
                 .andExpect(status().isBadRequest())
@@ -60,7 +66,10 @@ class PaiementApiTest extends IntegrationTestSupport {
 
     @Test
     void initierUnPaiementPourUneCommandeInconnueRepond404() throws Exception {
+        Acheteur acheteur = creerAcheteur();
+
         mockMvc.perform(post("/api/paiements")
+                        .with(avecJetonDe(acheteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandeId\": 999999, \"moyenPaiement\": \"WAVE\"}"))
                 .andExpect(status().isNotFound())
@@ -69,9 +78,11 @@ class PaiementApiTest extends IntegrationTestSupport {
 
     @Test
     void unMoyenDePaiementInconnuRepond400() throws Exception {
-        CommandeResponse commande = creerCommande("2.00");
+        Acheteur acheteur = creerAcheteur();
+        CommandeResponse commande = creerCommande(acheteur, "2.00");
 
         mockMvc.perform(post("/api/paiements")
+                        .with(avecJetonDe(acheteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandeId\": " + commande.id() + ", \"moyenPaiement\": \"BITCOIN\"}"))
                 .andExpect(status().isBadRequest())
@@ -81,9 +92,11 @@ class PaiementApiTest extends IntegrationTestSupport {
 
     @Test
     void consulterUnPaiementParSonIdRepond200() throws Exception {
-        Paiement paiement = creerPaiementEnAttente();
+        Acheteur acheteur = creerAcheteur();
+        Paiement paiement = creerPaiementEnAttente(acheteur);
 
-        mockMvc.perform(get("/api/paiements/{id}", paiement.getId()))
+        mockMvc.perform(get("/api/paiements/{id}", paiement.getId())
+                        .with(avecJetonDe(acheteur.getUtilisateur())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(paiement.getId()))
                 .andExpect(jsonPath("$.statut").value("EN_ATTENTE"));
@@ -91,18 +104,22 @@ class PaiementApiTest extends IntegrationTestSupport {
 
     @Test
     void consulterLePaiementDUneCommandeRepond200() throws Exception {
-        Paiement paiement = creerPaiementEnAttente();
+        Acheteur acheteur = creerAcheteur();
+        Paiement paiement = creerPaiementEnAttente(acheteur);
 
-        mockMvc.perform(get("/api/paiements/commande/{commandeId}", paiement.getCommande().getId()))
+        mockMvc.perform(get("/api/paiements/commande/{commandeId}", paiement.getCommande().getId())
+                        .with(avecJetonDe(acheteur.getUtilisateur())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.commandeId").value(paiement.getCommande().getId()));
     }
 
     @Test
     void uneCommandeSansPaiementRepond404() throws Exception {
-        CommandeResponse commande = creerCommande("2.00");
+        Acheteur acheteur = creerAcheteur();
+        CommandeResponse commande = creerCommande(acheteur, "2.00");
 
-        mockMvc.perform(get("/api/paiements/commande/{commandeId}", commande.id()))
+        mockMvc.perform(get("/api/paiements/commande/{commandeId}", commande.id())
+                        .with(avecJetonDe(acheteur.getUtilisateur())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(
                         "Aucun paiement n'existe pour la commande : " + commande.id()));
@@ -110,15 +127,17 @@ class PaiementApiTest extends IntegrationTestSupport {
 
     @Test
     void unPaiementInconnuRepond404() throws Exception {
-        mockMvc.perform(get("/api/paiements/{id}", 999_999L))
+        Utilisateur admin = creerAdministrateur();
+
+        mockMvc.perform(get("/api/paiements/{id}", 999_999L)
+                        .with(avecJetonDe(admin)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Paiement introuvable avec l'id : 999999"));
     }
 
     // --- Fabriques locales -------------------------------------------------
 
-    private CommandeResponse creerCommande(String quantite) throws Exception {
-        Acheteur acheteur = creerAcheteur();
+    private CommandeResponse creerCommande(Acheteur acheteur, String quantite) throws Exception {
         Recolte tomate = creerRecolte(creerProducteur(), "Tomate", "100.00", "450.00");
 
         Map<String, Object> corps = new HashMap<>();
@@ -127,6 +146,7 @@ class PaiementApiTest extends IntegrationTestSupport {
         corps.put("lignes", List.of(Map.of("recolteId", tomate.getId(), "quantite", quantite)));
 
         String reponse = mockMvc.perform(post("/api/commandes")
+                        .with(avecJetonDe(acheteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(corps)))
                 .andExpect(status().isCreated())
@@ -137,8 +157,8 @@ class PaiementApiTest extends IntegrationTestSupport {
         return objectMapper.readValue(reponse, CommandeResponse.class);
     }
 
-    private Paiement creerPaiementEnAttente() throws Exception {
-        CommandeResponse commande = creerCommande("2.00");
+    private Paiement creerPaiementEnAttente(Acheteur acheteur) throws Exception {
+        CommandeResponse commande = creerCommande(acheteur, "2.00");
 
         Paiement paiement = new Paiement();
         paiement.setCommande(commandeRepository.findById(commande.id()).orElseThrow());

@@ -26,6 +26,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests des regles metier de RecolteService (base PostgreSQL reelle, rollback).
+ *
+ * Depuis la Phase 3, les operations d'ecriture verifient l'identite portee par
+ * le principal : chaque appel passe donc le principal du producteur concerne
+ * (ou celui d'un administrateur pour verifier les contrats 404).
  */
 class RecolteServiceTest extends IntegrationTestSupport {
 
@@ -41,7 +45,8 @@ class RecolteServiceTest extends IntegrationTestSupport {
                 999_999L, "Tomate", null, new BigDecimal("50.00"), null, null,
                 "kg", new BigDecimal("400.00"), null, null, null);
 
-        assertThatThrownBy(() -> recolteService.creer(request))
+        // Le chargement du producteur precede le controle d'acces : 404 avant 403.
+        assertThatThrownBy(() -> recolteService.creer(request, principalDe(creerAdministrateur())))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Producteur");
     }
@@ -53,7 +58,8 @@ class RecolteServiceTest extends IntegrationTestSupport {
         RecolteResponse creee = recolteService.creer(new RecolteRequest(
                 producteur.getId(), "Tomate", "Tomates fraiches", new BigDecimal("50.00"),
                 new BigDecimal("5.00"), new BigDecimal("20.00"), "kg", new BigDecimal("400.00"),
-                null, "Rufisque", LocalDate.now().plusDays(1)));
+                null, "Rufisque", LocalDate.now().plusDays(1)),
+                principalDe(producteur.getUtilisateur()));
 
         assertThat(creee.id()).isNotNull();
         assertThat(creee.statut()).isEqualTo(StatutRecolte.DISPONIBLE);
@@ -80,7 +86,8 @@ class RecolteServiceTest extends IntegrationTestSupport {
                 autreProducteur.getId(), "Tomate", null, new BigDecimal("50.00"), null, null,
                 "kg", new BigDecimal("400.00"), null, null, null);
 
-        assertThatThrownBy(() -> recolteService.modifier(recolte.getId(), request))
+        assertThatThrownBy(() -> recolteService.modifier(
+                recolte.getId(), request, principalDe(proprietaire.getUtilisateur())))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("producteur");
     }
@@ -94,7 +101,7 @@ class RecolteServiceTest extends IntegrationTestSupport {
                 new BigDecimal("30.00"), new BigDecimal("10.00"), "kg", new BigDecimal("400.00"),
                 null, null, null);
 
-        assertThatThrownBy(() -> recolteService.creer(request))
+        assertThatThrownBy(() -> recolteService.creer(request, principalDe(producteur.getUtilisateur())))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("quantité minimale");
     }
@@ -107,18 +114,21 @@ class RecolteServiceTest extends IntegrationTestSupport {
 
         commandeService.creer(new CommandeRequest(
                 acheteur.getId(), ModeReception.RETRAIT, null, null, null,
-                List.of(new LigneCommandeRequest(recolte.getId(), new BigDecimal("5.00")))));
+                List.of(new LigneCommandeRequest(recolte.getId(), new BigDecimal("5.00")))),
+                principalDe(acheteur.getUtilisateur()));
 
-        assertThatThrownBy(() -> recolteService.supprimer(recolte.getId()))
+        assertThatThrownBy(() -> recolteService.supprimer(
+                recolte.getId(), principalDe(producteur.getUtilisateur())))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("commande");
     }
 
     @Test
     void supprimerUneRecolteNonCommandeeFonctionne() {
-        Recolte recolte = creerRecolte(creerProducteur(), "Tomate", "50.00", "400.00");
+        Producteur producteur = creerProducteur();
+        Recolte recolte = creerRecolte(producteur, "Tomate", "50.00", "400.00");
 
-        recolteService.supprimer(recolte.getId());
+        recolteService.supprimer(recolte.getId(), principalDe(producteur.getUtilisateur()));
 
         assertThat(recolteRepository.findById(recolte.getId())).isEmpty();
     }

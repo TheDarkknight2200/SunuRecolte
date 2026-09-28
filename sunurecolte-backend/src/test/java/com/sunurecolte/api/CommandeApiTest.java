@@ -4,6 +4,8 @@ import com.sunurecolte.commande.dto.CommandeResponse;
 import com.sunurecolte.recolte.entity.Recolte;
 import com.sunurecolte.support.IntegrationTestSupport;
 import com.sunurecolte.user.entity.Acheteur;
+import com.sunurecolte.user.entity.Producteur;
+import com.sunurecolte.user.entity.Utilisateur;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
@@ -41,6 +43,7 @@ class CommandeApiTest extends IntegrationTestSupport {
                 "sousTotal", "2.00")));
 
         mockMvc.perform(post("/api/commandes")
+                        .with(avecJetonDe(acheteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(corps)))
                 .andExpect(status().isCreated())
@@ -60,6 +63,7 @@ class CommandeApiTest extends IntegrationTestSupport {
         corps.put("lignes", List.of());
 
         mockMvc.perform(post("/api/commandes")
+                        .with(avecJetonDe(acheteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(corps)))
                 .andExpect(status().isBadRequest())
@@ -77,6 +81,7 @@ class CommandeApiTest extends IntegrationTestSupport {
         corps.put("lignes", List.of(Map.of("recolteId", tomate.getId(), "quantite", "6.00")));
 
         mockMvc.perform(post("/api/commandes")
+                        .with(avecJetonDe(acheteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(corps)))
                 .andExpect(status().isBadRequest())
@@ -86,6 +91,7 @@ class CommandeApiTest extends IntegrationTestSupport {
 
     @Test
     void creerUneCommandeAvecUnAcheteurInconnuRepond404() throws Exception {
+        Acheteur acheteur = creerAcheteur();
         Recolte tomate = creerRecolte(creerProducteur(), "Tomate", "100.00", "450.00");
 
         Map<String, Object> corps = new HashMap<>();
@@ -94,6 +100,7 @@ class CommandeApiTest extends IntegrationTestSupport {
         corps.put("lignes", List.of(Map.of("recolteId", tomate.getId(), "quantite", "1.00")));
 
         mockMvc.perform(post("/api/commandes")
+                        .with(avecJetonDe(acheteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(corps)))
                 .andExpect(status().isNotFound())
@@ -111,6 +118,7 @@ class CommandeApiTest extends IntegrationTestSupport {
         corps.put("lignes", List.of(Map.of("recolteId", tomate.getId(), "quantite", "1.00")));
 
         mockMvc.perform(post("/api/commandes")
+                        .with(avecJetonDe(acheteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(corps)))
                 .andExpect(status().isBadRequest())
@@ -126,7 +134,8 @@ class CommandeApiTest extends IntegrationTestSupport {
         Recolte tomate = creerRecolte(creerProducteur(), "Tomate", "100.00", "450.00");
         CommandeResponse commande = creerCommandeViaApi(acheteur, tomate, "2.00");
 
-        mockMvc.perform(get("/api/commandes/{id}", commande.id()))
+        mockMvc.perform(get("/api/commandes/{id}", commande.id())
+                        .with(avecJetonDe(acheteur.getUtilisateur())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(commande.id()))
                 .andExpect(jsonPath("$.acheteurId").value(acheteur.getId()))
@@ -141,7 +150,9 @@ class CommandeApiTest extends IntegrationTestSupport {
         Recolte tomate = creerRecolte(creerProducteur(), "Tomate", "100.00", "450.00");
         creerCommandeViaApi(premier, tomate, "2.00");
 
-        mockMvc.perform(get("/api/commandes").param("acheteurId", String.valueOf(premier.getId())))
+        mockMvc.perform(get("/api/commandes")
+                        .with(avecJetonDe(premier.getUtilisateur()))
+                        .param("acheteurId", String.valueOf(premier.getId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].acheteurId").value(premier.getId()));
@@ -149,7 +160,10 @@ class CommandeApiTest extends IntegrationTestSupport {
 
     @Test
     void uneCommandeInconnueRepond404() throws Exception {
-        mockMvc.perform(get("/api/commandes/{id}", 999_999L))
+        Utilisateur admin = creerAdministrateur();
+
+        mockMvc.perform(get("/api/commandes/{id}", 999_999L)
+                        .with(avecJetonDe(admin)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Commande introuvable avec l'id : 999999"));
     }
@@ -159,10 +173,12 @@ class CommandeApiTest extends IntegrationTestSupport {
     @Test
     void changerLeStatutDeLaCommandeRepond200() throws Exception {
         Acheteur acheteur = creerAcheteur();
-        Recolte tomate = creerRecolte(creerProducteur(), "Tomate", "100.00", "450.00");
+        Producteur producteur = creerProducteur();
+        Recolte tomate = creerRecolte(producteur, "Tomate", "100.00", "450.00");
         CommandeResponse commande = creerCommandeViaApi(acheteur, tomate, "2.00");
 
         mockMvc.perform(patch("/api/commandes/{id}/statut", commande.id())
+                        .with(avecJetonDe(producteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"statut\": \"CONFIRMEE\"}"))
                 .andExpect(status().isOk())
@@ -172,10 +188,12 @@ class CommandeApiTest extends IntegrationTestSupport {
     @Test
     void uneTransitionInterditeRepond400() throws Exception {
         Acheteur acheteur = creerAcheteur();
-        Recolte tomate = creerRecolte(creerProducteur(), "Tomate", "100.00", "450.00");
+        Producteur producteur = creerProducteur();
+        Recolte tomate = creerRecolte(producteur, "Tomate", "100.00", "450.00");
         CommandeResponse commande = creerCommandeViaApi(acheteur, tomate, "2.00");
 
         mockMvc.perform(patch("/api/commandes/{id}/statut", commande.id())
+                        .with(avecJetonDe(producteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"statut\": \"LIVREE\"}"))
                 .andExpect(status().isBadRequest())
@@ -190,6 +208,7 @@ class CommandeApiTest extends IntegrationTestSupport {
         CommandeResponse commande = creerCommandeViaApi(acheteur, tomate, "2.00");
 
         mockMvc.perform(patch("/api/commandes/{id}/statut", commande.id())
+                        .with(avecJetonDe(acheteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"statut\": \"EXPEDIEE\"}"))
                 .andExpect(status().isBadRequest())
@@ -207,6 +226,7 @@ class CommandeApiTest extends IntegrationTestSupport {
         corps.put("lignes", List.of(Map.of("recolteId", recolte.getId(), "quantite", quantite)));
 
         String reponse = mockMvc.perform(post("/api/commandes")
+                        .with(avecJetonDe(acheteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(corps)))
                 .andExpect(status().isCreated())

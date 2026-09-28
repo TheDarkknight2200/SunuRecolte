@@ -8,6 +8,8 @@ import com.sunurecolte.paiement.repository.PaiementRepository;
 import com.sunurecolte.prixmarche.repository.PrixMarcheRepository;
 import com.sunurecolte.recolte.entity.Recolte;
 import com.sunurecolte.recolte.repository.RecolteRepository;
+import com.sunurecolte.security.JwtService;
+import com.sunurecolte.security.UtilisateurPrincipal;
 import com.sunurecolte.user.entity.*;
 import com.sunurecolte.user.repository.AcheteurRepository;
 import com.sunurecolte.user.repository.ProducteurRepository;
@@ -15,14 +17,16 @@ import com.sunurecolte.user.repository.UtilisateurRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * Base commune des tests d'integration de la Phase 2.
+ * Base commune des tests d'integration.
  *
  * Memes principes que les tests de la Phase 1 : aucune base embarque, aucun mock.
  * Les tests s'executent contre le PostgreSQL local, avec le schema cree par Flyway.
@@ -38,6 +42,9 @@ public abstract class IntegrationTestSupport {
 
     @Autowired
     protected ObjectMapper objectMapper;
+
+    @Autowired
+    protected JwtService jwtService;
 
     @Autowired
     protected UtilisateurRepository utilisateurRepository;
@@ -70,12 +77,36 @@ public abstract class IntegrationTestSupport {
         return UUID.randomUUID().toString().substring(0, 8);
     }
 
+    protected String telephoneUnique() {
+        return "77" + String.format("%07d", Math.abs(UUID.randomUUID().hashCode()) % 10_000_000);
+    }
+
+    protected Utilisateur creerAdministrateur() {
+        return creerUtilisateur(Role.ADMIN);
+    }
+
+    protected UtilisateurPrincipal principalDe(Utilisateur utilisateur) {
+        return UtilisateurPrincipal.depuis(utilisateur);
+    }
+
+    /**
+     * Jeton JWT reel, signe par le vrai JwtService, pour que la requete traverse
+     * effectivement le filtre d'authentification (et non un raccourci de test).
+     */
+    protected RequestPostProcessor avecJetonDe(Utilisateur utilisateur) {
+        String jeton = jwtService.generer(UtilisateurPrincipal.depuis(utilisateur));
+        return request -> {
+            request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + jeton);
+            return request;
+        };
+    }
+
     protected Utilisateur creerUtilisateur(Role role) {
         Utilisateur utilisateur = new Utilisateur();
         utilisateur.setNom("Diop");
         utilisateur.setPrenom("Awa");
         utilisateur.setEmail(role.name().toLowerCase() + "." + suffixeUnique() + "@sunurecolte.sn");
-        utilisateur.setTelephone("77" + String.format("%07d", Math.abs(UUID.randomUUID().hashCode()) % 10_000_000));
+        utilisateur.setTelephone(telephoneUnique());
         utilisateur.setMotDePasse("empreinte-de-mot-de-passe-de-test");
         utilisateur.setRole(role);
         return utilisateurRepository.save(utilisateur);

@@ -1,15 +1,18 @@
 package com.sunurecolte.user.controller;
 
+import com.sunurecolte.security.UtilisateurPrincipal;
 import com.sunurecolte.user.dto.UtilisateurResponse;
 import com.sunurecolte.user.service.UtilisateurService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Consultation d'un compte utilisateur (profil public, sans données sensibles).
+ * Consultation d'un compte utilisateur : réservée au titulaire du compte ou à
+ * l'administrateur (voir UtilisateurService).
  */
 @RestController
 @RequestMapping("/api/utilisateurs")
@@ -19,7 +22,8 @@ public class UtilisateurController {
     private final UtilisateurService utilisateurService;
 
     @GetMapping("/{id}")
-    public UtilisateurResponse findById(@PathVariable Long id) {
-        return utilisateurService.findById(id);
+    public UtilisateurResponse findById(@PathVariable Long id,
+                                        @AuthenticationPrincipal UtilisateurPrincipal principal) {
+        return utilisateurService.findById(id, principal);
     }
 }
