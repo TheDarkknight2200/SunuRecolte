@@ -9,6 +9,7 @@ import com.sunurecolte.user.entity.Utilisateur;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -103,6 +104,57 @@ class ProfilApiTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.message").value("Producteur introuvable avec l'id : 999999"));
     }
 
+    // --- Profil du producteur connecté (GET /api/producteurs/moi) ----------
+
+    @Test
+    void obtenirMonProfilSansJetonRepond401() throws Exception {
+        mockMvc.perform(get("/api/producteurs/moi"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message")
+                        .value("Authentification requise : fournissez un jeton JWT valide."));
+    }
+
+    @Test
+    void obtenirMonProfilAvecUnAcheteurRepond403() throws Exception {
+        Acheteur acheteur = creerAcheteur();
+
+        mockMvc.perform(get("/api/producteurs/moi")
+                        .with(avecJetonDe(acheteur.getUtilisateur())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message")
+                        .value("Accès refusé : vous n'avez pas les droits nécessaires pour cette ressource."));
+    }
+
+    @Test
+    void obtenirMonProfilAvecUnAdminRepond403() throws Exception {
+        Utilisateur admin = creerAdministrateur();
+
+        mockMvc.perform(get("/api/producteurs/moi")
+                        .with(avecJetonDe(admin)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void obtenirMonProfilRepondLeProducteurIssueDuJeton() throws Exception {
+        // Second producteur créé pour prouver que la réponse ne peut pas
+        // dépendre d'un identifiant transmis par le client.
+        Producteur autre = creerProducteur(Filiere.CEREALES);
+        Producteur moi = creerProducteur(Filiere.MARAICHAGE);
+
+        mockMvc.perform(get("/api/producteurs/moi")
+                        .with(avecJetonDe(moi.getUtilisateur())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(moi.getId()))
+                .andExpect(jsonPath("$.utilisateurId").value(moi.getUtilisateur().getId()))
+                .andExpect(jsonPath("$.nom").value("Diop"))
+                .andExpect(jsonPath("$.prenom").value("Awa"))
+                .andExpect(jsonPath("$.email").value(moi.getUtilisateur().getEmail()))
+                .andExpect(jsonPath("$.filiere").value("MARAICHAGE"))
+                .andExpect(jsonPath("$.localisationExploitation").value("Rufisque"))
+                .andExpect(jsonPath("$.id").value(not(autre.getId())))
+                .andExpect(jsonPath("$.motDePasse").doesNotExist());
+    }
+
     // --- Acheteurs ---------------------------------------------------------
 
     @Test
@@ -125,5 +177,67 @@ class ProfilApiTest extends IntegrationTestSupport {
                         .with(avecJetonDe(admin)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Acheteur introuvable avec l'id : 999999"));
+    }
+
+    // --- Profil de l'acheteur connecté (GET /api/acheteurs/moi) ------------
+
+    @Test
+    void obtenirMonProfilAcheteurRepondLacheteurIssueDuJeton() throws Exception {
+        // Second acheteur créé pour prouver que la réponse ne peut pas dépendre
+        // d'un identifiant transmis par le client.
+        Acheteur autre = creerAcheteur();
+        Acheteur moi = creerAcheteur();
+
+        mockMvc.perform(get("/api/acheteurs/moi")
+                        .with(avecJetonDe(moi.getUtilisateur())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(moi.getId()))
+                .andExpect(jsonPath("$.utilisateurId").value(moi.getUtilisateur().getId()))
+                .andExpect(jsonPath("$.nom").value("Diop"))
+                .andExpect(jsonPath("$.prenom").value("Awa"))
+                .andExpect(jsonPath("$.email").value(moi.getUtilisateur().getEmail()))
+                .andExpect(jsonPath("$.telephone").value(moi.getUtilisateur().getTelephone()))
+                .andExpect(jsonPath("$.typeAcheteur").value("RESTAURATEUR"))
+                .andExpect(jsonPath("$.id").value(not(autre.getId())))
+                .andExpect(jsonPath("$.motDePasse").doesNotExist());
+    }
+
+    @Test
+    void obtenirMonProfilAcheteurSansJetonRepond401() throws Exception {
+        mockMvc.perform(get("/api/acheteurs/moi"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message")
+                        .value("Authentification requise : fournissez un jeton JWT valide."));
+    }
+
+    @Test
+    void obtenirMonProfilAcheteurAvecUnProducteurRepond403() throws Exception {
+        Producteur producteur = creerProducteur(Filiere.MARAICHAGE);
+
+        mockMvc.perform(get("/api/acheteurs/moi")
+                        .with(avecJetonDe(producteur.getUtilisateur())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message")
+                        .value("Accès refusé : vous n'avez pas les droits nécessaires pour cette ressource."));
+    }
+
+    @Test
+    void obtenirMonProfilAcheteurAvecUnAdminRepond403() throws Exception {
+        Utilisateur admin = creerAdministrateur();
+
+        mockMvc.perform(get("/api/acheteurs/moi")
+                        .with(avecJetonDe(admin)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void obtenirMonProfilAcheteurSansProfilAcheteurRepond403() throws Exception {
+        // Un compte avec le rôle ACHETEUR mais sans ligne dans la table acheteur :
+        // aucun profil à exposer, donc refus (et jamais 404 pour masquer un refus).
+        Utilisateur sansProfil = creerUtilisateur(Role.ACHETEUR);
+
+        mockMvc.perform(get("/api/acheteurs/moi")
+                        .with(avecJetonDe(sansProfil)))
+                .andExpect(status().isForbidden());
     }
 }

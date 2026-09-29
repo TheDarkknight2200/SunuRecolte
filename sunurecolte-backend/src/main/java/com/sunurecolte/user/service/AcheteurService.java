@@ -5,6 +5,7 @@ import com.sunurecolte.security.ControleAcces;
 import com.sunurecolte.security.UtilisateurPrincipal;
 import com.sunurecolte.user.dto.AcheteurResponse;
 import com.sunurecolte.user.entity.Acheteur;
+import com.sunurecolte.user.entity.Role;
 import com.sunurecolte.user.entity.Utilisateur;
 import com.sunurecolte.user.repository.AcheteurRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class AcheteurService {
 
     private final AcheteurRepository acheteurRepository;
+
+    /**
+     * Profil de l'acheteur connecté : l'identifiant vient exclusivement du jeton.
+     * Réservé au rôle ACHETEUR (403 sinon) ; un ADMIN n'a pas de profil acheteur
+     * et passe par GET /api/acheteurs/{id}.
+     */
+    public AcheteurResponse moi(UtilisateurPrincipal principal) {
+        if (principal.getRole() != Role.ACHETEUR) {
+            throw ControleAcces.accesRefuse();
+        }
+        Acheteur acheteur = acheteurRepository.findByUtilisateurId(principal.getId())
+                .orElseThrow(ControleAcces::accesRefuse);
+        return versResponse(acheteur);
+    }
 
     public AcheteurResponse findById(Long id, UtilisateurPrincipal principal) {
         Acheteur acheteur = acheteurRepository.findById(id)

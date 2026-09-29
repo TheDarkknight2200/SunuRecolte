@@ -12,6 +12,7 @@ import com.sunurecolte.security.ControleAcces;
 import com.sunurecolte.security.UtilisateurPrincipal;
 import com.sunurecolte.user.entity.Filiere;
 import com.sunurecolte.user.entity.Producteur;
+import com.sunurecolte.user.entity.Role;
 import com.sunurecolte.user.entity.Utilisateur;
 import com.sunurecolte.user.repository.ProducteurRepository;
 import lombok.RequiredArgsConstructor;
@@ -43,12 +44,28 @@ public class RecolteService {
     private final ProducteurRepository producteurRepository;
     private final LigneCommandeRepository ligneCommandeRepository;
 
-    public List<RecolteResponse> rechercher(StatutRecolte statut, Filiere filiere, String recherche) {
+    public List<RecolteResponse> rechercher(StatutRecolte statut, Filiere filiere,
+                                            Long producteurId, String recherche) {
         String rechercheNettoyee = (recherche == null || recherche.isBlank()) ? null : recherche.trim();
-        return recolteRepository.rechercher(statut, filiere, rechercheNettoyee)
+        return recolteRepository.rechercher(statut, filiere, producteurId, rechercheNettoyee)
                 .stream()
                 .map(this::versResponse)
                 .toList();
+    }
+
+    /**
+     * Récoltes du producteur connecté : l'identité vient du jeton, jamais d'un paramètre client.
+     * Un ADMIN est refusé (403) faute de profil producteur ; la consultation transverse
+     * reste GET /api/recoltes.
+     */
+    public List<RecolteResponse> mesRecoltes(StatutRecolte statut, String recherche,
+                                             UtilisateurPrincipal principal) {
+        if (principal.getRole() != Role.PRODUCTEUR) {
+            throw ControleAcces.accesRefuse();
+        }
+        Producteur producteur = producteurRepository.findByUtilisateurId(principal.getId())
+                .orElseThrow(ControleAcces::accesRefuse);
+        return rechercher(statut, null, producteur.getId(), recherche);
     }
 
     public RecolteResponse findById(Long id) {

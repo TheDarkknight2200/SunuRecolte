@@ -76,6 +76,9 @@ public class SecurityConfig {
                         // Inscription, connexion et documentation
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
+                        // Récoltes personnelles : à déclarer avant le GET public, dont le
+                        // motif /api/recoltes/* couvrirait aussi cette URL.
+                        .requestMatchers(HttpMethod.GET, "/api/recoltes/mes-recoltes").hasRole("PRODUCTEUR")
                         // Catalogue : consultation publique
                         .requestMatchers(HttpMethod.GET, "/api/recoltes", "/api/recoltes/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/prix-marche", "/api/prix-marche/*").permitAll()

@@ -5,6 +5,7 @@ import com.sunurecolte.commande.dto.LigneCommandeRequest;
 import com.sunurecolte.commande.entity.ModeReception;
 import com.sunurecolte.commande.service.CommandeService;
 import com.sunurecolte.exception.BusinessException;
+import com.sunurecolte.exception.ForbiddenException;
 import com.sunurecolte.exception.ResourceNotFoundException;
 import com.sunurecolte.recolte.dto.RecolteRequest;
 import com.sunurecolte.recolte.dto.RecolteResponse;
@@ -141,25 +142,83 @@ class RecolteServiceTest extends IntegrationTestSupport {
         creerRecolte(maraicher, "Tomate-" + suffixe, "50.00", "400.00");
         creerRecolte(eleveur, "Mouton-" + suffixe, "10.00", "45000.00");
 
-        List<RecolteResponse> sansFiltre = recolteService.rechercher(null, null, suffixe);
+        List<RecolteResponse> sansFiltre = recolteService.rechercher(null, null, null, suffixe);
         assertThat(sansFiltre).hasSize(2);
 
-        List<RecolteResponse> parFiliere = recolteService.rechercher(null, Filiere.MARAICHAGE, suffixe);
+        List<RecolteResponse> parFiliere = recolteService.rechercher(null, Filiere.MARAICHAGE, null, suffixe);
         assertThat(parFiliere).extracting(RecolteResponse::produit)
                 .containsExactly("Tomate-" + suffixe);
 
-        List<RecolteResponse> parStatut = recolteService.rechercher(StatutRecolte.DISPONIBLE, null, suffixe);
+        List<RecolteResponse> parStatut = recolteService.rechercher(
+                StatutRecolte.DISPONIBLE, null, null, suffixe);
         assertThat(parStatut).hasSize(2);
 
-        List<RecolteResponse> parStatutEpuise = recolteService.rechercher(StatutRecolte.EPUISEE, null, suffixe);
+        List<RecolteResponse> parStatutEpuise = recolteService.rechercher(
+                StatutRecolte.EPUISEE, null, null, suffixe);
         assertThat(parStatutEpuise).isEmpty();
 
-        List<RecolteResponse> parTexte = recolteService.rechercher(null, null, "mouton-" + suffixe);
+        List<RecolteResponse> parTexte = recolteService.rechercher(null, null, null, "mouton-" + suffixe);
         assertThat(parTexte).extracting(RecolteResponse::produit)
                 .containsExactly("Mouton-" + suffixe);
 
         List<RecolteResponse> combinaison = recolteService.rechercher(
-                StatutRecolte.DISPONIBLE, Filiere.ELEVAGE, "mouton-" + suffixe);
+                StatutRecolte.DISPONIBLE, Filiere.ELEVAGE, null, "mouton-" + suffixe);
         assertThat(combinaison).hasSize(1);
+    }
+
+    @Test
+    void rechercherFiltreParProducteur() {
+        String suffixe = suffixeUnique();
+        Producteur maraicher = creerProducteur(Filiere.MARAICHAGE);
+        Producteur eleveur = creerProducteur(Filiere.ELEVAGE);
+        creerRecolte(maraicher, "Tomate-" + suffixe, "50.00", "400.00");
+        creerRecolte(maraicher, "Aubergine-" + suffixe, "20.00", "600.00");
+        creerRecolte(eleveur, "Mouton-" + suffixe, "10.00", "45000.00");
+
+        List<RecolteResponse> duMaraicher = recolteService.rechercher(
+                null, null, maraicher.getId(), suffixe);
+        assertThat(duMaraicher).extracting(RecolteResponse::produit)
+                .containsExactlyInAnyOrder("Tomate-" + suffixe, "Aubergine-" + suffixe);
+        assertThat(duMaraicher).extracting(RecolteResponse::producteurId)
+                .containsOnly(maraicher.getId());
+
+        List<RecolteResponse> combineAvecLeStatut = recolteService.rechercher(
+                StatutRecolte.DISPONIBLE, Filiere.MARAICHAGE, maraicher.getId(), suffixe);
+        assertThat(combineAvecLeStatut).hasSize(2);
+
+        List<RecolteResponse> autreProduitEtAutreFiliere = recolteService.rechercher(
+                null, Filiere.ELEVAGE, maraicher.getId(), suffixe);
+        assertThat(autreProduitEtAutreFiliere).isEmpty();
+    }
+
+    @Test
+    void mesRecoltesRetournentUniquementCellesDuProducteurConnecte() {
+        String suffixe = suffixeUnique();
+        Producteur producteur = creerProducteur();
+        Producteur autre = creerProducteur(Filiere.ELEVAGE);
+        creerRecolte(producteur, "Tomate-" + suffixe, "50.00", "400.00");
+        creerRecolte(autre, "Mouton-" + suffixe, "10.00", "45000.00");
+
+        List<RecolteResponse> resultat = recolteService.mesRecoltes(
+                null, suffixe, principalDe(producteur.getUtilisateur()));
+
+        assertThat(resultat).extracting(RecolteResponse::produit)
+                .containsExactly("Tomate-" + suffixe);
+        assertThat(resultat).extracting(RecolteResponse::producteurId)
+                .containsOnly(producteur.getId());
+    }
+
+    @Test
+    void mesRecoltesRefusentUnPrincipalNonProducteur() {
+        Acheteur acheteur = creerAcheteur();
+
+        assertThatThrownBy(() -> recolteService.mesRecoltes(
+                null, null, principalDe(acheteur.getUtilisateur())))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("Accès refusé : vous n'avez pas les droits nécessaires pour cette ressource.");
+
+        assertThatThrownBy(() -> recolteService.mesRecoltes(
+                null, null, principalDe(creerAdministrateur())))
+                .isInstanceOf(ForbiddenException.class);
     }
 }

@@ -21,6 +21,15 @@ public class AcheteurController {
 
     private final AcheteurService acheteurService;
 
+    /**
+     * Profil de l'acheteur connecté. Déclaré avant « /{id} » : l'identité vient du
+     * jeton, aucun identifiant n'est accepté du client.
+     */
+    @GetMapping("/moi")
+    public AcheteurResponse moi(@AuthenticationPrincipal UtilisateurPrincipal principal) {
+        return acheteurService.moi(principal);
+    }
+
     @GetMapping("/{id}")
     public AcheteurResponse findById(@PathVariable Long id,
                                      @AuthenticationPrincipal UtilisateurPrincipal principal) {

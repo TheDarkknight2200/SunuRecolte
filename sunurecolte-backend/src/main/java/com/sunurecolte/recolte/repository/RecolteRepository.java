@@ -29,12 +29,14 @@ public interface RecolteRepository extends JpaRepository<Recolte, Long> {
             SELECT r FROM Recolte r
             WHERE (:statut IS NULL OR r.statut = :statut)
               AND (:filiere IS NULL OR r.producteur.filiere = :filiere)
+              AND (:producteurId IS NULL OR r.producteur.id = :producteurId)
               AND (:recherche IS NULL
                    OR LOWER(r.produit) LIKE LOWER(CONCAT('%', CAST(:recherche AS string), '%')))
             ORDER BY r.dateCreation DESC
             """)
     List<Recolte> rechercher(@Param("statut") StatutRecolte statut,
                              @Param("filiere") Filiere filiere,
+                             @Param("producteurId") Long producteurId,
                              @Param("recherche") String recherche);
 
     /**

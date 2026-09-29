@@ -32,7 +32,15 @@ public class RecolteController {
             @RequestParam(required = false) StatutRecolte statut,
             @RequestParam(required = false) Filiere filiere,
             @RequestParam(required = false) String recherche) {
-        return recolteService.rechercher(statut, filiere, recherche);
+        return recolteService.rechercher(statut, filiere, null, recherche);
+    }
+
+    @GetMapping("/mes-recoltes")
+    public List<RecolteResponse> mesRecoltes(
+            @RequestParam(required = false) StatutRecolte statut,
+            @RequestParam(required = false) String recherche,
+            @AuthenticationPrincipal UtilisateurPrincipal principal) {
+        return recolteService.mesRecoltes(statut, recherche, principal);
     }
 
     @GetMapping("/{id}")

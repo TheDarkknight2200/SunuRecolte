@@ -71,6 +71,93 @@ class RecolteApiTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.message").value("Valeur invalide pour le paramètre « statut »."));
     }
 
+    // --- Mes récoltes (producteur connecté) --------------------------------
+
+    @Test
+    void mesRecoltesSansJetonRepond401() throws Exception {
+        mockMvc.perform(get("/api/recoltes/mes-recoltes"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.statut").value(401))
+                .andExpect(jsonPath("$.message")
+                        .value("Authentification requise : fournissez un jeton JWT valide."));
+    }
+
+    @Test
+    void mesRecoltesParUnAcheteurRepond403() throws Exception {
+        Acheteur acheteur = creerAcheteur();
+
+        mockMvc.perform(get("/api/recoltes/mes-recoltes")
+                        .with(avecJetonDe(acheteur.getUtilisateur())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.statut").value(403))
+                .andExpect(jsonPath("$.message")
+                        .value("Accès refusé : vous n'avez pas les droits nécessaires pour cette action."));
+    }
+
+    @Test
+    void mesRecoltesParUnAdministrateurRepond403() throws Exception {
+        mockMvc.perform(get("/api/recoltes/mes-recoltes")
+                        .with(avecJetonDe(creerAdministrateur())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.statut").value(403));
+    }
+
+    @Test
+    void leProducteurObtientSeulementSesRecoltes() throws Exception {
+        String suffixe = suffixeUnique();
+        Producteur producteur = creerProducteur();
+        Producteur autre = creerProducteur(Filiere.ELEVAGE);
+        creerRecolte(producteur, "Tomate-" + suffixe, "100.00", "450.00");
+        creerRecolte(producteur, "Aubergine-" + suffixe, "30.00", "600.00");
+        creerRecolte(autre, "Mouton-" + suffixe, "10.00", "45000.00");
+
+        long mesId = producteur.getId();
+
+        mockMvc.perform(get("/api/recoltes/mes-recoltes")
+                        .with(avecJetonDe(producteur.getUtilisateur()))
+                        .param("recherche", suffixe))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[?(@.producteurId != " + mesId + ")]").isEmpty())
+                .andExpect(jsonPath("$[?(@.produit == 'Mouton-" + suffixe + "')]").isEmpty())
+                .andExpect(jsonPath("$[?(@.produit == 'Tomate-" + suffixe + "')]").isNotEmpty());
+    }
+
+    @Test
+    void mesRecoltesAppliquentLesFiltresStatutEtRecherche() throws Exception {
+        String suffixe = suffixeUnique();
+        Producteur producteur = creerProducteur();
+        creerRecolte(producteur, "Tomate-" + suffixe, "100.00", "450.00");
+
+        mockMvc.perform(get("/api/recoltes/mes-recoltes")
+                        .with(avecJetonDe(producteur.getUtilisateur()))
+                        .param("statut", "DISPONIBLE")
+                        .param("recherche", suffixe))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].produit").value("Tomate-" + suffixe));
+
+        mockMvc.perform(get("/api/recoltes/mes-recoltes")
+                        .with(avecJetonDe(producteur.getUtilisateur()))
+                        .param("statut", "EPUISEE")
+                        .param("recherche", suffixe))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void mesRecoltesAvecUnFiltreDeStatutInconnuRepond400() throws Exception {
+        Producteur producteur = creerProducteur();
+
+        mockMvc.perform(get("/api/recoltes/mes-recoltes")
+                        .with(avecJetonDe(producteur.getUtilisateur()))
+                        .param("statut", "INCONNU"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Valeur invalide pour le paramètre « statut »."));
+    }
+
     // --- Création ----------------------------------------------------------
 
     @Test

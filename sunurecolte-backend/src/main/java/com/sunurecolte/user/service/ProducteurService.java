@@ -6,6 +6,7 @@ import com.sunurecolte.security.UtilisateurPrincipal;
 import com.sunurecolte.user.dto.ProducteurRequest;
 import com.sunurecolte.user.dto.ProducteurResponse;
 import com.sunurecolte.user.entity.Producteur;
+import com.sunurecolte.user.entity.Role;
 import com.sunurecolte.user.entity.Utilisateur;
 import com.sunurecolte.user.repository.ProducteurRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProducteurService {
 
     private final ProducteurRepository producteurRepository;
+
+    /**
+     * Profil du producteur connecté : l'identifiant vient exclusivement du jeton.
+     * Réservé au rôle PRODUCTEUR (403 sinon) ; un ADMIN n'a pas de profil producteur
+     * et passe par GET /api/producteurs/{id}.
+     */
+    public ProducteurResponse moi(UtilisateurPrincipal principal) {
+        if (principal.getRole() != Role.PRODUCTEUR) {
+            throw ControleAcces.accesRefuse();
+        }
+        Producteur producteur = producteurRepository.findByUtilisateurId(principal.getId())
+                .orElseThrow(ControleAcces::accesRefuse);
+        return versResponse(producteur);
+    }
 
     public ProducteurResponse findById(Long id, UtilisateurPrincipal principal) {
         Producteur producteur = trouver(id);

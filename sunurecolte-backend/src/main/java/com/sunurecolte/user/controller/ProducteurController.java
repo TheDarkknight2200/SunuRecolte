@@ -20,6 +20,15 @@ public class ProducteurController {
 
     private final ProducteurService producteurService;
 
+    /**
+     * Profil du producteur connecté. Déclaré avant « /{id} » : l'identité vient du
+     * jeton, aucun identifiant n'est accepté du client.
+     */
+    @GetMapping("/moi")
+    public ProducteurResponse moi(@AuthenticationPrincipal UtilisateurPrincipal principal) {
+        return producteurService.moi(principal);
+    }
+
     @GetMapping("/{id}")
     public ProducteurResponse findById(@PathVariable Long id,
                                        @AuthenticationPrincipal UtilisateurPrincipal principal) {
