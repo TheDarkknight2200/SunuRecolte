@@ -1,11 +1,13 @@
 package com.sunurecolte.paiement.service;
 
 import com.sunurecolte.commande.entity.Commande;
+import com.sunurecolte.commande.entity.LigneCommande;
 import com.sunurecolte.commande.entity.StatutCommande;
 import com.sunurecolte.commande.repository.CommandeRepository;
 import com.sunurecolte.commande.service.CommandeService;
 import com.sunurecolte.exception.BusinessException;
 import com.sunurecolte.exception.ResourceNotFoundException;
+import com.sunurecolte.notification.service.NotificationService;
 import com.sunurecolte.paiement.dto.PaiementRequest;
 import com.sunurecolte.paiement.dto.PaiementResponse;
 import com.sunurecolte.paiement.entity.Paiement;
@@ -13,10 +15,13 @@ import com.sunurecolte.paiement.entity.StatutPaiement;
 import com.sunurecolte.paiement.repository.PaiementRepository;
 import com.sunurecolte.security.ControleAcces;
 import com.sunurecolte.security.UtilisateurPrincipal;
+import com.sunurecolte.user.entity.Producteur;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -25,6 +30,10 @@ import java.util.UUID;
  * référence de simulation ; la confirmation ou l'échec relèvera d'une phase ultérieure.
  *
  * Le montant est toujours repris du total de la commande calculé côté serveur.
+ *
+ * Un paiement enregistré notifie chaque producteur distinct concerné par une ligne de la
+ * commande. Le message rend le statut persisté par le serveur et rappelle la simulation : il
+ * n'affirme jamais un paiement reçu, réussi ou payé.
  *
  * Règles d'accès (Phase 3) : un paiement suit les droits de sa commande
  * (acheteur propriétaire, producteurs concernés, administrateur) ; seul
@@ -38,6 +47,7 @@ public class PaiementService {
     private final PaiementRepository paiementRepository;
     private final CommandeRepository commandeRepository;
     private final CommandeService commandeService;
+    private final NotificationService notificationService;
 
     public PaiementResponse findById(Long id, UtilisateurPrincipal principal) {
         Paiement paiement = trouver(id);
@@ -75,7 +85,11 @@ public class PaiementService {
         paiement.setMoyenPaiement(request.moyenPaiement());
         paiement.setStatut(StatutPaiement.EN_ATTENTE);
         paiement.setReferenceTransaction("SIMU-" + UUID.randomUUID());
-        return versResponse(paiementRepository.save(paiement));
+        Paiement enregistre = paiementRepository.save(paiement);
+
+        notifierProducteursConcernes(enregistre);
+
+        return versResponse(enregistre);
     }
 
     private Paiement trouver(Long id) {
@@ -86,6 +100,24 @@ public class PaiementService {
     private Commande trouverCommande(Long commandeId) {
         return commandeRepository.findById(commandeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Commande", commandeId));
+    }
+
+    /** Une notification par producteur distinct concerné, comme « Nouvelle commande » à la création. */
+    private void notifierProducteursConcernes(Paiement paiement) {
+        Commande commande = paiement.getCommande();
+        Set<Producteur> producteurs = new LinkedHashSet<>();
+        for (LigneCommande ligne : commande.getLignes()) {
+            producteurs.add(ligne.getRecolte().getProducteur());
+        }
+
+        for (Producteur producteur : producteurs) {
+            notificationService.notifier(
+                    producteur.getUtilisateur(),
+                    "Paiement simulé",
+                    "Un paiement simulé a été enregistré pour la commande n° " + commande.getId()
+                            + " : statut " + paiement.getStatut()
+                            + ", aucune transaction réelle n'a été effectuée.");
+        }
     }
 
     private PaiementResponse versResponse(Paiement paiement) {

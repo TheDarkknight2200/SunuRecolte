@@ -174,7 +174,7 @@ appliquée côté serveur. Sauf mention « public », une route exige `Authoriza
 | Commandes | `PATCH /api/commandes/{id}/statut` | Acheteur propriétaire, producteur concerné ou ADMIN |
 | Paiements | `GET /api/paiements/{id}` | Acheteur propriétaire ou ADMIN |
 | Paiements | `GET /api/paiements/commande/{commandeId}` | Acheteur propriétaire ou ADMIN |
-| Paiements | `POST /api/paiements` | ACHETEUR — paiement **simulé** (WAVE / ORANGE_MONEY, aucune transaction réelle) |
+| Paiements | `POST /api/paiements` | ACHETEUR — paiement **simulé** (WAVE / ORANGE_MONEY, aucune transaction réelle), notifie chaque producteur concerné |
 | Notifications | `GET /api/notifications` | Connecté — restreint à ses propres notifications (ADMIN : toutes) |
 | Notifications | `GET /api/notifications/{id}` | Destinataire ou ADMIN |
 | Notifications | `PUT /api/notifications/{id}/lue` | Destinataire ou ADMIN |

@@ -90,9 +90,12 @@ MVP sans WebSocket (les trois endpoints réels de `NotificationController`) :
 - PUT /api/notifications/{id}/lue (aucun corps, idempotent, renvoie la notification avec lu = true)
 
 Aucun endpoint de comptage des non-lues, aucune pagination, aucune suppression.
-Création automatique : uniquement dans `CommandeService` (une notification « Nouvelle commande » à chaque
+Création automatique : dans `CommandeService` (une notification « Nouvelle commande » à chaque
 producteur distinct à la création d'une commande, une « Suivi de commande » à l'acheteur à chaque changement
-de statut). `PaiementService` n'envoie **aucune** notification.
+de statut) et dans `PaiementService` (une notification « Paiement simulé » à chaque producteur distinct
+concerné, à l'enregistrement du paiement). Le message rend le statut **persisté** du paiement (`EN_ATTENTE`
+en pratique) et rappelle qu'aucune transaction réelle n'est effectuée : aucune notification n'affirme un
+paiement « réussi », « payé » ou « reçu », l'API actuelle ne sachant écrire ni `REUSSI` ni `ECHOUE`.
 
 ### PrixMarche
 id, produit, unite, prix_moyen, marche_reference, date_mise_a_jour

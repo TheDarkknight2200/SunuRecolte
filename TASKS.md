@@ -96,14 +96,18 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 > rien ici l'ait enregistré. Réel état du backend : `Notification` + repository + service + controller
 > existent, les trois endpoints `GET /api/notifications`, `GET /api/notifications/{id}` et
 > `PUT /api/notifications/{id}/lue` sont implémentés et testés (`NotificationApiTest`, `SecuriteApiTest`),
-> et la **création automatique** est en place dans `CommandeService` uniquement — une notification
+> et la **création automatique** est en place dans `CommandeService` — une notification
 > « Nouvelle commande » à chaque producteur distinct à la création d'une commande, une notification
 > « Suivi de commande » à l'acheteur à chaque changement de statut. « Liste » et « Marquer comme lue » sont
 > donc livrés côté API, et « Notifications commande » aussi.
 >
-> **Ce qui manque réellement** : « Notifications paiement » — `PaiementService` n'importe aucune notification
-> et **aucune** notification de paiement n'existe dans le projet. Ni l'espace producteur (aucune action sur
-> les statuts), ni une pagination, ni un endpoint de comptage n'existent non plus.
+> **Ce qui manquait réellement à la rédaction de cette note** : « Notifications paiement » — `PaiementService`
+> n'importait aucune notification et aucune notification de paiement n'existait dans le projet ; l'espace
+> producteur n'offrait aucune action sur les statuts. Ces deux points sont **désormais livrés** : la
+> notification de paiement en **5.7**, les actions de statut du producteur en **5.6** (écran
+> `/producteur/commandes`). Le mot « uniquement » de la phrase ci-dessus désignait donc `CommandeService`
+> avant 5.7 ; il n'a pas été conservé pour ne pas affirmer le contraire de la réalité.
+> Une pagination et un endpoint de comptage des non-lues n'existent toujours pas.
 >
 > **L'interface frontend de ces notifications a été réalisée dans la sous-phase 5.5.9**, pas ici : un écran
 > transversal `/notifications` et son compteur d'en-tête, qui n'utilisent que deux des trois endpoints.
@@ -140,11 +144,13 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [ ] Notifications
 - [ ] Responsive (vérifié écran par écran au fil des pages métier)
 
-## Sous-phases frontend 5.2 → 5.6 (détail réel)
+## Sous-phases 5.2 → 5.7 (détail réel)
 
-> **Avertissement de numérotation** : « 5.2 », « 5.3 », « 5.4 », « 5.5 » et « 5.6 » sont les repères des
-> consignes de travail, pas les phases de ce fichier. Elles portent sur le frontend Angular (Phase 9) et
-> n'ont aucun rapport avec la « Phase 5 — Acheteur » ni avec la « Phase 4 — Producteur » décrites plus haut.
+> **Avertissement de numérotation** : « 5.2 », « 5.3 », « 5.4 », « 5.5 », « 5.6 » et « 5.7 » sont les repères des
+> consignes de travail, pas les phases de ce fichier. Les cinq premiers portent sur le frontend Angular
+> (Phase 9) et n'ont aucun rapport avec la « Phase 5 — Acheteur » ni avec la « Phase 4 — Producteur » décrites
+> plus haut. **5.7 fait exception : elle est purement backend** (Phase 7 — Notifications), sans aucune ligne de
+> frontend modifiée.
 >
 > **Contradiction signalée, non résolue ici** : les listes « Phase 4 — Producteur » et « Phase 5 —
 > Acheteur » restent non cochées alors que les endpoints backend correspondants existent depuis les
@@ -485,17 +491,63 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   autre producteur, responsive 375/768/1024/1366) : **non faite** — hors du brief, qui demande tests
   automatisés et build. À couvrir avant de cocher cette case.
 
+### 5.7 — Notification de paiement aux producteurs (backend)
+
+> **Périmètre du brief** : backend uniquement. Aucun frontend, aucune nouvelle entité, aucune migration, aucun
+> nouveau endpoint, aucun statut de paiement ajouté (`REUSSI` ni `ECHOUE` ne sont pas écrits), aucun mécanisme
+> temps réel, aucun commit, aucun push.
+
+- [x] 5.7 — Contrat vérifié en lecture seule avant codage : `PaiementController.creer` est la **seule** écriture
+  de paiement de l'API ; `PaiementService.creer` persiste `StatutPaiement.EN_ATTENTE` et une référence
+  `SIMU-` + UUID, avec un `Paiement` `@OneToOne` unique par commande ; `Notification` ne porte **aucune colonne
+  de type** (le type est porté par le `titre`) ; `NotificationService.notifier(Utilisateur, titre, message)` est
+  le seul point de création interne, déjà utilisé par `CommandeService`. Le projet n'a **aucun** moment de
+  « traitement » du paiement : le seul fait datable est l'**enregistrement** de la simulation.
+- [x] 5.7 — `PaiementService` : injection de `NotificationService` et appel de `notifierProducteursConcernes`
+  **après** `paiementRepository.save(...)`, dans la même méthode `@Transactional`. Destinataires : chaque
+  `Producteur` distinct atteint par `commande.getLignes() → ligne.getRecolte().getProducteur()` et chargé dans
+  la transaction, dédupliqué par un `LinkedHashSet<Producteur>` — même motif que `CommandeService.creer`. Les
+  gardes existantes (404 commande, 403 accès, 400 commande annulée, 400 commande livrée, 400 paiement déjà
+  existant) sont **inchangées**, et `CommandeService` n'a pas été touché.
+- [x] 5.7 — Contenu de la notification : titre « Paiement simulé », message
+  « Un paiement simulé a été enregistré pour la commande n° {id} : statut {statut persisté}, aucune transaction
+  réelle n'a été effectuée. » **Aucune** affirmation de paiement reçu, réussi ou payé (le vocabulaire
+  frontend de `FRONTEND_DESIGN.md` §34 est respecté), et **aucun montant** : le total porte sur la commande
+  entière, potentiellement plusieurs producteurs.
+- [x] 5.7 — `PaiementApiTest` : **+7 tests** (8 → 15), section « Notification de paiement aux producteurs
+  concernés » — producteur unique notifié une fois (`lu` faux, message contient le numéro de commande,
+  `EN_ATTENTE` et « aucune transaction réelle », et ne contient ni « réussi », ni `REUSSI`, ni `ECHOUE`,
+  ni « payé ») ; deux producteurs distincts notifiés chacun une fois ; deux lignes du même producteur sans
+  doublon ; second `POST` refusé 400 sans notification supplémentaire ; **acheteur non notifié** ; notifications
+  de commande toujours émises (« Nouvelle commande » et « Suivi de commande ») ; notification consultable par le
+  producteur sur `GET /api/notifications` sans paramètre client.
+- [x] 5.7 — Validation exécutée : `./mvnw test -Dtest=PaiementApiTest` → **15/15** ; suite backend complète
+  `./mvnw test` (PostgreSQL réel, aucun mock) → **153/153** (146 avant 5.7) ;
+  `./mvnw package -DskipTests` → jar repackagé, **BUILD SUCCESS**. `CommandeServiceTest`, `NotificationApiTest`
+  et `SecuriteApiTest` inchangés et toujours verts.
+- [x] 5.7 — Frontend **non modifié** (contrainte du brief) : la notification est visible sur l'écran
+  `/notifications` et dans le compteur d'en-tête déjà livrés en 5.5.9, qui rendent tous les titres sans
+  filtrage. Seule conséquence documentaire : le commentaire de `features/notifications/notifications.ts`, qui ne
+  citait que les notifications de commande, est désormais incomplet — correction à valider par l'auteur, hors du
+  périmètre autorisé ici.
+- [ ] 5.7 — QA navigateur réelle (paiement simulé puis notification visible côté producteur, responsive
+  375/768/1024/1366) : **non faite** — le brief demandait les tests backend et le build, et interdit de
+  modifier le frontend.
+- [ ] 5.7 — Case « Notifications paiement » de la Phase 7 laissée **décochée** : le périmètre backend est livré
+  et testé ici, mais les cases de cette phase relèvent d'une décision de l'auteur (même traitement que pour
+  « Liste », « Marquer comme lue » et « Notifications commande », voir la divergence signalée en Phase 7).
+
 ### État d'intégration (2026-09-29)
 - [x] 5.2, 5.3, 5.4 et 5.5 (5.5.1 → 5.5.9) sont **implémentées et validées par les tests automatisés,
   le build et une QA navigateur réelle** (aux limites de viewport signalées en clôture de 5.5.7, 5.5.8 et
   5.5.9)
 - [x] Le travail est **commité au fur et à mesure** : les commits Git locaux sont les checkpoints des
-  phases 5.2 à 5.5.9. Le dépôt distant peut rester en retard tant qu'aucun push n'est demandé.
-  **5.6 est en cours et volontairement non commitée** (le brief de la sous-phase l'interdit)
-- [ ] Le projet n'est **pas terminé** : l'espace admin reste à faire, les notifications de paiement
-  n'existent pas côté backend, la QA navigateur de 5.6 n'a pas été faite, et l'intégration de bout en bout
-  reste à couvrir (Phase 9 puis Phases 10 et 11). La mise à jour des statuts de commande par le producteur,
-  un temps listée ici, a été livrée en **5.6**
+  phases 5.2 à 5.6. Le dépôt distant peut rester en retard tant qu'aucun push n'est demandé.
+  **5.7 est en cours et non commitée** (le brief de la sous-phase l'interdit)
+- [ ] Le projet n'est **pas terminé** : l'espace admin reste à faire, la QA navigateur de 5.6 et celle de 5.7
+  n'ont pas été faites, et l'intégration de bout en bout reste à couvrir (Phase 9 puis Phases 10 et 11). Deux
+  points un temps listés ici sont livrés : la mise à jour des statuts de commande par le producteur (**5.6**) et
+  les notifications de paiement côté backend (**5.7**)
 - [x] « Phase 5.5 » des consignes de travail (commandes acheteur) : panier, tunnel de commande,
   consultation, annulation et **paiement simulé** **faits** ; les notifications, d'abord **volontairement
   hors périmètre**, ont été livrées ensuite en **5.5.9** (écran transversal et compteur d'en-tête)
