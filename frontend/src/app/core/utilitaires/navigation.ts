@@ -9,7 +9,7 @@ export function espaceParRole(role: Role): string {
     case 'PRODUCTEUR':
       return '/producteur';
     case 'ACHETEUR':
-      return '/acheteur';
+      return '/acheteur/commandes';
     case 'ADMIN':
       return '/admin';
   }

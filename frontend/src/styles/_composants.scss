@@ -270,6 +270,19 @@ textarea.champ__saisie {
   color: var(--couleur-info);
 }
 
+/* Mapping statut → couleurs de commande, FRONTEND_DESIGN.md §27. */
+.badge--avertissement {
+  background-color: var(--couleur-avertissement-clair);
+  border-color: var(--couleur-avertissement);
+  color: var(--couleur-avertissement);
+}
+
+.badge--primaire {
+  background-color: var(--couleur-primaire-clair);
+  border-color: var(--couleur-primaire);
+  color: var(--couleur-primaire);
+}
+
 /* --- États d'interface (idle, chargement, succès, vide, erreur) --- */
 .etat {
   display: flex;

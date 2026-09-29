@@ -1,0 +1,159 @@
+@use "points-rupture" as pr;
+
+.paiement {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+}
+
+.paiement__titre h1 {
+  margin: 0;
+}
+
+.paiement__surtitre {
+  margin: 0 0 var(--espace-1);
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Mention §28 : rendue hors des branches d'état, donc visible à chaque instant. */
+.paiement__simulation {
+  margin: 0;
+}
+
+.paiement__zone-titre {
+  margin: 0 0 var(--espace-3);
+  font-size: var(--taille-lg);
+  font-weight: 600;
+}
+
+.paiement__zone-titre:focus {
+  outline: none;
+}
+
+.paiement__champs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--espace-3);
+  margin: 0;
+}
+
+.paiement__champs dt {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+}
+
+.paiement__champs dd {
+  margin: var(--espace-1) 0 0;
+  /* La référence SIMU-… est longue : elle casse sans déborder (§10.6). */
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.paiement__total {
+  font-weight: 600;
+}
+
+.paiement__aide,
+.paiement__notice {
+  margin: var(--espace-3) 0 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}
+
+.paiement__notice--refus {
+  margin: 0;
+}
+
+/* === Formulaire du moyen de paiement === */
+
+.paiement__groupe {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.paiement__groupe .paiement__aide {
+  margin-top: 0;
+  margin-bottom: var(--espace-3);
+}
+
+.paiement__legende {
+  margin-bottom: var(--espace-3);
+  font-size: var(--taille-md);
+  font-weight: 600;
+}
+
+.paiement__options {
+  display: grid;
+  gap: var(--espace-3);
+}
+
+/*
+ * Zone tactile ≥ 44 px. L'état choisi ne repose pas sur la seule couleur : bordure
+ * épaisse présente au repos, fond tinté, et coche native du radio.
+ */
+.paiement__option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--espace-3);
+  min-height: 44px;
+  padding: var(--espace-3);
+  border: 2px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
+  background-color: var(--couleur-surface);
+  cursor: pointer;
+}
+
+.paiement__option input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--couleur-primaire);
+}
+
+.paiement__option-nom {
+  font-weight: 600;
+}
+
+.paiement__option--choisi {
+  border-color: var(--couleur-primaire);
+  background-color: var(--couleur-primaire-clair);
+}
+
+/* L'anneau de focus est repris sur toute la carte, pas sur le seul radio. */
+.paiement__option:has(input:focus-visible) {
+  outline: 2px solid var(--couleur-primaire);
+  outline-offset: 2px;
+}
+
+.paiement .message--erreur {
+  margin-top: var(--espace-3);
+}
+
+.paiement__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+  margin: 0;
+}
+
+.paiement__actions .bouton {
+  min-height: 44px;
+}
+
+@media (min-width: pr.$point-tablette) {
+  .paiement__options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .paiement__actions .bouton {
+    min-height: 36px;
+  }
+}

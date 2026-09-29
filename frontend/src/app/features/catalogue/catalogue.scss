@@ -1,0 +1,149 @@
+@use "points-rupture" as pr;
+
+/* === En-tête de page === */
+
+.catalogue__intro {
+  margin: 0 0 var(--espace-5);
+  color: var(--couleur-texte-secondaire);
+}
+
+/* === Filtres === */
+
+.catalogue__filtres {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--espace-4);
+  margin-bottom: var(--espace-5);
+  padding: var(--espace-4);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-lg);
+  background-color: var(--couleur-surface);
+
+  @media (min-width: pr.$point-mobile) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (min-width: pr.$point-tablette) {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: end;
+  }
+}
+
+/* .champ porte un margin-bottom global : annulé ici, la grille gère l'écart. */
+.catalogue__champ {
+  margin-bottom: 0;
+}
+
+.catalogue__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+}
+
+/* === États === */
+
+.catalogue__etat {
+  margin-top: var(--espace-4);
+}
+
+.catalogue__denombrement {
+  margin: 0 0 var(--espace-4);
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}
+
+/* === Cartes === */
+
+.catalogue__liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catalogue__carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+}
+
+.catalogue__entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-2);
+}
+
+.catalogue__entete .carte__titre {
+  margin: 0;
+}
+
+.catalogue__lien {
+  color: var(--couleur-primaire);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.catalogue__producteur {
+  margin: 0;
+  font-weight: 600;
+}
+
+.catalogue__description {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+}
+
+.catalogue__mesures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--espace-3);
+  margin: 0;
+  padding-top: var(--espace-2);
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.catalogue__mesures dt {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.catalogue__mesures dd {
+  margin: var(--espace-1) 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.catalogue__meta {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}
+
+.catalogue__action {
+  align-self: flex-start;
+  padding-left: 0;
+}
+
+/* === Ajout au panier (acheteur connecté uniquement) === */
+
+.catalogue__achat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espace-2);
+  padding-top: var(--espace-3);
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.catalogue__quantite,
+.catalogue__motif {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}

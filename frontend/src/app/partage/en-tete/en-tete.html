@@ -12,6 +12,14 @@
     </a>
 
     <nav class="entete__navigation" aria-label="Navigation principale">
+      <a
+        class="entete__lien"
+        routerLink="/recoltes"
+        routerLinkActive="entete__lien--actif"
+        ariaCurrentWhenActive="page"
+      >
+        Catalogue
+      </a>
       @if (session(); as utilisateur) {
         <a
           class="entete__lien"
@@ -29,6 +37,19 @@
         >
           {{ libelleEspace() }}
         </a>
+        @if (acheteur()) {
+          <a
+            class="entete__lien entete__panier"
+            routerLink="/acheteur/panier"
+            routerLinkActive="entete__lien--actif"
+            [routerLinkActiveOptions]="{ exact: true }"
+            ariaCurrentWhenActive="page"
+          >
+            <span class="materiel-icone entete__panier-icone" aria-hidden="true">&#xe8cc;</span>
+            Panier
+            <span class="badge entete__panier-compteur">{{ compteurPanier() }}</span>
+          </a>
+        }
         <span class="entete__identite">
           <span class="entete__identite-nom">{{ utilisateur.prenom }} {{ utilisateur.nom }}</span>
           <span class="badge entete__identite-role">{{ libelleRole() }}</span>

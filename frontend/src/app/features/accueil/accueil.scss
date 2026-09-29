@@ -140,6 +140,28 @@
   margin-bottom: var(--espace-5);
 }
 
+.accueil__entete-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  margin-bottom: var(--espace-5);
+}
+
+.accueil__entete-section h2 {
+  margin-bottom: 0;
+}
+
+.accueil__lien {
+  color: var(--couleur-primaire);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .accueil__erreur {
   max-width: 36rem;
 }

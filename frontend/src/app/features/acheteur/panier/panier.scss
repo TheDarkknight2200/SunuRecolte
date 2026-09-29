@@ -1,0 +1,273 @@
+@use 'points-rupture' as pr;
+
+.panier {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-5);
+}
+
+/* === En-tête de page === */
+
+.panier__entete {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+}
+
+.panier__surtitre {
+  margin: 0 0 var(--espace-1);
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.panier__titre h1 {
+  margin: 0;
+}
+
+.panier__intro {
+  margin: var(--espace-2) 0 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}
+
+/* === Lignes du panier (§32) : cartes-lignes sur mobile === */
+
+.panier__liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+}
+
+.panier__ligne {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+  padding: var(--espace-4);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
+  background-color: var(--couleur-surface);
+}
+
+.panier__produit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espace-2);
+}
+
+.panier__produit .carte__titre {
+  margin: 0;
+}
+
+.panier__producteur,
+.panier__stock {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}
+
+.panier__motif {
+  margin: 0;
+  color: var(--couleur-avertissement);
+  font-size: var(--taille-sm);
+  font-weight: 600;
+}
+
+/* === Quantité (§25) : champ numérique encadré de deux boutons === */
+
+.panier__quantite {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+}
+
+.panier__saisie {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+}
+
+.panier__pas {
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  font-size: var(--taille-lg);
+  line-height: 1;
+}
+
+.panier__champ {
+  flex: none;
+  width: 7rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.panier__aide {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+}
+
+/* === Montants : textes à gauche, chiffres à droite === */
+
+.panier__montants {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espace-3);
+  margin: 0;
+  padding-top: var(--espace-3);
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.panier__montants dt {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.panier__montants dd {
+  margin: var(--espace-1) 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.panier__retirer {
+  align-self: flex-start;
+}
+
+/* === Total indicatif === */
+
+.panier__total {
+  padding: var(--espace-4);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
+  background-color: var(--couleur-surface);
+}
+
+.panier__total-ligne {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-4);
+}
+
+.panier__total-libelle {
+  margin: 0;
+  font-weight: 600;
+}
+
+.panier__total-valeur {
+  margin: 0;
+  font-size: var(--taille-lg);
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.panier__total-mention {
+  margin: var(--espace-2) 0 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+}
+
+.panier__total-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+  margin-top: var(--espace-4);
+}
+
+/* === Modale de confirmation (§31, patron de la Phase 5.4) === */
+
+.panier__fond {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--espace-4);
+  background-color: rgba(30, 36, 32, 0.55);
+}
+
+.panier__modale {
+  width: 100%;
+  max-width: 28rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+  box-shadow: var(--ombre-surface);
+}
+
+.panier__modale-titre {
+  margin: 0;
+  font-size: var(--taille-lg);
+  font-weight: 600;
+}
+
+.panier__modale-texte {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+}
+
+.panier__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+}
+
+/* === Tablette et desktop : ligne à plat, séparateur 1 px, pas de zébrage (§25) === */
+
+@media (min-width: pr.$point-tablette) {
+  .panier__entete {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .panier__liste {
+    gap: 0;
+  }
+
+  .panier__ligne {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--espace-5);
+    padding: var(--espace-4) 0;
+    border: 0;
+    border-bottom: 1px solid var(--couleur-bordure);
+    border-radius: 0;
+    background-color: transparent;
+  }
+
+  .panier__ligne:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .panier__pas {
+    min-height: 36px;
+  }
+
+  .panier__montants {
+    grid-template-columns: 1fr;
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .panier__retirer {
+    justify-self: end;
+    align-self: center;
+  }
+
+  .panier__total-actions {
+    align-items: flex-end;
+  }
+}

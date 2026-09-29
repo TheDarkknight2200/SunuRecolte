@@ -1,0 +1,87 @@
+@use "points-rupture" as pr;
+
+/* Racine : un seul rythme vertical, les marges des .champ sont neutralisées dans les groupes. */
+.formulaire-recolte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-5);
+  max-width: 44rem;
+}
+
+.formulaire-recolte__entete {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+}
+
+.formulaire-recolte__surtitre {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.formulaire-recolte h1 {
+  margin: 0;
+}
+
+.formulaire-recolte__intro {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+}
+
+.formulaire-recolte .message {
+  margin: 0;
+}
+
+/* === Formulaire === */
+
+.formulaire-recolte__carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-5);
+}
+
+/* fieldset/legend : la séparation est structurelle (repère de groupe), pas décorative. */
+.formulaire-recolte__groupe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.formulaire-recolte__legende {
+  padding: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+  font-weight: 600;
+}
+
+/* .champ porte un margin-bottom global : annulé ici, le groupe gère l'écart. */
+.formulaire-recolte__groupe .champ {
+  margin-bottom: 0;
+}
+
+.formulaire-recolte__rangee {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--espace-4);
+}
+
+.formulaire-recolte__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-3);
+  margin: 0;
+}
+
+@media (min-width: pr.$point-tablette) {
+  .formulaire-recolte__rangee {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

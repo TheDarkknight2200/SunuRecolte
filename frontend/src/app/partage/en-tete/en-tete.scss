@@ -92,7 +92,23 @@
   /* hérite des styles .badge */
 }
 
-@media (min-width: pr.$point-mobile) {
+/* Lien « Panier » et son compteur (§25) : le badge reste non cliquable, le lien l'est. */
+.entete__panier {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-1);
+}
+
+.entete__panier-icone {
+  font-size: 1rem;
+}
+
+/*
+ * Une ligne de liens ne tient qu'à partir de la tablette : un acheteur connecté cumule
+ * quatre liens, son identité et « Se déconnecter ». Sous ce point, ils passent à la ligne
+ * (§10.5) plutôt que de faire déborder l'en-tête en scroll horizontal.
+ */
+@media (min-width: pr.$point-tablette) {
   .entete__navigation {
     flex-wrap: nowrap;
   }

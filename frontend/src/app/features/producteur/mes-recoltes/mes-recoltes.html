@@ -1,0 +1,169 @@
+<section class="mes-recoltes">
+  <div class="mes-recoltes__entete">
+    <div class="mes-recoltes__titre">
+      <p class="mes-recoltes__surtitre">Espace producteur</p>
+      <h1>Mes récoltes</h1>
+      @if (producteur(); as profil) {
+        <p class="mes-recoltes__intro">
+          {{ profil.prenom }} {{ profil.nom }} — filière {{ libelleFiliere(profil) }}.
+          {{ denombrement() }}.
+        </p>
+      }
+    </div>
+    <a class="bouton bouton--primaire" #lienPublication routerLink="/producteur/recoltes/nouvelle">
+      Publier une récolte
+    </a>
+  </div>
+
+  @if (messageSucces(); as message) {
+    <div class="message message--succes" role="status">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf0be;</span>
+      <p>{{ message }}</p>
+    </div>
+  }
+
+  @if (chargement()) {
+    <div class="etat" aria-busy="true">
+      <p class="etat__texte">Chargement de vos récoltes…</p>
+    </div>
+  } @else if (erreur(); as message) {
+    <div class="message message--erreur" role="alert">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+      <div>
+        <p>{{ message }}</p>
+        <p class="mes-recoltes__actions">
+          <button
+            type="button"
+            class="bouton bouton--secondaire bouton--compact"
+            id="erreur-reessayer"
+            (click)="reessayer()"
+          >
+            Réessayer
+          </button>
+        </p>
+      </div>
+    </div>
+  } @else if (liste().length === 0) {
+    <div class="etat">
+      <p class="etat__titre">Vous n’avez encore aucune récolte.</p>
+      <p class="etat__texte">
+        Publiez votre première récolte pour la rendre visible dans le catalogue des acheteurs.
+      </p>
+      <a class="bouton bouton--primaire" routerLink="/producteur/recoltes/nouvelle">
+        Ajouter une récolte
+      </a>
+    </div>
+  } @else {
+    <ul class="mes-recoltes__liste grille-2">
+      @for (recolte of liste(); track recolte.id) {
+        <li class="carte mes-recoltes__carte">
+          <div class="mes-recoltes__entete-carte">
+            <h2 class="carte__titre">{{ recolte.produit }}</h2>
+            <span class="badge" [class.badge--succes]="recolte.statut === 'DISPONIBLE'">
+              {{ libelleStatut(recolte.statut) }}
+            </span>
+          </div>
+
+          @if (recolte.description) {
+            <p class="mes-recoltes__description">{{ recolte.description }}</p>
+          }
+
+          <dl class="mes-recoltes__mesures">
+            <div>
+              <dt>Disponible</dt>
+              <dd>{{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }}</dd>
+            </div>
+            <div>
+              <dt>Prix unitaire</dt>
+              <dd>{{ formaterMontant(recolte.prixUnitaire) }} / {{ recolte.unite }}</dd>
+            </div>
+            @if (recolte.quantiteMin !== null) {
+              <div>
+                <dt>Commande minimale</dt>
+                <dd>{{ formaterQuantite(recolte.quantiteMin, recolte.unite) }}</dd>
+              </div>
+            }
+            @if (recolte.quantiteMax !== null) {
+              <div>
+                <dt>Commande maximale</dt>
+                <dd>{{ formaterQuantite(recolte.quantiteMax, recolte.unite) }}</dd>
+              </div>
+            }
+          </dl>
+
+          @if (meta(recolte); as details) {
+            <p class="mes-recoltes__meta">{{ details }}</p>
+          }
+
+          <div class="mes-recoltes__actions">
+            <a class="bouton bouton--secondaire bouton--compact" [routerLink]="lienModification(recolte)">
+              Modifier
+            </a>
+            <button
+              type="button"
+              class="bouton bouton--danger bouton--compact"
+              [attr.aria-label]="'Supprimer la récolte ' + recolte.produit"
+              (click)="demanderSuppression(recolte, $event)"
+            >
+              Supprimer
+            </button>
+            <a class="bouton bouton--discret bouton--compact" [routerLink]="['/recoltes', recolte.id]">
+              Voir la fiche publique
+            </a>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (recolteASupprimer(); as recolte) {
+    <div
+      class="mes-recoltes__fond"
+      (click)="annulerSuppression()"
+    >
+      <div
+        class="carte mes-recoltes__modale"
+        #modale
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="suppression-titre"
+        (click)="$event.stopPropagation()"
+      >
+        <h2 class="mes-recoltes__modale-titre" id="suppression-titre">
+          Voulez-vous vraiment supprimer cette récolte ?
+        </h2>
+        <p class="mes-recoltes__modale-texte">
+          « {{ recolte.produit }} » ({{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }})
+          sera retirée du catalogue. Cette action est définitive.
+        </p>
+
+        @if (erreurSuppression(); as message) {
+          <p class="message message--erreur" role="alert">{{ message }}</p>
+        }
+
+        <div class="mes-recoltes__actions">
+          <button
+            type="button"
+            class="bouton bouton--secondaire"
+            id="suppression-annuler"
+            #boutonAnnuler
+            [disabled]="suppressionEnCours()"
+            (click)="annulerSuppression()"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            class="bouton bouton--danger"
+            id="suppression-confirmer"
+            [disabled]="suppressionEnCours()"
+            [attr.aria-busy]="suppressionEnCours()"
+            (click)="confirmerSuppression()"
+          >
+            {{ suppressionEnCours() ? '…' : 'Supprimer' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</section>

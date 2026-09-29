@@ -1,0 +1,274 @@
+<section class="formulaire-recolte">
+  <div class="formulaire-recolte__entete">
+    <p class="formulaire-recolte__surtitre">Espace producteur</p>
+    <h1>{{ titre }}</h1>
+
+    @if (producteur(); as profil) {
+      <p class="formulaire-recolte__intro">
+        Vous publiez en tant que {{ profil.prenom }} {{ profil.nom }}. Les acheteurs verront ce nom
+        avec la récolte.
+      </p>
+    }
+  </div>
+
+  @if (chargement()) {
+    <div class="etat" aria-busy="true">
+      <p class="etat__texte">Chargement…</p>
+    </div>
+  } @else if (introuvable()) {
+    <div class="etat formulaire-recolte__etat">
+      <p class="etat__titre">Récolte introuvable.</p>
+      <p class="etat__texte">
+        Cette récolte n’existe plus ou n’a jamais été publiée. Vérifiez l’adresse demandée.
+      </p>
+      <a class="bouton bouton--secondaire" routerLink="/producteur/recoltes">Retour à mes récoltes</a>
+    </div>
+  } @else if (accesRefuse()) {
+    <div class="message message--erreur" role="alert">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+      <div>
+        <p>Accès refusé : cette récolte ne vous appartient pas.</p>
+        <p class="formulaire-recolte__actions">
+          <a class="bouton bouton--secondaire bouton--compact" routerLink="/producteur/recoltes">
+            Retour à mes récoltes
+          </a>
+        </p>
+      </div>
+    </div>
+  } @else if (erreur(); as message) {
+    <div class="message message--erreur" role="alert">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+      <div>
+        <p>{{ message }}</p>
+        <p class="formulaire-recolte__actions">
+          <button
+            type="button"
+            class="bouton bouton--secondaire bouton--compact"
+            id="erreur-reessayer"
+            (click)="reessayer()"
+          >
+            Réessayer
+          </button>
+        </p>
+      </div>
+    </div>
+  } @else {
+    @if (erreurGenerale(); as message) {
+      <div class="message message--erreur" role="alert">
+        <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+        <p>{{ message }}</p>
+      </div>
+    }
+
+    <form class="carte formulaire-recolte__carte" [formGroup]="formulaire" (ngSubmit)="soumettre()" novalidate>
+      <fieldset class="formulaire-recolte__groupe">
+        <legend class="formulaire-recolte__legende">Récolte</legend>
+
+        <div class="champ">
+          <label class="champ__libelle" for="produit">
+            Produit <span class="champ__obligatoire">(obligatoire)</span>
+          </label>
+          <input
+            id="produit"
+            class="champ__saisie"
+            type="text"
+            formControlName="produit"
+            maxlength="150"
+            required
+            aria-required="true"
+            [attr.aria-invalid]="invalide('produit')"
+            aria-describedby="produit-erreur"
+          />
+          @if (invalide('produit')) {
+            <p id="produit-erreur" class="champ__erreur">{{ messageErreur('produit') }}</p>
+          }
+        </div>
+
+        <div class="champ">
+          <label class="champ__libelle" for="description">Description</label>
+          <textarea
+            id="description"
+            class="champ__saisie"
+            formControlName="description"
+            rows="3"
+            aria-describedby="description-aide"
+          ></textarea>
+          <p id="description-aide" class="champ__aide">
+            Calibre, variété, conditionnement : ce que l’acheteur doit savoir.
+          </p>
+        </div>
+      </fieldset>
+
+      <fieldset class="formulaire-recolte__groupe">
+        <legend class="formulaire-recolte__legende">Quantités et prix</legend>
+
+        <div class="formulaire-recolte__rangee">
+          <div class="champ">
+            <label class="champ__libelle" for="quantiteDisponible">
+              Quantité disponible <span class="champ__obligatoire">(obligatoire)</span>
+            </label>
+            <input
+              id="quantiteDisponible"
+              class="champ__saisie"
+              type="number"
+              formControlName="quantiteDisponible"
+              min="0.01"
+              step="0.01"
+              inputmode="decimal"
+              required
+              aria-required="true"
+              [attr.aria-invalid]="invalide('quantiteDisponible')"
+              aria-describedby="quantiteDisponible-erreur"
+            />
+            @if (invalide('quantiteDisponible')) {
+              <p id="quantiteDisponible-erreur" class="champ__erreur">
+                {{ messageErreur('quantiteDisponible') }}
+              </p>
+            }
+          </div>
+
+          <div class="champ">
+            <label class="champ__libelle" for="unite">
+              Unité <span class="champ__obligatoire">(obligatoire)</span>
+            </label>
+            <input
+              id="unite"
+              class="champ__saisie"
+              type="text"
+              formControlName="unite"
+              maxlength="30"
+              placeholder="kg, sac, litre"
+              required
+              aria-required="true"
+              [attr.aria-invalid]="invalide('unite')"
+              aria-describedby="unite-erreur"
+            />
+            @if (invalide('unite')) {
+              <p id="unite-erreur" class="champ__erreur">{{ messageErreur('unite') }}</p>
+            }
+          </div>
+        </div>
+
+        <div class="champ">
+          <label class="champ__libelle" for="prixUnitaire">
+            Prix unitaire en FCFA <span class="champ__obligatoire">(obligatoire)</span>
+          </label>
+          <input
+            id="prixUnitaire"
+            class="champ__saisie"
+            type="number"
+            formControlName="prixUnitaire"
+            min="0.01"
+            step="0.01"
+            inputmode="decimal"
+            required
+            aria-required="true"
+            [attr.aria-invalid]="invalide('prixUnitaire')"
+            aria-describedby="prixUnitaire-erreur"
+          />
+          @if (invalide('prixUnitaire')) {
+            <p id="prixUnitaire-erreur" class="champ__erreur">{{ messageErreur('prixUnitaire') }}</p>
+          }
+        </div>
+
+        <div class="formulaire-recolte__rangee">
+          <div class="champ">
+            <label class="champ__libelle" for="quantiteMin">Commande minimale</label>
+            <input
+              id="quantiteMin"
+              class="champ__saisie"
+              type="number"
+              formControlName="quantiteMin"
+              min="0.01"
+              step="0.01"
+              inputmode="decimal"
+              [attr.aria-invalid]="invalide('quantiteMin')"
+              aria-describedby="quantiteMin-aide quantiteMin-erreur"
+            />
+            <p id="quantiteMin-aide" class="champ__aide">Facultatif. Laissez vide s’il n’y a pas de minimum.</p>
+            @if (invalide('quantiteMin')) {
+              <p id="quantiteMin-erreur" class="champ__erreur">{{ messageErreur('quantiteMin') }}</p>
+            }
+          </div>
+
+          <div class="champ">
+            <label class="champ__libelle" for="quantiteMax">Commande maximale</label>
+            <input
+              id="quantiteMax"
+              class="champ__saisie"
+              type="number"
+              formControlName="quantiteMax"
+              min="0.01"
+              step="0.01"
+              inputmode="decimal"
+              [attr.aria-invalid]="invalide('quantiteMax')"
+              aria-describedby="quantiteMax-aide quantiteMax-erreur"
+            />
+            <p id="quantiteMax-aide" class="champ__aide">Facultatif. Laissez vide s’il n’y a pas de maximum.</p>
+            @if (invalide('quantiteMax')) {
+              <p id="quantiteMax-erreur" class="champ__erreur">{{ messageErreur('quantiteMax') }}</p>
+            }
+          </div>
+        </div>
+
+        @if (formulaire.hasError('quantitesIncoherentes') && formulaire.touched) {
+          <p class="champ__erreur" role="alert">
+            La commande minimale ne peut pas dépasser la commande maximale.
+          </p>
+        }
+      </fieldset>
+
+      <fieldset class="formulaire-recolte__groupe">
+        <legend class="formulaire-recolte__legende">Précisions facultatives</legend>
+
+        <div class="champ">
+          <label class="champ__libelle" for="dateDisponibilite">Date de disponibilité</label>
+          <input
+            id="dateDisponibilite"
+            class="champ__saisie"
+            type="date"
+            formControlName="dateDisponibilite"
+          />
+        </div>
+
+        <div class="champ">
+          <label class="champ__libelle" for="localisation">Lieu de retrait</label>
+          <input
+            id="localisation"
+            class="champ__saisie"
+            type="text"
+            formControlName="localisation"
+            placeholder="Marché de Thiès, Thiaroye…"
+          />
+        </div>
+
+        <div class="champ">
+          <label class="champ__libelle" for="imageUrl">Adresse de la photo</label>
+          <input
+            id="imageUrl"
+            class="champ__saisie"
+            type="url"
+            formControlName="imageUrl"
+            aria-describedby="imageUrl-aide"
+          />
+          <p id="imageUrl-aide" class="champ__aide">
+            Lien d’une photo déjà hébergée en ligne. Facultatif.
+          </p>
+        </div>
+      </fieldset>
+
+      <div class="formulaire-recolte__actions">
+        <button
+          type="submit"
+          class="bouton bouton--primaire"
+          id="formulaire-soumettre"
+          [disabled]="enCours()"
+          [attr.aria-busy]="enCours()"
+        >
+          {{ enCours() ? '…' : creation ? 'Publier la récolte' : 'Enregistrer les modifications' }}
+        </button>
+        <a class="bouton bouton--discret" routerLink="/producteur/recoltes">Annuler</a>
+      </div>
+    </form>
+  }
+</section>

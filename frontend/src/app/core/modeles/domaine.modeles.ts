@@ -1,10 +1,32 @@
 // Modèles alignés sur les DTO Java réels.
 // UtilisateurResponse : user/dto/UtilisateurResponse.java
 // RecolteResponse : recolte/dto/RecolteResponse.java
+// RecolteRequest : recolte/dto/RecolteRequest.java
+// ProducteurResponse : user/dto/ProducteurResponse.java
+// AcheteurResponse : user/dto/AcheteurResponse.java
+// CommandeResponse : commande/dto/CommandeResponse.java
+// LigneCommandeResponse : commande/dto/LigneCommandeResponse.java
+// CommandeRequest : commande/dto/CommandeRequest.java
+// LigneCommandeRequest : commande/dto/LigneCommandeRequest.java
+// StatutCommandeRequest : commande/dto/StatutCommandeRequest.java
+// PaiementRequest : paiement/dto/PaiementRequest.java
+// PaiementResponse : paiement/dto/PaiementResponse.java
+// NotificationResponse : notification/dto/NotificationResponse.java
 // (BigDecimal -> number, LocalDate -> chaîne « AAAA-MM-JJ »,
-//  LocalDateTime -> chaîne ISO renvoyée par Jackson.)
+//  LocalDateTime -> chaîne ISO renvoyée par Jackson.
+//  Un champ nullable côté Java — colonne sans nullable = false ou absence de
+//  @NotNull/@NotBlank — est déclaré « | null » ici.)
 
-import { Role, StatutRecolte } from './referentiels';
+import {
+  Filiere,
+  ModeReception,
+  MoyenPaiement,
+  Role,
+  StatutCommande,
+  StatutPaiement,
+  StatutRecolte,
+  TypeAcheteur,
+} from './referentiels';
 
 /** Réponse de GET /api/utilisateurs/{id}. */
 export interface UtilisateurResponse {
@@ -18,22 +40,164 @@ export interface UtilisateurResponse {
   actif: boolean;
 }
 
-/** Réponse de GET /api/recoltes et GET /api/recoltes/{id}. */
+/**
+ * Réponse de GET /api/recoltes, GET /api/recoltes/{id}, GET /api/recoltes/mes-recoltes,
+ * POST /api/recoltes et PUT /api/recoltes/{id}.
+ */
 export interface RecolteResponse {
   id: number;
   producteurId: number;
   nomProducteur: string;
-  localisationProducteur: string;
+  /** Producteur.localisationExploitation : colonne nullable. */
+  localisationProducteur: string | null;
   produit: string;
-  description: string;
+  description: string | null;
   quantiteDisponible: number;
-  quantiteMin: number;
-  quantiteMax: number;
+  quantiteMin: number | null;
+  quantiteMax: number | null;
   unite: string;
   prixUnitaire: number;
   imageUrl: string | null;
-  localisation: string;
-  dateDisponibilite: string;
+  localisation: string | null;
+  dateDisponibilite: string | null;
   statut: StatutRecolte;
+  dateCreation: string;
+}
+
+/**
+ * Corps de POST /api/recoltes et PUT /api/recoltes/{id}.
+ * Les champs obligatoires du record Java (@NotNull / @NotBlank) restent
+ * obligatoires ici ; les autres sont absents ou null.
+ */
+export interface RecolteRequest {
+  producteurId: number;
+  produit: string;
+  description?: string | null;
+  quantiteDisponible: number;
+  quantiteMin?: number | null;
+  quantiteMax?: number | null;
+  unite: string;
+  prixUnitaire: number;
+  imageUrl?: string | null;
+  localisation?: string | null;
+  dateDisponibilite?: string | null;
+}
+
+/** Réponse de GET /api/producteurs/{id} et GET /api/producteurs/moi. */
+export interface ProducteurResponse {
+  id: number;
+  utilisateurId: number;
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone: string;
+  /** Producteur.localisationExploitation : colonne nullable. */
+  localisationExploitation: string | null;
+  filiere: Filiere;
+  description: string | null;
+}
+
+/** Réponse de GET /api/acheteurs/{id} et GET /api/acheteurs/moi. */
+export interface AcheteurResponse {
+  id: number;
+  utilisateurId: number;
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone: string;
+  /** Acheteur.typeAcheteur : colonne nullable = false. */
+  typeAcheteur: TypeAcheteur;
+}
+
+/**
+ * Réponse de GET /api/commandes, GET /api/commandes/{id}, POST /api/commandes
+ * et PATCH /api/commandes/{id}/statut (l'annulation passe par ce PATCH avec « ANNULEE »).
+ */
+export interface CommandeResponse {
+  id: number;
+  acheteurId: number;
+  /** Utilisateur.nomComplet() : nom et prénom nullable = false. */
+  nomAcheteur: string;
+  /** LocalDateTime Jackson → chaîne ISO « AAAA-MM-JJTHH:MM:SS ». */
+  dateCreation: string;
+  statut: StatutCommande;
+  /** Total calculé par le service à partir des lignes : jamais envoyé par le client. */
+  total: number;
+  modeReception: ModeReception;
+  /** Commande.adresse_livraison : colonne sans nullable = false. */
+  adresseLivraison: string | null;
+  /** Commande.telephone_livraison : colonne sans nullable = false. */
+  telephoneLivraison: string | null;
+  /** Commande.instructions_livraison : colonne sans nullable = false. */
+  instructionsLivraison: string | null;
+  lignes: LigneCommandeResponse[];
+}
+
+/** Ligne d'une CommandeResponse. */
+export interface LigneCommandeResponse {
+  id: number;
+  recolteId: number;
+  produit: string;
+  unite: string;
+  quantite: number;
+  /** Prix figé à la commande par le service, depuis Recolte.prixUnitaire. */
+  prixUnitaire: number;
+  /** Sous-total calculé côté serveur (quantite × prixUnitaire). */
+  sousTotal: number;
+}
+
+/**
+ * Corps de POST /api/commandes.
+ * Aucun champ de prix ni de total : le serveur recalcule tout depuis les récoltes.
+ */
+export interface CommandeRequest {
+  acheteurId: number;
+  modeReception: ModeReception;
+  adresseLivraison?: string | null;
+  telephoneLivraison?: string | null;
+  instructionsLivraison?: string | null;
+  lignes: LigneCommandeRequest[];
+}
+
+/** Ligne d'une CommandeRequest : seule la quantité est choisie par l'acheteur. */
+export interface LigneCommandeRequest {
+  recolteId: number;
+  quantite: number;
+}
+
+/** Corps de PATCH /api/commandes/{id}/statut (changement de statut et annulation). */
+export interface StatutCommandeRequest {
+  statut: StatutCommande;
+}
+
+/** Corps de POST /api/paiements. */
+export interface PaiementRequest {
+  commandeId: number;
+  moyenPaiement: MoyenPaiement;
+}
+
+/** Réponse de POST /api/paiements, GET /api/paiements/{id} et GET /api/paiements/commande/{commandeId}. */
+export interface PaiementResponse {
+  id: number;
+  commandeId: number;
+  /** Paiement.reference_transaction : colonne sans nullable = false (le service écrit « SIMU-… »). */
+  referenceTransaction: string | null;
+  montant: number;
+  moyenPaiement: MoyenPaiement;
+  statut: StatutPaiement;
+  /** LocalDateTime Jackson → chaîne ISO. */
+  dateCreation: string;
+  /** Paiement.date_confirmation : colonne sans nullable = false, non renseignée en phase 5.5. */
+  dateConfirmation: string | null;
+}
+
+/** Réponse de GET /api/notifications, GET /api/notifications/{id} et PUT /api/notifications/{id}/lue. */
+export interface NotificationResponse {
+  id: number;
+  utilisateurId: number;
+  titre: string;
+  message: string;
+  lu: boolean;
+  /** LocalDateTime Jackson → chaîne ISO. */
   dateCreation: string;
 }

@@ -55,7 +55,12 @@
 
 <section class="accueil__catalogue" aria-labelledby="titre-catalogue">
   <div class="conteneur">
-    <h2 id="titre-catalogue">Récoltes publiées</h2>
+    <div class="accueil__entete-section">
+      <h2 id="titre-catalogue">Récoltes publiées</h2>
+      <a class="bouton bouton--secondaire bouton--compact" routerLink="/recoltes">
+        Voir le catalogue
+      </a>
+    </div>
 
     @if (chargement()) {
       <div class="etat" aria-busy="true">
@@ -83,7 +88,11 @@
         @for (recolte of liste(); track recolte.id) {
           <li class="carte accueil__carte">
             <div class="accueil__entete-carte">
-              <h3 class="carte__titre">{{ recolte.produit }}</h3>
+              <h3 class="carte__titre">
+                <a class="accueil__lien" [routerLink]="['/recoltes', recolte.id]">
+                  {{ recolte.produit }}
+                </a>
+              </h3>
               <span
                 class="badge"
                 [class.badge--succes]="recolte.statut === 'DISPONIBLE'"
@@ -92,9 +101,7 @@
               </span>
             </div>
 
-            <p class="accueil__producteur">
-              {{ recolte.nomProducteur }} — {{ recolte.localisationProducteur }}
-            </p>
+            <p class="accueil__producteur">{{ producteur(recolte) }}</p>
 
             @if (recolte.description) {
               <p class="accueil__description">{{ recolte.description }}</p>
@@ -103,21 +110,23 @@
             <dl class="accueil__mesures">
               <div>
                 <dt>Disponible</dt>
-                <dd>{{ formaterMontant(recolte.quantiteDisponible) }} {{ recolte.unite }}</dd>
+                <dd>{{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }}</dd>
               </div>
               <div>
                 <dt>Prix unitaire</dt>
                 <dd>{{ formaterMontant(recolte.prixUnitaire) }} / {{ recolte.unite }}</dd>
               </div>
-              <div>
-                <dt>Commande minimale</dt>
-                <dd>{{ formaterMontant(recolte.quantiteMin) }} {{ recolte.unite }}</dd>
-              </div>
+              @if (recolte.quantiteMin !== null) {
+                <div>
+                  <dt>Commande minimale</dt>
+                  <dd>{{ formaterQuantite(recolte.quantiteMin, recolte.unite) }}</dd>
+                </div>
+              }
             </dl>
 
-            <p class="accueil__meta">
-              Disponible à partir du {{ formaterDate(recolte.dateDisponibilite) }} — {{ recolte.localisation }}
-            </p>
+            @if (meta(recolte); as details) {
+              <p class="accueil__meta">{{ details }}</p>
+            }
           </li>
         }
       </ul>

@@ -4,6 +4,7 @@ import { RecolteResponse } from '../../core/modeles/domaine.modeles';
 import { LIBELLES_STATUT_RECOLTE } from '../../core/modeles/referentiels';
 import { RecolteService } from '../../core/services/recolte.service';
 import { messageErreurApi } from '../../core/utilitaires/erreurs-api';
+import { formaterDate, formaterMontant, formaterQuantite } from '../../core/utilitaires/formatage';
 
 /** Page publique : présentation du projet et catalogue réel (GET /api/recoltes). */
 @Component({
@@ -18,6 +19,11 @@ export class Accueil {
   protected readonly chargement = signal(true);
   protected readonly erreur = signal<string | null>(null);
   protected readonly liste = signal<RecolteResponse[]>([]);
+
+  // Les formats sont ceux de toute l'interface (core/utilitaires/formatage).
+  protected readonly formaterMontant = formaterMontant;
+  protected readonly formaterQuantite = formaterQuantite;
+  protected readonly formaterDate = formaterDate;
 
   constructor() {
     this.charger();
@@ -42,13 +48,21 @@ export class Accueil {
     return LIBELLES_STATUT_RECOLTE[recolte.statut];
   }
 
-  protected formaterMontant(valeur: number): string {
-    return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(valeur);
+  protected producteur(recolte: RecolteResponse): string {
+    return recolte.localisationProducteur
+      ? `${recolte.nomProducteur} — ${recolte.localisationProducteur}`
+      : recolte.nomProducteur;
   }
 
-  /** Reformatage d'une date « AAAA-MM-JJ » sans passer par Date (aucun décalage de fuseau). */
-  protected formaterDate(valeur: string): string {
-    const [annee, mois, jour] = valeur.split('-');
-    return annee && mois && jour ? `${jour}/${mois}/${annee}` : valeur;
+  /** Ligne de disponibilité : une récolte peut n'avoir ni date ni lieu de retrait. */
+  protected meta(recolte: RecolteResponse): string | null {
+    const date = recolte.dateDisponibilite
+      ? `Disponible à partir du ${formaterDate(recolte.dateDisponibilite)}`
+      : null;
+    const lieu = recolte.localisation;
+    if (date && lieu) {
+      return `${date} — ${lieu}`;
+    }
+    return date ?? lieu;
   }
 }

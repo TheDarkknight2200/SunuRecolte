@@ -1,0 +1,191 @@
+<section class="detail-commande">
+  <div class="detail-commande__titre">
+    <p class="detail-commande__surtitre">Espace acheteur</p>
+    <h1>
+      @if (commande(); as c) {
+        Commande n° {{ c.id }}
+      } @else {
+        Détail de la commande
+      }
+    </h1>
+  </div>
+
+  @if (chargement()) {
+    <div class="etat" aria-busy="true">
+      <p class="etat__texte">Chargement de la commande…</p>
+    </div>
+  } @else if (introuvable()) {
+    <div class="etat">
+      <p class="etat__titre">Commande introuvable.</p>
+      <p class="etat__texte">
+        Cette commande n’existe pas ou n’appartient plus à votre compte.
+      </p>
+      <a class="bouton bouton--primaire" routerLink="/acheteur/commandes">Voir mes commandes</a>
+    </div>
+  } @else if (erreur(); as message) {
+    <div class="message message--erreur" role="alert">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+      <div>
+        <p>{{ message }}</p>
+        <p class="detail-commande__actions">
+          <button
+            type="button"
+            class="bouton bouton--secondaire bouton--compact"
+            id="commande-reessayer"
+            (click)="reessayer()"
+          >
+            Réessayer
+          </button>
+        </p>
+      </div>
+    </div>
+  } @else if (commande(); as c) {
+    @if (succesAnnulation(); as message) {
+      <div class="message message--succes" role="status">
+        <span class="materiel-icone message__icone" aria-hidden="true">&#xf0be;</span>
+        <p>{{ message }}</p>
+      </div>
+    }
+
+    <div class="carte">
+      <h2 class="detail-commande__zone-titre">Commande</h2>
+      <dl class="detail-commande__champs">
+        <div>
+          <dt>Statut</dt>
+          <dd>
+            <span [class]="classesStatut(c.statut)">{{ libelleStatut(c.statut) }}</span>
+          </dd>
+        </div>
+        <div>
+          <dt>Date</dt>
+          <dd>{{ formaterDateHeure(c.dateCreation) }}</dd>
+        </div>
+        <div>
+          <dt>Acheteur</dt>
+          <dd>{{ c.nomAcheteur }}</dd>
+        </div>
+        <div>
+          <dt>Mode de réception</dt>
+          <dd>{{ libelleReception(c.modeReception) }}</dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="carte">
+      <h2 class="detail-commande__zone-titre">Réception</h2>
+      @if (livraison()) {
+        <dl class="detail-commande__champs">
+          <div>
+            <dt>Adresse de livraison</dt>
+            <dd>{{ ouValeurAbsente(c.adresseLivraison) }}</dd>
+          </div>
+          <div>
+            <dt>Téléphone</dt>
+            <dd>{{ ouValeurAbsente(c.telephoneLivraison) }}</dd>
+          </div>
+          <div>
+            <dt>Instructions</dt>
+            <dd>{{ ouValeurAbsente(c.instructionsLivraison) }}</dd>
+          </div>
+        </dl>
+      } @else {
+        <p class="detail-commande__notice">
+          Retrait : vous récupérez la commande auprès du producteur. Aucune adresse de livraison
+          n’a été enregistrée.
+        </p>
+      }
+    </div>
+
+    <div class="carte">
+      <h2 class="detail-commande__zone-titre">Lignes de la commande</h2>
+      <ul class="detail-commande__lignes">
+        @for (ligne of c.lignes; track ligne.id) {
+          <li class="detail-commande__ligne">
+            <p class="detail-commande__produit">{{ ligne.produit }}</p>
+            <p class="detail-commande__quantite">
+              {{ formaterQuantite(ligne.quantite, ligne.unite) }}
+            </p>
+            <p class="detail-commande__prix">
+              {{ formaterMontant(ligne.prixUnitaire) }} / {{ ligne.unite }}
+            </p>
+            <p class="detail-commande__sous-total">{{ formaterMontant(ligne.sousTotal) }}</p>
+          </li>
+        }
+      </ul>
+
+      <p class="detail-commande__total">
+        <span class="detail-commande__total-libelle">Total</span>
+        <span class="detail-commande__total-valeur">{{ formaterMontant(c.total) }}</span>
+      </p>
+    </div>
+
+    <div class="detail-commande__actions">
+      <a class="bouton bouton--secondaire" id="lien-retour" #lienRetour routerLink="/acheteur/commandes">
+        Retour à mes commandes
+      </a>
+      @if (payable()) {
+        <a class="bouton bouton--primaire" id="commande-payer" [routerLink]="['/acheteur/paiement', c.id]">
+          Payer la commande
+        </a>
+      }
+      @if (annulable()) {
+        <button
+          type="button"
+          class="bouton bouton--danger"
+          id="commande-annuler"
+          (click)="demanderAnnulation($event)"
+        >
+          Annuler la commande
+        </button>
+      }
+    </div>
+  }
+
+  @if (confirmationAnnulation() && commande(); as c) {
+    <div class="detail-commande__fond" (click)="annulerDemande()">
+      <div
+        class="carte detail-commande__modale"
+        #modale
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="annulation-titre"
+        (click)="$event.stopPropagation()"
+      >
+        <h2 class="detail-commande__modale-titre" id="annulation-titre">
+          Voulez-vous vraiment annuler cette commande ?
+        </h2>
+        <p class="detail-commande__modale-texte">
+          La commande n° {{ c.id }} ({{ formaterMontant(c.total) }}) sera annulée. Cette action est
+          définitive.
+        </p>
+
+        @if (erreurAnnulation(); as message) {
+          <p class="message message--erreur" role="alert">{{ message }}</p>
+        }
+
+        <div class="detail-commande__actions">
+          <button
+            type="button"
+            class="bouton bouton--secondaire"
+            id="annulation-annuler"
+            #boutonAnnuler
+            [disabled]="annulationEnCours()"
+            (click)="annulerDemande()"
+          >
+            Garder la commande
+          </button>
+          <button
+            type="button"
+            class="bouton bouton--danger"
+            id="annulation-confirmer"
+            [disabled]="annulationEnCours()"
+            [attr.aria-busy]="annulationEnCours()"
+            (click)="confirmerAnnulation()"
+          >
+            {{ annulationEnCours() ? '…' : 'Annuler la commande' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</section>

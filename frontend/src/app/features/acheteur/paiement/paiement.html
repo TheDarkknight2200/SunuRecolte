@@ -1,0 +1,162 @@
+<section class="paiement">
+  <div class="paiement__titre">
+    <p class="paiement__surtitre">Espace acheteur</p>
+    <h1>
+      @if (commande(); as c) {
+        Paiement simulé — commande n° {{ c.id }}
+      } @else {
+        Paiement simulé
+      }
+    </h1>
+  </div>
+
+  <p class="message message--info paiement__simulation">
+    <span class="materiel-icone message__icone" aria-hidden="true">&#xe88e;</span>
+    <span>Paiement simulé — aucune transaction réelle n’est effectuée.</span>
+  </p>
+
+  @if (chargement()) {
+    <div class="etat" aria-busy="true">
+      <p class="etat__texte">Chargement de la commande…</p>
+    </div>
+  } @else if (introuvable()) {
+    <div class="etat">
+      <p class="etat__titre">Commande introuvable.</p>
+      <p class="etat__texte">
+        Cette commande n’existe pas ou n’appartient pas à votre compte.
+      </p>
+      <a class="bouton bouton--primaire" routerLink="/acheteur/commandes">Voir mes commandes</a>
+    </div>
+  } @else if (erreur(); as message) {
+    <div class="message message--erreur" role="alert">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+      <div>
+        <p>{{ message }}</p>
+        <p class="paiement__actions">
+          <button
+            type="button"
+            class="bouton bouton--secondaire bouton--compact"
+            id="paiement-reessayer"
+            (click)="reessayer()"
+          >
+            Réessayer
+          </button>
+        </p>
+      </div>
+    </div>
+  } @else if (commande(); as c) {
+    <div class="carte">
+      <h2 class="paiement__zone-titre">Commande</h2>
+      <dl class="paiement__champs">
+        <div>
+          <dt>Numéro</dt>
+          <dd>n° {{ c.id }}</dd>
+        </div>
+        <div>
+          <dt>Statut</dt>
+          <dd>
+            <span [class]="classesStatut(c.statut)">{{ libelleStatutCommande(c.statut) }}</span>
+          </dd>
+        </div>
+        <div>
+          <dt>Total à payer</dt>
+          <dd class="paiement__total">{{ formaterMontant(c.total) }}</dd>
+        </div>
+      </dl>
+      <p class="paiement__aide">
+        Montant calculé par le serveur lors de la commande ; le panier n’est jamais relu ici.
+      </p>
+    </div>
+
+    @if (paiementEnregistre(); as p) {
+      <div
+        class="carte"
+        [attr.role]="resultat() !== null ? 'status' : null"
+        [attr.aria-labelledby]="resultat() !== null ? 'paiement-resultat-titre' : null"
+      >
+        <h2 class="paiement__zone-titre" id="paiement-resultat-titre" #titreResultat tabindex="-1">
+          {{ phraseResultat(p) }}
+        </h2>
+        <dl class="paiement__champs">
+          <div>
+            <dt>Statut du paiement</dt>
+            <dd>{{ libelleStatutPaiement(p) }}</dd>
+          </div>
+          <div>
+            <dt>Moyen</dt>
+            <dd>{{ libelleMoyen(p.moyenPaiement) }}</dd>
+          </div>
+          <div>
+            <dt>Montant</dt>
+            <dd>{{ formaterMontant(p.montant) }}</dd>
+          </div>
+          <div>
+            <dt>Référence de simulation</dt>
+            <dd>{{ ouValeurAbsente(p.referenceTransaction) }}</dd>
+          </div>
+          <div>
+            <dt>Date de la demande</dt>
+            <dd>{{ formaterDateHeure(p.dateCreation) }}</dd>
+          </div>
+          <div>
+            <dt>Date de confirmation</dt>
+            <dd>{{ ouValeurAbsente(p.dateConfirmation) }}</dd>
+          </div>
+        </dl>
+        <p class="paiement__notice">
+          Cette référence identifie la simulation enregistrée par l’application. Elle ne correspond
+          à aucune transaction bancaire ni mobile.
+        </p>
+      </div>
+    } @else if (payable()) {
+      <form class="carte" [formGroup]="formulaire" (ngSubmit)="payer()">
+        <fieldset
+          class="paiement__groupe"
+          [attr.aria-describedby]="erreurSoumission() ? 'paiement-moyen-erreur' : null"
+        >
+          <legend class="paiement__legende">Moyen de paiement</legend>
+          <p class="paiement__aide">
+            Le choix est enregistré pour la simulation. Aucun débit n’est effectué.
+          </p>
+
+          <div class="paiement__options">
+            @for (moyen of moyens; track moyen) {
+              <label class="paiement__option" [class.paiement__option--choisi]="estChoisi(moyen)">
+                <input type="radio" name="moyenPaiement" [value]="moyen" formControlName="moyenPaiement" />
+                <span class="paiement__option-nom">{{ libelleMoyen(moyen) }}</span>
+              </label>
+            }
+          </div>
+        </fieldset>
+
+        @if (erreurSoumission(); as message) {
+          <p class="message message--erreur" id="paiement-moyen-erreur" role="alert">
+            <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+            <span>{{ message }}</span>
+          </p>
+        }
+
+        <div class="paiement__actions">
+          <button
+            type="submit"
+            class="bouton bouton--primaire"
+            id="paiement-simuler"
+            [disabled]="enCours()"
+            [attr.aria-busy]="enCours()"
+          >
+            {{ enCours() ? 'Enregistrement…' : 'Simuler le paiement' }}
+          </button>
+        </div>
+      </form>
+    } @else {
+      <p class="paiement__notice paiement__notice--refus">{{ motifRefus() }}</p>
+    }
+
+    <div class="paiement__actions">
+      <a class="bouton bouton--secondaire" id="lien-retour-commande" [routerLink]="['/acheteur/commandes', c.id]">
+        Retour à la commande
+      </a>
+      <a class="bouton bouton--discret" routerLink="/acheteur/commandes">Mes commandes</a>
+    </div>
+  }
+</section>

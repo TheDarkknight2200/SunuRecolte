@@ -14,6 +14,18 @@ export const routes: Routes = [
     loadComponent: () => import('./features/accueil/accueil').then((m) => m.Accueil),
   },
   {
+    path: 'recoltes',
+    title: 'SunuRecolte — Catalogue',
+    loadComponent: () =>
+      import('./features/catalogue/catalogue').then((m) => m.Catalogue),
+  },
+  {
+    path: 'recoltes/:id',
+    title: 'SunuRecolte — Détail de la récolte',
+    loadComponent: () =>
+      import('./features/catalogue/detail-recolte').then((m) => m.DetailRecolte),
+  },
+  {
     path: 'connexion',
     title: 'SunuRecolte — Connexion',
     loadComponent: () => import('./features/auth/connexion/connexion').then((m) => m.Connexion),
@@ -33,18 +45,82 @@ export const routes: Routes = [
   },
   {
     path: 'producteur',
-    title: 'SunuRecolte — Espace producteur',
+    pathMatch: 'full',
+    redirectTo: 'producteur/recoltes',
+  },
+  {
+    path: 'producteur/recoltes',
+    title: 'SunuRecolte — Mes récoltes',
     canActivate: [authGuard, roleGuard],
     data: { roles: ['PRODUCTEUR'] },
     loadComponent: () =>
-      import('./features/producteur/espace-producteur').then((m) => m.EspaceProducteur),
+      import('./features/producteur/mes-recoltes/mes-recoltes').then((m) => m.MesRecoltes),
+  },
+  {
+    path: 'producteur/recoltes/nouvelle',
+    title: 'SunuRecolte — Publier une récolte',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['PRODUCTEUR'] },
+    loadComponent: () =>
+      import('./features/producteur/formulaire-recolte/formulaire-recolte').then(
+        (m) => m.FormulaireRecolte,
+      ),
+  },
+  {
+    path: 'producteur/recoltes/:id/modifier',
+    title: 'SunuRecolte — Modifier la récolte',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['PRODUCTEUR'] },
+    loadComponent: () =>
+      import('./features/producteur/formulaire-recolte/formulaire-recolte').then(
+        (m) => m.FormulaireRecolte,
+      ),
   },
   {
     path: 'acheteur',
-    title: 'SunuRecolte — Espace acheteur',
+    pathMatch: 'full',
+    redirectTo: 'acheteur/commandes',
+  },
+  {
+    path: 'acheteur/commandes',
+    title: 'SunuRecolte — Mes commandes',
     canActivate: [authGuard, roleGuard],
     data: { roles: ['ACHETEUR'] },
-    loadComponent: () => import('./features/acheteur/espace-acheteur').then((m) => m.EspaceAcheteur),
+    loadComponent: () =>
+      import('./features/acheteur/commandes/commandes').then((m) => m.Commandes),
+  },
+  {
+    path: 'acheteur/commandes/:id',
+    title: 'SunuRecolte — Détail de la commande',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['ACHETEUR'] },
+    loadComponent: () =>
+      import('./features/acheteur/detail-commande/detail-commande').then((m) => m.DetailCommande),
+  },
+  {
+    // Le paiement se fait depuis une commande déjà créée : l'identifiant dans l'URL
+    // n'est jamais une autorisation, le serveur vérifie le propriétaire (403).
+    path: 'acheteur/paiement/:id',
+    title: 'SunuRecolte — Paiement simulé',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['ACHETEUR'] },
+    loadComponent: () =>
+      import('./features/acheteur/paiement/paiement').then((m) => m.Paiement),
+  },
+  {
+    path: 'acheteur/panier',
+    title: 'SunuRecolte — Panier',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['ACHETEUR'] },
+    loadComponent: () => import('./features/acheteur/panier/panier').then((m) => m.Panier),
+  },
+  {
+    path: 'acheteur/commande',
+    title: 'SunuRecolte — Commande',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['ACHETEUR'] },
+    loadComponent: () =>
+      import('./features/acheteur/commande/commande').then((m) => m.Commande),
   },
   {
     path: 'admin',

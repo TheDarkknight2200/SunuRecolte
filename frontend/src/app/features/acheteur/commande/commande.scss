@@ -1,0 +1,296 @@
+@use 'points-rupture' as pr;
+
+.commande {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-5);
+}
+
+/* === En-tête de page === */
+
+.commande__entete {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+}
+
+.commande__surtitre {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.commande__entete h1 {
+  margin: 0;
+}
+
+/* Textes secondaires du tunnel : une règle pour toutes les mentions discrètes. */
+.commande__intro,
+.commande__acheteur,
+.commande__notice,
+.commande__envoi,
+.commande__quantite,
+.commande__prix {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}
+
+.commande__intro {
+  max-width: 60ch;
+}
+
+.commande__choix {
+  margin: 0;
+  color: var(--couleur-texte);
+  font-size: var(--taille-sm);
+  font-weight: 600;
+}
+
+/* === Zones du tunnel (§26) : titre de zone en --taille-lg 600 === */
+
+.commande__zone-titre {
+  margin: 0 0 var(--espace-3);
+  font-size: var(--taille-lg);
+  font-weight: 600;
+}
+
+/* === Lignes (§32) : cartes empilées sur mobile === */
+
+.commande__lignes {
+  margin: var(--espace-4) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+}
+
+.commande__ligne {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espace-1) var(--espace-3);
+  padding: var(--espace-3);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
+}
+
+/* §10.6 : textes à gauche, chiffres à droite, jamais de défilement horizontal. */
+.commande__produit,
+.commande__sous-total {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-weight: 600;
+}
+
+.commande__sous-total {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* === Total indicatif (§2) === */
+
+.commande__total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-4);
+  margin: var(--espace-4) 0 0;
+  padding-top: var(--espace-3);
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+/* Les deux membres du total sont des <span> : aucune marge à réinitialiser. */
+.commande__total-libelle,
+.commande__total-valeur {
+  font-weight: 600;
+}
+
+.commande__total-valeur {
+  font-size: var(--taille-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.commande__mention {
+  margin: var(--espace-2) 0 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+}
+
+/* === Mode de réception (§26) === */
+
+.commande__champs {
+  margin: var(--espace-4) 0 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.commande__legende {
+  margin-bottom: var(--espace-3);
+  font-size: var(--taille-md);
+  font-weight: 600;
+}
+
+.commande__options {
+  display: grid;
+  gap: var(--espace-3);
+}
+
+/*
+ * Zone tactile ≥ 44 px, état choisi identifiable sans couleur : bordure épaisse,
+ * fond tinté et coche native du radio. La bordure est déjà épaisse au repos pour
+ * que la sélection ne déplace aucun texte.
+ */
+.commande__option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: var(--espace-1) var(--espace-3);
+  min-height: 44px;
+  padding: var(--espace-3);
+  border: 2px solid var(--couleur-bordure);
+  border-radius: var(--rayon-md);
+  background-color: var(--couleur-surface);
+  cursor: pointer;
+}
+
+.commande__option input {
+  grid-row: 1 / -1;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--couleur-primaire);
+}
+
+.commande__option-nom {
+  font-weight: 600;
+}
+
+.commande__option-detail {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}
+
+.commande__option--choisi {
+  border-color: var(--couleur-primaire);
+  background-color: var(--couleur-primaire-clair);
+}
+
+/* L'anneau global `:focus-visible` est repris sur toute la carte, pas sur le seul radio. */
+.commande__option:has(input:focus-visible) {
+  outline: 2px solid var(--couleur-primaire);
+  outline-offset: 2px;
+}
+
+.commande__champs .champ + .champ {
+  margin-top: var(--espace-4);
+}
+
+/* === Actions et envoi === */
+
+.commande__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-3);
+  margin-top: var(--espace-4);
+}
+
+.commande__envoi {
+  margin-top: var(--espace-3);
+}
+
+/* === Récapitulatif serveur (succès) === */
+
+.commande__succes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+}
+
+.commande__chiffres {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--espace-3);
+  margin: var(--espace-4) 0 0;
+}
+
+.commande__chiffres dt {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.commande__chiffres dd {
+  margin: var(--espace-1) 0 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.commande__chiffres-total {
+  grid-column: 1 / -1;
+  padding-top: var(--espace-3);
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.commande__chiffres-total dd {
+  font-size: var(--taille-lg);
+  font-weight: 600;
+}
+
+/* === Tablettes et plus : les lignes passent en grille à plat (§10.6) === */
+
+@media (min-width: pr.$point-tablette) {
+  .commande__options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .commande__lignes {
+    gap: 0;
+  }
+
+  .commande__ligne {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr);
+    align-items: baseline;
+    gap: var(--espace-4);
+    padding: var(--espace-3) 0;
+    border: 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--couleur-bordure);
+  }
+
+  .commande__ligne:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .commande__produit {
+    grid-column: auto;
+  }
+
+  .commande__quantite,
+  .commande__prix {
+    text-align: right;
+  }
+
+  .commande__prix {
+    color: var(--couleur-texte);
+  }
+
+  .commande__sous-total {
+    grid-column: auto;
+  }
+}
+
+@media (min-width: pr.$point-desktop) {
+  .commande__champs .champ {
+    max-width: 32rem;
+  }
+}

@@ -1,0 +1,102 @@
+@use "points-rupture" as pr;
+
+.detail-recolte {
+  max-width: 46rem;
+}
+
+.detail-recolte__retour {
+  margin: 0 0 var(--espace-4);
+}
+
+.detail-recolte__etat {
+  margin-top: var(--espace-4);
+}
+
+.detail-recolte__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+  margin: 0;
+}
+
+.detail-recolte__entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  margin-bottom: var(--espace-4);
+}
+
+.detail-recolte__entete h1 {
+  margin: 0;
+}
+
+.detail-recolte__image {
+  display: block;
+  margin-bottom: var(--espace-5);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-lg);
+}
+
+.detail-recolte__description {
+  margin: 0 0 var(--espace-5);
+  line-height: 1.6;
+}
+
+.detail-recolte__mesures {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--espace-3);
+  margin: 0 0 var(--espace-5);
+  padding: var(--espace-4) 0;
+  border-top: 1px solid var(--couleur-bordure);
+  border-bottom: 1px solid var(--couleur-bordure);
+
+  @media (min-width: pr.$point-mobile) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.detail-recolte__mesures dt,
+.detail-recolte__identification dt {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.detail-recolte__mesures dd,
+.detail-recolte__identification dd {
+  margin: var(--espace-1) 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* === Ajout au panier (acheteur connecté uniquement) === */
+
+.detail-recolte__achat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espace-3);
+  margin-bottom: var(--espace-5);
+}
+
+.detail-recolte__quantite,
+.detail-recolte__motif {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}
+
+.detail-recolte__identification {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--espace-3);
+  margin: 0;
+
+  @media (min-width: pr.$point-mobile) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
