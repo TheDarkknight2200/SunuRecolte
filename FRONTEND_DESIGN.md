@@ -286,10 +286,17 @@ Angular ne redéfinit pas un bouton ou un champ, il réutilise ces classes.
 - La page active est signalée visuellement et par `aria-current="page"` (`ariaCurrentWhenActive`),
   jamais par une couleur criarde. Le lien « Accueil » utilise `routerLinkActiveOptions: { exact: true }`
   pour ne pas rester actif sur toutes les pages.
-- Sur mobile (≤ 480 px), les liens **ne sont pas repliés** dans un menu : ils passent simplement à la
-  ligne (`flex-wrap`), l'en-tête s'agrandissant en hauteur. Décision prise à l'implémentation : trois
-  liens au plus coexistent, un menu replié (`<details>`) n'apportait rien et ajoutait un état à gérer,
-  donc à tester.
+- Le lien de l'espace d'un rôle est actif par **préfixe** : il reste marqué actif sur la liste et sur le
+  détail de ses commandes. Le lien « Panier » garde `exact: true`, et comme l'espace acheteur pointe sur
+  une page sœur (`/acheteur/commandes`) et non sur un parent, un seul lien porte `aria-current="page"` à la
+  fois.
+- Les liens **ne sont pas repliés** dans un menu : sous `--point-tablette` (768 px), ils passent simplement
+  à la ligne (`flex-wrap`), l'en-tête s'agrandissant en hauteur ; une seule ligne ne devient la règle qu'à
+  partir de ce point. Décision prise à l'implémentation : quatre liens au plus coexistent (l'en-tête acheteur
+  ajoute « Mes commandes » et le lien « Panier » avec son compteur, §25 et §33), un menu replié
+  (`<details>`) n'apportait rien et ajoutait un état à gérer, donc à tester. Le seuil a été relevé de 480 px
+  à 768 px après une QA réelle : à ~510 px, les quatre liens, l'identité et « Se déconnecter » ne tenaient
+  plus sur une ligne et l'en-tête débordait en scroll horizontal.
 - **Pied de page** : une seule ligne sobre (mention du projet, année, lien GitHub du dépôt),
   sans colonnes marketing.
 
@@ -504,3 +511,232 @@ Pour ajouter un écran :
 6. vérifier qu'aucune interdiction du §17 n'est présente.
 
 Toute nouvelle règle visuelle transverse doit d'abord être ajoutée à ce document, puis implémentée.
+
+## 25. Panier (Phase 5.5)
+
+- Le panier est un état local du frontend (`localStorage`, clé préfixée `sunurecolte.`) : il n'existe
+  ni entité, ni table, ni endpoint de panier. Il sert uniquement à composer une commande.
+- **Compteur de lignes dans l'en-tête** : `.badge` compact (`--taille-xs`, 600) dans le lien « Panier » ;
+  au-delà de 99, le compteur affiche `99+`. Le badge reste non cliquable (§10.7) : c'est le lien qui l'est.
+- **Ligne de panier** : produit à gauche, quantité au centre, sous-total à droite, séparateur 1 px,
+  pas de zébrage (§10.6).
+- **Quantité** : champ numérique + deux boutons `.bouton--compact` portant chacun un `aria-label`
+  explicite (« Augmenter la quantité de … », « Diminuer la quantité de … ») (§9).
+- **Total** : toujours accompagné de la mention « total indicatif, confirmé au serveur » en `--taille-xs`,
+  couleur secondaire. Le frontend n'est la source ni du prix, ni du stock, ni de la disponibilité.
+- **Ligne indisponible** : une ligne épuisée, retirée du catalogue ou introuvable n'est **jamais**
+  masquée silencieusement ; elle reste visible avec son état (§11) et l'action attendue (la retirer).
+
+## 26. Tunnel de commande (Phase 5.5)
+
+- Deux zones dans l'ordre : « Récapitulatif », puis « Réception », chacune avec un titre
+  (`--taille-lg`, 600).
+- **Mode de réception** (`RETRAIT` / `LIVRAISON`) : `fieldset` avec `legend` et radios ;
+  zone tactile ≥ 44 × 44 px (§12).
+- L'option retenue est identifiable **autrement que par la couleur** : bordure 2 px `--couleur-primaire`,
+  fond `--couleur-primaire-clair` et état natif du radio.
+- En `LIVRAISON`, adresse et téléphone sont obligatoires, avec la mention explicite « obligatoire »
+  (§10.2) ; en `RETRAIT`, ces champs ne sont pas affichés.
+- **Récapitulatif obligatoire avant toute soumission** : les lignes, quantités et montants relisibles
+  précèdent le bouton principal (« Passer la commande »).
+- **Trois temps, jamais moins** : saisie, puis révision, puis confirmation. Aucun `POST /api/commandes`
+  n'est déclenché depuis l'écran de saisie ; la révision relit le mode et, en livraison, l'adresse,
+  le téléphone et les instructions avant le bouton d'envoi.
+- **Vocabulaire des boutons** : « Vérifier la commande » (saisie → révision), « Passer la commande »
+  (révision → envoi), « Modifier les informations » (révision → saisie). « Confirmer » qualifie le
+  changement de statut rendu par l'API (§28) et n'est jamais un libellé de ce tunnel.
+- **Pas de modale de confirmation** : la révision en page remplit ce rôle (§31 reste réservé aux
+  actions destructives).
+- Après un envoi refusé, la page garde la révision, le message du serveur et un bouton
+  « Réessayer l'envoi » ; panier et saisies ne sont jamais effacés, et le panier n'est vidé qu'après
+  une création réellement confirmée par la réponse du serveur.
+- **Focus** : le titre `Réception` (révision) ou `Commande enregistrée.` (succès) reçoit le focus
+  (`tabindex="-1"`) ; après un refus, le bloc `role="alert"` le reçoit.
+
+## 27. Badges de statut de commande (Phase 5.5)
+
+Mapping statut → couleurs (§5 ; §10.7 applique la couleur au texte et son fond très clair au badge) :
+
+| Statut | Couleur | Fond |
+|---|---|---|
+| `EN_ATTENTE` | `--couleur-avertissement` | `--couleur-avertissement-clair` |
+| `CONFIRMEE` | `--couleur-info` | `--couleur-info-clair` |
+| `PRETE` | `--couleur-primaire` | `--couleur-primaire-clair` |
+| `LIVREE` | `--couleur-succes` | `--couleur-succes-clair` |
+| `ANNULEE` | `--couleur-erreur` | `--couleur-erreur-clair` |
+
+- Le **texte** du statut accompagne toujours sa couleur : la couleur ne porte jamais seule l'information.
+- Ces couleurs sont rendues par des variantes globales de `.badge` (`src/styles/_composants.scss`) :
+  `badge--avertissement` pour `EN_ATTENTE`, `badge--info` pour `CONFIRMEE`, `badge--primaire` pour `PRETE`,
+  `badge--succes` pour `LIVREE`, `badge--erreur` pour `ANNULEE`.
+- La table de correspondance est un constant unique, `VARIANTES_BADGE_COMMANDE`
+  (`src/app/core/modeles/referentiels.ts`), à utiliser par tout écran qui affiche un statut de commande :
+  une page ne choisit pas sa variante.
+- `EN_ATTENTE` est le seul statut qu'un acheteur peut voir à la création d'une commande : le backend force
+  cette valeur (`POST /api/commandes`). Le tunnel de commande (§26) affiche donc `badge--avertissement`.
+- `PRETE` est habillé par `badge--primaire` (`--couleur-primaire` sur `--couleur-primaire-clair`) depuis la
+  consultation des commandes (§33), qui affiche les statuts intermédiaires.
+
+## 28. Paiement simulé (Phase 5.5)
+
+- Tout écran ou bloc relatif à un paiement porte le texte :
+  « Paiement simulé — aucune transaction réelle n'est effectuée. » (§16 : une valeur simulée est signalée).
+- Un paiement `EN_ATTENTE` s'affiche « En attente ».
+- Les libellés « payé », « réussi » et « confirmé » sont **interdits** dans le flux de la Phase 5.5 :
+  le backend ne produit pas encore ces états (§17).
+- L'écran qui présente ce flux (`/acheteur/paiement/:id`) est documenté en §34.
+
+## 29. Notifications (Phase 5.5)
+
+- **Compteur de non-lues dans l'en-tête**, dans un conteneur `aria-live="polite"` ; il se met à jour à la
+  navigation, après un marquage lu et par le bouton « Actualiser » de la page. **Aucun `setInterval`,
+  aucun polling** : le MVP n'a pas de temps réel.
+- Une notification non lue est signalée par un **texte** (« Non lue ») en plus de tout traitement visuel ;
+  l'état lu ne repose pas sur la seule absence de couleur.
+- Le passage à l'état lu passe par un **bouton explicite** « Marquer comme lue », jamais par un simple
+  clic sur la ligne.
+- Liste sobre : titre, message, date (§30), état.
+
+## 30. Montants, quantités et dates (Phase 5.5)
+
+- **Montants** : `formaterMontant` uniquement (séparateur de milliers français, `FCFA` accolé) ;
+  aucune mise en forme locale (`toFixed`, symbole `€` ou `$`).
+- **Quantités** : `formaterQuantite`, avec l'unité renvoyée par le serveur.
+- **Dates simples** `AAAA-MM-JJ` (ex. date de disponibilité) : `formaterDate` → `JJ/MM/AAAA`.
+- **Horodatages** `AAAA-MM-JJTHH:MM` (ex. date de création d'une commande ou d'une notification) :
+  `formaterDateHeure` → `JJ/MM/AAAA à HH:MM`.
+- Ces fonctions recomposent la chaîne renvoyée par le backend **sans instancier `Date`** : le frontend
+  n'introduit aucun décalage de fuseau.
+- **Valeur absente** : `—` ; jamais `null`, `undefined` ou une case vide.
+
+## 31. Modales de confirmation (Phase 5.5)
+
+Patron validé en Phase 5.4, à réutiliser tel quel :
+
+- `role="dialog"`, `aria-modal="true"`, `aria-labelledby` pointant sur le titre de la modale ;
+- `Escape` écouté sur le `document` : la modale se ferme quel que soit l'élément focusé ;
+- piège de focus sur `Tab` **et** `Shift+Tab` (les deux sont à intercepter : `keydown.tab` ne couvre pas
+  `Shift+Tab`) ;
+- focus initial sur le bouton qui **referme sans effet** — « Annuler » pour une suppression (Phase 5.4),
+  « Garder la commande » pour une annulation (§33) —, jamais sur le bouton destructif ;
+- retour du focus au déclencheur à la fermeture ; si le déclencheur n'existe plus (élément supprimé),
+  le focus est posé sur un élément explicitement désigné et encore présent ;
+- bouton destructif en `.bouton--danger`, avec un libellé qui nomme l'effet réel
+  (« Annuler la commande », pas « OK »).
+
+## 32. Listes de lignes (Phase 5.5)
+
+- Une ligne (panier, récapitulatif, détail de commande) porte : produit, unité et quantité,
+  prix unitaire, sous-total.
+- Textes à gauche, chiffres à droite (§10.6).
+- Sur mobile, les lignes deviennent des cartes-lignes (§10.6).
+- Aucun tableau de totaux ni bloc statistique superflu : seules les valeurs renvoyées par le serveur
+  sont affichées.
+
+## 33. Consultation et annulation des commandes (Phase 5.5)
+
+Écrans « Mes commandes » (`/acheteur/commandes`) et « Détail de la commande »
+(`/acheteur/commandes/:id`), protégés par `authGuard` puis `roleGuard` avec `data.roles: ['ACHETEUR']`,
+chargés paresseusement. `/acheteur` n'est plus une page d'attente : c'est une redirection vers la liste,
+et le lien d'en-tête « Mes commandes » — réservé à un acheteur — pointe dessus.
+
+**Ce qui est affiché vient du serveur, jamais du client.**
+
+- La liste est `GET /api/commandes` : l'identité de l'acheteur est portée par le jeton, relue en base, et
+  **aucun `acheteurId` n'est envoyé** en paramètre ni en corps.
+- Une ligne de liste : identifiant de commande, date et heure (§30), statut (§27), mode de réception,
+  nombre de lignes, **total calculé par le serveur**, et un lien « Voir le détail ».
+- Les lignes du détail reprennent les valeurs de `CommandeResponse`. Les instantanés du panier ne sont
+  **jamais** substitués aux montants d'une commande enregistrée.
+- Le total d'une commande créée est un montant définitif : il s'écrit « Total ». La mention
+  « Total indicatif » reste propre au tunnel de commande (§26), avant l'enregistrement.
+- Aucun filtre, aucun tri, aucune pagination : la seule règle d'affichage est celle que l'API fournit.
+
+**Réception.** En `LIVRAISON`, l'adresse, le téléphone et les instructions sont affichés, une valeur
+absente rendue par `—` (§30). En `RETRAIT`, aucune adresse n'est inventée : une notice explique que la
+commande se récupère auprès du producteur.
+
+**Annulation.** Elle est pilotée par les transitions que le backend admet
+(`CommandeService.TRANSITIONS_AUTORISEES` : `EN_ATTENTE → ANNULEE`, `CONFIRMEE → ANNULEE`) ; `PRETE`,
+`LIVREE` et `ANNULEE` n'offrent aucun bouton. La constante `STATUTS_ANNULABLES` du composant est un reflet
+de cette table, pas une règle concurrente : le frontend n'est jamais l'autorité (§19). Si le statut a changé
+entre le chargement de la page et le clic, le serveur refuse la transition (400) et son message est affiché
+tel quel.
+
+- Aucun appel avant la confirmation de la modale (§31).
+- `PATCH /api/commandes/{id}/statut` avec pour seul corps `{ "statut": "ANNULEE" }` : l'identifiant vient
+  de la route, aucun autre champ n'est envoyé par le client.
+- Deux clics ne produisent **qu'une** requête : le bouton est désactivé et marqué `aria-busy` pendant
+  l'appel, et le composant garde sa propre garde d'exécution.
+- Après succès, le statut affiché est **celui de la réponse du serveur** ; il n'est jamais réécrit
+  localement en `ANNULEE`.
+- Le frontend n'appelle aucune route de récolte pour « rendre » du stock : la restauration est côté
+  service, et rien ici ne doit laisser croire qu'elle est déclenchée par la page.
+
+**États.** Chargement (`aria-busy`), erreur avec « Réessayer », liste vide (« Vous n'avez pas encore de
+commande. » et un lien « Parcourir le catalogue » vers `/recoltes`), liste. Sur une fiche : introuvable
+(404) distinct d'une erreur de chargement ; un 403 reste un accès refusé, sans déconnexion ni purge
+(§19). Aucun écran de paiement, aucun vocabulaire de paiement payé/réussi (§28).
+
+**Zone tactile.** Les actions de ces deux pages — « Voir le détail », « Retour à mes commandes »,
+« Annuler la commande » et les boutons de la modale — sont en `.bouton--compact` (36 px, §10.1) rehaussée à
+`min-height: 44 px` (§12) dans leur zone d'actions.
+
+## 34. Écran de paiement simulé (Phase 5.5)
+
+Écran « Paiement simulé » (`/acheteur/paiement/:id`), protégé par `authGuard` puis `roleGuard` avec
+`data.roles: ['ACHETEUR']`, chargé paresseusement, atteint par le lien « Payer la commande » de la fiche
+de commande (§33). Titre de page : « SunuRecolte — Paiement simulé ».
+
+**Ce que le backend admet réellement, et rien de plus.** `PaiementService.creer` refuse `ANNULEE` et
+`LIVREE` par un 400, accepte `EN_ATTENTE`, `CONFIRMEE` et `PRETE`, écrit **toujours** un paiement
+`EN_ATTENTE` portant une référence `SIMU-…`, et reprend le montant à `commande.getTotal()`. Dans l'API
+actuelle, **aucun chemin ne produit `REUSSI` ni `ECHOUE`** : l'écran n'écrit donc jamais l'un de ces
+statuts, ne le suggère jamais dans un libellé, et ne propose aucune action qui le ferait croire (§28).
+`STATUTS_PAYABLES` du composant est le reflet de cette table de service, pas une règle concurrente ; la
+seule autorité reste le serveur (403 si la commande n'est pas au titulaire du jeton, 400 si un paiement
+existe déjà).
+
+**Deux lectures à l'ouverture, dans cet ordre** : `GET /api/commandes/{id}`, puis
+`GET /api/paiements/commande/{id}` pour savoir si une intention a déjà été enregistrée.
+
+- 404 sur la seconde lecture = aucun paiement encore : c'est la réponse normale du backend, le formulaire
+  est proposé.
+- 200 = la fiche du paiement enregistré est affichée, **sans formulaire** : un seul paiement par commande.
+- Si le statut de la commande rend le paiement impossible (`ANNULEE`, `LIVREE`), aucun formulaire ni lien
+  n'est affiché : la phrase reprend le motif posé par le backend. Le CTA de la fiche de commande est
+  construit sur les trois mêmes statuts, donc un `LIVREE`/`ANNULEE` n'offre de toute façon aucune entrée.
+- Une erreur sur la seconde lecture (500, panne) bloque la soumission et s'affiche avec « Réessayer » :
+  on n'envoie pas un POST dont on ignore s'il créerait un doublon.
+
+**Montant.** Il vient de `CommandeResponse.total`, formaté par `formaterMontant` (§30). Le panier local
+(`PanierService.totalIndicatif()`) n'est **jamais** relu ici : une commande enregistrée a un montant
+définitif, calculé par le serveur. Le `commandeId` envoyé est celui renvoyé par le serveur, pas celui lu
+dans l'URL ; aucun `acheteurId`, aucun montant, aucun champ de carte n'est transmis.
+
+**Formulaire.** Un `fieldset` + `legend`, deux radios d'un même groupe (`WAVE`, `ORANGE_MONEY`), choisis
+au clavier, l'état retenu rendu par autre chose que la seule couleur (§12, §13). Aucun champ numéro de
+carte, CVV, IBAN, compte, mot de passe, OTP ou code secret — cet écran ne collecte aucun identifiant
+financier (§17). `POST /api/paiements` avec pour seul corps `{ "commandeId": …, "moyenPaiement": … }` ;
+le bouton est désactivé et marqué `aria-busy` pendant l'appel (« Enregistrement… »), deux clics ne
+produisent **qu'une** requête, et aucun POST part sans moyen de paiement choisi.
+
+**Résultat.** Il est lu dans `PaiementResponse` et nulle part ailleurs. Le titre rendu après une
+simulation est « Simulation enregistrée — paiement en attente. », le statut est affiché avec son libellé
+du référentiel (§27), `dateConfirmation` absente rend `—` (§30), et la référence `SIMU-…` est présentée
+comme une référence de simulation, jamais comme une référence bancaire ou de transaction mobile. La
+mention « Paiement simulé — aucune transaction réelle n'est effectuée. » est rendue **hors** des branches
+d'état : elle est visible à chaque instant, en chargement comme en résultat (§28). La zone de résultat
+porte `role="status"` et le focus y est posé (`tabindex="-1"` sur son titre).
+
+**Erreurs.** 400 : le message du serveur, mot pour mot (paiement déjà enregistré, commande annulée ou
+livrée). 403 : accès refusé, sans déconnexion ni purge (§19). 404 sur la commande : écran « introuvable »,
+sans seconde lecture. 401 : laissé à `authInterceptor` (purge et redirection). Panne réseau : texte
+générique via `messageErreurApi`. Jamais de trace technique, de détail Spring ni de jeton dans l'interface.
+
+**Ce que cet écran ne fait pas.** Aucune notification, aucun WebSocket, aucun polling, aucun rechargement
+automatique après la simulation : la réponse du serveur suffit. Pas de récapitulatif des lignes de la
+commande, déjà rendu sur la fiche (§33). Aucun accès à une API Wave ou Orange Money réelle.
+
+**Zone tactile.** Options de paiement à `min-height: 44 px` sur mobile (§12), ramenées à 36 px dès la
+tablette avec les boutons d'actions, en deux colonnes.

@@ -114,8 +114,10 @@ de `src/main/resources/db/migration/`, puis Hibernate **vérifie** la correspond
 migration versionnée (`V2__...`).
 
 > **Sécurité (Phase 3)** : l'API est authentifiée par JWT. Seules l'inscription, la connexion,
-> la documentation OpenAPI et la consultation du catalogue (`GET /api/recoltes`, `GET /api/prix-marche`)
-> sont publiques ; toutes les autres routes exigent un en-tête `Authorization: Bearer <jeton>`.
+> la documentation OpenAPI et la consultation du catalogue (`GET /api/recoltes`, `GET /api/recoltes/{id}`,
+> `GET /api/prix-marche`) sont publiques ; toutes les autres routes exigent un en-tête `Authorization: Bearer <jeton>`.
+> Le chemin `GET /api/recoltes/mes-recoltes` est réservé au producteur authentifié, en dépit de sa ressemblance
+> avec l'URL publique `GET /api/recoltes/{id}`.
 > Les refus renvoient un JSON (`401` sans jeton valide, `403` sans les droits), jamais une page HTML.
 
 ### 4. Compte administrateur initial
@@ -162,6 +164,7 @@ appliquée côté serveur. Sauf mention « public », une route exige `Authoriza
 | Authentification | `POST /api/auth/connexion` | Public — renvoie un jeton (`{email, motDePasse}`) |
 | Récoltes | `GET /api/recoltes` | Public — filtres optionnels `statut`, `filiere`, `recherche` |
 | Récoltes | `GET /api/recoltes/{id}` | Public — détail d'une récolte |
+| Récoltes | `GET /api/recoltes/mes-recoltes` | PRODUCTEUR uniquement — ses récoltes ; l'identité vient du jeton (aucun `producteurId` en entrée), filtres optionnels `statut`, `recherche`. `401` sans jeton, `403` pour ACHETEUR ou ADMIN |
 | Récoltes | `POST /api/recoltes` | PRODUCTEUR (propriétaire) ou ADMIN |
 | Récoltes | `PUT /api/recoltes/{id}` | Producteur propriétaire ou ADMIN |
 | Récoltes | `DELETE /api/recoltes/{id}` | Producteur propriétaire ou ADMIN (refusée si la récolte est commandée) |
@@ -178,6 +181,8 @@ appliquée côté serveur. Sauf mention « public », une route exige `Authoriza
 | Prix du marché | `GET /api/prix-marche` | Public |
 | Prix du marché | `GET /api/prix-marche/{id}` | Public |
 | Profils | `GET /api/utilisateurs/{id}` | Utilisateur concerné ou ADMIN (jamais de mot de passe) |
+| Profils | `GET /api/producteurs/moi` | PRODUCTEUR uniquement — son propre profil ; l'identifiant vient du jeton (aucun `producteurId` en entrée). `401` sans jeton, `403` pour ACHETEUR ou ADMIN |
+| Profils | `GET /api/acheteurs/moi` | ACHETEUR uniquement — son propre profil ; l'identifiant vient du jeton (aucun `acheteurId` en entrée). `401` sans jeton, `403` pour PRODUCTEUR ou ADMIN |
 | Profils | `GET /api/producteurs/{id}` · `PUT /api/producteurs/{id}` | Producteur concerné ou ADMIN |
 | Profils | `GET /api/acheteurs/{id}` | Acheteur concerné ou ADMIN |
 

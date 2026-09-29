@@ -107,15 +107,261 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [x] Intercepteur JWT (Bearer, 401 → purge et redirection, 403 non transformé)
 - [x] Guards (`authGuard` puis `roleGuard`)
 - [x] Auth UI (connexion, inscription, tableau de bord, pages d'erreur)
-- [ ] Producteur UI
-- [ ] Acheteur UI
+- [ ] Producteur UI (partiel : gestion des récoltes faite — voir 5.4 ; profil et commandes restants)
+- [ ] Acheteur UI (partiel : panier, commande, consultation, annulation et paiement simulé faits —
+  voir 5.5 ; notifications restantes)
+- [x] Catalogue (page publique `/recoltes` + détail `/recoltes/:id` — voir 5.3)
 - [ ] Admin UI
-- [ ] Catalogue
-- [ ] Panier
-- [ ] Commandes
-- [ ] Paiement
+- [x] Panier (5.5.3 et 5.5.5 : `PanierService` local + page `/acheteur/panier`)
+- [ ] Commandes (passer : 5.5.6 ; consulter et annuler : 5.5.7 ; mise à jour des statuts côté producteur
+  non faite)
+- [x] Paiement **simulé** (5.5.8 : `/acheteur/paiement/:id` et `POST /api/paiements` ; le serveur n'écrit
+  que `EN_ATTENTE` avec une référence `SIMU-…`, aucun paiement réel n'existe dans le projet)
 - [ ] Notifications
 - [ ] Responsive (vérifié écran par écran au fil des pages métier)
+
+## Sous-phases frontend 5.2 → 5.5 (détail réel)
+
+> **Avertissement de numérotation** : « 5.2 », « 5.3 », « 5.4 » et « 5.5 » sont les repères des consignes
+> de travail, pas les phases de ce fichier. Elles portent sur le frontend Angular (Phase 9) et n'ont aucun
+> rapport avec la « Phase 5 — Acheteur » ni avec la « Phase 4 — Producteur » décrites plus haut.
+>
+> **Contradiction signalée, non résolue ici** : les listes « Phase 4 — Producteur » et « Phase 5 —
+> Acheteur » restent non cochées alors que les endpoints backend correspondants existent depuis les
+> Phases 2 et 3 (récoltes, commandes, paiements, notifications, prix de marché, contrôles de propriété).
+> Ces cases concernent le périmètre backend, hors du champ de cette mise à jour ; elles demandent une
+> décision de l'auteur du projet (les cocher, ou les réécrire comme « suite de la Phase 2 »).
+
+### 5.2 — Frontend « données récoltes »
+- [x] Alignement de `RecolteResponse` sur le DTO Java réel (nullabilité de `description`, `quantiteMin`,
+  `quantiteMax`, `imageUrl`, `localisation`, `dateDisponibilite`)
+- [x] Création de `RecolteRequest` (les 12 champs du contrat, **sans `statut`** : `EPUISEE` reste dérivé
+  du stock par le serveur)
+- [x] Création de `ProducteurResponse` (modèle unique, réutilisé par la suite, jamais dupliqué)
+- [x] Extension de `RecolteService` : `lister` (avec filtres), `findById`, `mesRecoltes`, `creer`,
+  `modifier`, `supprimer`
+- [x] Deux endpoints backend ajoutés et testés pour ces pages : `GET /api/recoltes/mes-recoltes` et
+  `GET /api/producteurs/moi` (identité lue du JWT)
+- [x] Formateurs partagés dans `core/utilitaires/formatage.ts` (montant FCFA, quantité + unité, date) et
+  adoption par la page d'accueil
+- [x] Tests de cette étape : `recolte.service.spec.ts` (10) + `formatage.spec.ts` (9)
+- [x] Validation exécutée à cette étape : **54/54 tests frontend** (total de la suite), build de
+  production réussi
+
+### 5.3 — Catalogue public
+- [x] Page catalogue `/recoltes` (liste des récoltes publiées, route publique)
+- [x] Page détail `/recoltes/:id` (route publique, 404 et erreurs gérés)
+- [x] Filtres alignés sur ce que l'API accepte : statut, filière, recherche sur le produit ; ordre renvoyé
+  par le backend conservé
+- [x] États chargement / liste vide / erreur, avec bouton « Réessayer » et bouton de réinitialisation des
+  filtres
+- [x] Valeurs nulles rendues sous silence (aucun `null`, `—` inventé ou zéro faux affiché)
+- [x] Navigation catalogue ↔ détail ↔ en-tête et accueil
+- [x] Réglages responsifs écrits en SCSS (`@media` sur les points de rupture du design system) — **jamais
+  vérifiés dans un navigateur réel**
+- [x] Tests de cette étape : `catalogue.spec.ts` (12) + `detail-recolte.spec.ts` (12)
+- [x] Validation exécutée : **78/78 tests frontend** (total), 141/141 tests backend, build réussi
+- [x] QA de phase rendue : PASS WITH LIMITATIONS (aucun test navigateur, aucun viewport réel disponible)
+
+### 5.4 — Gestion des récoltes côté producteur
+- [x] `GET /api/producteurs/moi` (déjà disponible depuis 5.2) utilisé comme **seule** source d'identité ;
+  `ProducteurService.moi()` côté frontend, sans aucun paramètre client
+- [x] Page « Mes récoltes » (`/producteur/recoltes`) : liste via `GET /api/recoltes/mes-recoltes`, rappels
+  du profil et du décompte, fiche publique liée
+- [x] Création (`/producteur/recoltes/nouvelle`, `POST /api/recoltes` → 201)
+- [x] Modification (`/producteur/recoltes/:id/modifier`, `PUT /api/recoltes/{id}` → 200), formulaire
+  **partagé** entre création et modification, prérempli depuis la récolte reçue
+- [x] Suppression avec modale de confirmation accessible (`role="dialog"`, `aria-modal`, titre lié, Escape,
+  retour du focus, verrou anti double-clic) ; jamais de `window.confirm()`
+- [x] Validation frontend reprise du DTO : obligatoires, bornes numériques, règle croisée min ≤ max,
+  erreurs de champ renvoyées par le backend réaffichées
+- [x] États chargement / vide / succès / erreur avec « Réessayer » ; messages portés par la route après
+  création et modification
+- [x] Protection des trois routes par `authGuard` puis `roleGuard` avec `data: { roles: ['PRODUCTEUR'] }` ;
+  `/producteur` redirige vers la liste
+- [x] **Aucun `producteurId` saisi par l'utilisateur** : ni champ visible, ni caché, ni paramètre URL, ni
+  lecture dans `localStorage`
+- [x] Corrections de la phase : un identifiant non numérique dans l'URL n'ouvre plus un formulaire de
+  création (état « récolte introuvable ») ; le focus initial de la modale se pose réellement sur « Annuler »
+- [x] Tests de cette étape : `producteur.service.spec.ts` (3) + `mes-recoltes.spec.ts` (28) +
+  `formulaire-recolte.spec.ts` (22). Sur les 28 tests de `mes-recoltes.spec.ts`, 5 portent sur les routes
+  (garde et rôle attendus pour les trois routes, redirect, catalogue public inchangé)
+- [x] Validation exécutée : **131/131 tests frontend**, **141/141 tests backend**, build de production
+  réussi
+- [x] QA navigateur de la 5.4 : **effectuée** après la 5.4 (parcours producteur complet, isolation d'un
+  second produit, responsive et navigation clavier réels dans un navigateur connecté à l'API)
+- [x] Renfort d'accessibilité de la modale : piège de focus sur `Tab` **et** `Shift+Tab`, `Escape` écouté
+  sur le `document`, retour du focus garanti même quand le déclencheur a été supprimé ; le patron est
+  désormais spécifié dans `FRONTEND_DESIGN.md` §31 et réutilisé tel quel. L'arrière-plan n'est pas rendu
+  `inert` : le piège de focus et `aria-modal` suffisent, aucune mise à l'écart supplémentaire n'a été
+  jugée nécessaire sur ces écrans
+
+### 5.5 — Écrans acheteur (panier, commande, consultation et annulation)
+
+> Périmètre réellement couvert : identité acheteur, modèles et DTO, panier local, tunnel de commande,
+> puis consultation et annulation des commandes. **Le paiement et les notifications ne sont pas faits**
+> (aucun écran de paiement, aucun appel à `/api/paiements`, aucun compteur de notifications).
+
+- [x] 5.5.1 — `GET /api/acheteurs/moi` côté backend (identité lue du JWT, `ADMIN` et `PRODUCTEUR` refusés
+  par un **403**), testé dans `ProfilApiTest`
+- [x] 5.5.2 — `AcheteurResponse` alignée sur le DTO Java, enums et libellés de commande
+  (`StatutCommande`, `ModeReception`, `TypePaiement`), `formaterDateHeure` (`JJ/MM/AAAA à HH:MM`) et
+  `AcheteurService.moi()` côté frontend
+- [x] 5.5.3 — `PanierService` : panier **local** en `localStorage`, signals immuables, quantités bornées
+  par le stock affiché, aucun prix calculé côté client comme autorité
+- [x] 5.5.4 — Indicateur de panier dans l'en-tête (compteur de **lignes**, badge non cliquable devenu
+  lien en 5.5.5) et CTA « Ajouter au panier » dans le catalogue et le détail de récolte ; `aria-current`
+  unique vérifié
+- [x] 5.5.5 — Page `/acheteur/panier` : lignes, quantités, sous-totaux **indicatifs**, bouton « Passer la
+  commande », état vide renvoyant vers le catalogue
+- [x] 5.5.6 — Tunnel `/acheteur/commande` : récapitulatif, choix du mode de réception (retrait ou
+  livraison avec adresse, téléphone et instructions), étape de révision, puis `POST /api/commandes` ; le
+  frontend n'envoie **ni `total`, ni `prixUnitaire`, ni `acheteurId`** — le serveur calcule et force
+  `EN_ATTENTE`
+- [x] 5.5.7 — Consultation des commandes de l'acheteur :
+  - `CommandeService` étendu sans toucher à `creer()` : `lister()` (`GET /api/commandes`),
+    `findById(id)` (`GET /api/commandes/{id}`), `changerStatut(id, 'ANNULEE')`
+    (`PATCH /api/commandes/{id}/statut`, corps `{ statut }` uniquement) — aucun `acheteurId` envoyé,
+    aucun endpoint inventé
+  - Liste `/acheteur/commandes` : identifiant, date et heure, statut (§27), mode de réception, nombre de
+    lignes, total du serveur, lien « Voir le détail » ; quatre états (chargement, erreur + « Réessayer »,
+    vide avec « Vous n'avez pas encore de commande. » et lien « Parcourir le catalogue », liste) ;
+    **aucun filtre, tri ou pagination**
+  - Détail `/acheteur/commandes/:id` : fiche de commande, réception (`LIVRAISON` détaillée, `RETRAIT`
+    expliqué, jamais d'adresse inventée), lignes reprenant `CommandeResponse` et **pas** les instantanés
+    du panier, « Total » sans la mention « indicatif » ; 404 rendu comme « Commande introuvable » et 403
+    comme un accès refusé, sans déconnexion
+  - Annulation : bouton visible seulement pour `EN_ATTENTE` et `CONFIRMEE`, c'est-à-dire exactement les
+    transitions qu'admet `CommandeService.TRANSITIONS_AUTORISEES` côté backend ; modale de confirmation
+    (§31), **aucun appel avant confirmation**, une seule requête pour deux clics, statut repris de la
+    **réponse du serveur** ; le frontend n'appelle aucune route de récolte pour rendre du stock
+  - Routes protégées par `authGuard` puis `roleGuard` avec `data: { roles: ['ACHETEUR'] }`, chargement
+    paresseux, **aucun nouveau guard** ; `/acheteur` n'est plus une page d'attente mais une redirection
+    vers la liste, et le placeholder `EspaceAcheteur` a été supprimé après vérification de son usage unique
+  - Navigation : le lien « Mes commandes » de l'en-tête n'existe que pour un acheteur ; `espaceExact()` a
+    été retiré puisque le lien d'espace ne chevauche plus le panier
+  - `VARIANTES_BADGE_COMMANDE` (map unique statut → variante) et variante globale `.badge--primaire`
+    ajoutée pour habiller `PRETE` (§27) ; le libellé reste affiché à côté de la couleur
+  - Tests de cette étape : `commande.service.spec.ts` (22, dont 14 nouveaux), `commandes.spec.ts` (23,
+    dont les routes), `detail-commande.spec.ts` (33) et `en-tete.spec.ts` (5, dont le lien d'espace)
+- [x] 5.5.7 — Clôture :
+  - Frontend : `npx ng test --watch=false` → **334 tests dans 22 fichiers, 0 échec** ; `npm run build`
+    réussi, avec **un seul** avertissement, déjà connu avant cette sous-phase : `commande.scss` dépasse son
+    budget de 192 octets (4,19 ko pour 4,00 ko budgétés). Ni `angular.json` ni les budgets n'ont été
+    touchés pour le faire taire.
+  - Backend : **aucun fichier modifié** dans `commande`, `paiement` ou `notification` (vérifié par
+    `git status`), `./mvnw test` → **146 tests, 0 échec, BUILD SUCCESS**.
+  - QA navigateur réelle, sur l'API en cours d'exécution et avec des données créées par le vrai tunnel de
+    commande : liste de deux commandes rendues de la plus récente à la plus ancienne (`En attente` puis
+    `Annulée`), détail conforme en `LIVRAISON` (adresse, téléphone, instructions) et en `RETRAIT` (notice
+    explicative, aucune adresse inventée), annulation d'une commande **réellement** annulable — un seul
+    `PATCH /api/commandes/{id}/statut`, aucun appel avant la confirmation de la modale, statut conservé
+    après rechargement complet de la page —, identifiant inexistant rendu comme « Commande introuvable. »,
+    console sans erreur ni avertissement, aucune requête vers `paiements` ou `notifications`.
+  - La QA a révélé un **débordement horizontal de l'en-tête** à la largeur courante (quatre liens,
+    l'identité et « Se déconnecter » ne tenaient plus sur une ligne) : le retour à une ligne a été repoussé
+    de `--point-mobile` à `--point-tablette` dans `en-tete.scss`, conforme à §10.5 ; le scroll horizontal
+    a disparu à la re-mesure.
+  - **Non testé** : les largeurs 375 / 768 / 1024 / 1366. L'outil de QA disponible n'émule aucun appareil
+    (viewport réel figé à 510 px) ; seule l'absence de scroll horizontal à la largeur courante a été mesurée.
+    Les parcours producteur et ADMIN en réel n'ont pas été refaits : ils sont couverts par les tests
+    unitaires de cette sous-phase et par `SecuriteApiTest` côté backend.
+- [x] 5.5.8 — Paiement simulé après création d'une commande :
+  - **Audit backend préalable** : `POST /api/paiements` (201, corps `{ commandeId, moyenPaiement }`),
+    `GET /api/paiements/{id}`, `GET /api/paiements/commande/{commandeId}` (404 = aucun paiement).
+    `PaiementService.creer` refuse `ANNULEE` (« Impossible d'initier un paiement pour une commande
+    annulée. ») et `LIVREE` (« Cette commande est déjà livrée. ») par un 400, refuse un second paiement par
+    un 400 (« Un paiement existe déjà pour cette commande. »), contrôle la propriété (403), reprend le
+    montant à `commande.getTotal()`, et écrit **toujours** `EN_ATTENTE` avec une référence `SIMU-UUID`.
+    `GET /api/paiements/commande/{id}` répond 404 (« Aucun paiement n'existe pour la commande : … »)
+    quand l'intention n'a pas encore été créée.
+    **Aucune route, aucun service, aucun job n'écrit `REUSSI` ni `ECHOUE`** : ces deux statuts sont
+    inaccessibles au frontend, qui ne crée donc **aucun** mécanisme pour les déclencher.
+  - `core/services/paiement.service.ts` : trois méthodes, exactement les endpoints réels (`simuler`,
+    `findById`, `parCommande`) ; rien n'a été ajouté dans `commande.service.ts`, aucun endpoint inventé.
+  - Écran `/acheteur/paiement/:id` (`authGuard` puis `roleGuard` avec `data: { roles: ['ACHETEUR'] }`,
+    chargement paresseux, **aucun nouveau guard**) : numéro, date et heure, statut de la commande,
+    **total serveur** (`CommandeResponse.total`, jamais `PanierService.totalIndicatif()`), mention
+    permanente « Paiement simulé — aucune transaction réelle n'est effectuée. » rendue hors des branches
+    d'état, `fieldset` + `legend` et deux radios `WAVE` / `ORANGE_MONEY`. **Aucun** champ carte, CVV,
+    IBAN, compte, mot de passe, OTP ou code secret.
+  - Ouverture : `GET /api/commandes/{id}` puis `GET /api/paiements/commande/{id}` ; 404 = formulaire
+    proposé, 200 = fiche du paiement enregistré **sans formulaire**, autre erreur = soumission bloquée et
+    message affiché. `STATUTS_PAYABLES` (`EN_ATTENTE`, `CONFIRMEE`, `PRETE`) reflète les statuts acceptés
+    par le service ; `ANNULEE` et `LIVREE` n'affichent ni formulaire ni lien, avec la phrase du motif.
+  - Résultat lu dans `PaiementResponse` uniquement : « Simulation enregistrée — paiement en attente. »,
+    statut rendu tel quel, `dateConfirmation` absente → `—`, référence `SIMU-` annoncée comme référence de
+    simulation. Aucun `setInterval`, aucun polling, aucune notification, aucun rechargement après la
+    simulation ; la réponse du serveur suffit.
+  - Côté fiche de commande : le lien « Payer la commande » (`#commande-payer`) est piloté par le même
+    reflet des trois statuts payables ; le 5.5.7 reste inchangé (aucun vocabulaire de paiement sur
+    `LIVREE` / `ANNULEE`, aucun appel `paiements` depuis les écrans de commande).
+  - Sécurité : aucun `acheteurId` envoyé, `commandeId` pris sur la réponse du serveur et non sur l'URL ;
+    401 laissé à `authInterceptor`, 403 affiché sans déconnexion ni purge, 400 affiché mot pour mot.
+  - Tests : `paiement.service.spec.ts` (10), `paiement.spec.ts` (51, dont les routes et les greps
+    d'interdiction sur le corps du POST), `detail-commande.spec.ts` porté à 39 par 6 tests sur le CTA.
+- [x] 5.5.8 — Clôture :
+  - Frontend : `npx ng test --watch=false` → **401 tests dans 24 fichiers, 0 échec** ; `npm run build`
+    réussi avec **un seul** avertissement, déjà connu avant cette sous-phase (`commande.scss` 4,19 ko pour
+    4,00 ko budgétés). Budgets et `angular.json` intouchés ; chunk paresseux `paiement` 12,95 ko brut /
+    3,98 ko transfer.
+  - Backend : **aucun fichier modifié** dans `paiement`, `commande` ou `notification` (`git diff HEAD` ne
+    remonte que des fichiers `recolte`, `user` et `security` des sous-phases précédentes) ;
+    `./mvnw test` → **146 tests, 0 échec, 0 erreur**.
+  - QA navigateur réelle (API sur `:8080`, `ng start` sur `:4200`, session de l’acheteur QA « Acheteur
+    QA53 », commandes réelles 1123 `EN_ATTENTE` et 1122 `ANNULEE`) :
+    - accès direct désauthentifié à `/acheteur/paiement/1123` → redirection réelle vers
+      `/connexion?retour=%2Facheteur%2Fpaiement%2F1123`, titre « SunuRecolte — Connexion » ;
+    - parcours complet : « Mes commandes » → détail 1123 → lien « Payer la commande » →
+      `/acheteur/paiement/1123` ;
+    - ouverture : `GET /api/commandes/1123` **200** puis `GET /api/paiements/commande/1123` **404**, et
+      alors seulement le formulaire est proposé ;
+    - montant affiché **750 FCFA**, identique au total de la fiche de commande (calcul serveur) ;
+    - mention « Paiement simulé — aucune transaction réelle n’est effectuée. » présente dans **tous** les
+      états observés (formulaire, résultat, refus, commande introuvable) ;
+    - soumission sans choix : **aucune requête**, message « Choisissez un moyen de paiement pour
+      continuer. » en `role="alert"`, `aria-describedby` posé sur le `fieldset` ;
+    - clavier : focus sur la radio « Wave », `ArrowDown` → « Orange Money » cochée, `ArrowUp` → « Wave »
+      cochée ; l’état choisi est rendu par bordure épaisse + fond tinté + coche native, pas par la seule
+      couleur ;
+    - soumission : **un seul** `POST /api/paiements` **201** ; le second clic n’a pas pu partir, le
+      bouton ayant été retiré du document ;
+    - résultat lu du serveur : « Simulation enregistrée — paiement en attente. », statut « En attente »,
+      moyen « Wave », montant 750 FCFA, référence `SIMU-ccbc20d8-13fb-439e-9799-be3639368e44`, date de la
+      demande « 29/09/2026 à 02:01 », date de confirmation « — », notice sur la référence ; focus posé sur
+      le titre du résultat ; **la commande reste « En attente »** sur la fiche, rien n’est réécrit ;
+    - rechargement complet : `GET /api/paiements/commande/1123` **200** → fiche du paiement enregistré,
+      **aucun radio, aucun formulaire, aucun POST**, même référence `SIMU-` ;
+    - commande 1122 `ANNULEE` : pré-contrôle **404**, aucun formulaire, phrase « Le paiement n’est pas
+      disponible : cette commande est annulée. » ; sa fiche n’offre ni « Payer la commande » ni
+      « Annuler la commande » (non-régression 5.5.7) ;
+    - identifiant inexistant `/acheteur/paiement/999999` : **une seule** requête
+      (`GET /api/commandes/999999` **404**), « Commande introuvable. », aucune lecture de paiement ;
+    - réseau : uniquement des appels vers `localhost:8080`, **zéro requête externe** ; console : **aucune
+      erreur, aucun avertissement** sur les cinq chargements observés ;
+    - mesures au viewport réel (510 px) : boutons d’actions à **44 px** de haut,
+      `.paiement__option { min-height: 44px }` appliqué, **aucun débordement horizontal**
+      (`scrollWidth` = `clientWidth` = 495).
+  - Défaut **trouvé et corrigé pendant la QA** : le message « Choisissez un moyen de paiement pour
+    continuer. » survivait au choix du moyen et l’écran paraissait rester en erreur ; `valueChanges` sur
+    `moyenPaiement` purge maintenant `erreurSoumission` (+1 test, revalidé en navigateur).
+  - **Non testé** : les largeurs 375 / 768 / 1024 / 1366 (aucun appareil émlicable, viewport figé à 510 px) ;
+    le **403** en navigateur (il faudrait la session d’un second acheteur sur une commande qui n’est pas la
+    sienne — couvert par `paiement.spec.ts` côté frontend et `PaiementApiTest` / `SecuriteApiTest` côté
+    backend) ; les statuts `REUSSI` et `ECHOUE` : **aucun chemin du backend ne les produit**, aucun
+    scénario n’a donc été fabriqué pour les voir à l’écran.
+
+### État d'intégration (2026-09-29)
+- [x] 5.2, 5.3, 5.4 et 5.5 (5.5.1 → 5.5.8) sont **implémentées et validées par les tests automatisés,
+  le build et une QA navigateur réelle** (aux limites de viewport signalées en clôture de 5.5.7 et 5.5.8)
+- [ ] **Rien de ce travail n'a encore été commité** : HEAD est toujours `9f36572` (Phase 4.1) ; les
+  sous-phases « 5.2 → 5.5 » du frontend restent dans l'arborescence (fichiers modifiés, supprimés,
+  non suivis)
+- [ ] Le projet n'est **pas terminé** : les notifications n'ont **aucun écran**, l'espace admin reste à
+  faire, la mise à jour des statuts de commande par le producteur non plus, et l'intégration de bout en
+  bout reste à couvrir (Phase 9 puis Phases 10 et 11)
+- [x] « Phase 5.5 » des consignes de travail (commandes acheteur) : panier, tunnel de commande,
+  consultation, annulation et **paiement simulé** **faits** ; notifications **volontairement hors périmètre**
 
 ## Phase 10 — Intégration
 - [ ] Angular ↔ backend
