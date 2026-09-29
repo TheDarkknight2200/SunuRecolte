@@ -98,6 +98,16 @@ export const routes: Routes = [
       ),
   },
   {
+    // GET /api/producteurs/moi puis PUT /api/producteurs/{id} : aucun autre endpoint,
+    // l'identité du compte restant en lecture seule (FRONTEND_DESIGN.md §36).
+    path: 'producteur/profil',
+    title: 'SunuRecolte — Profil',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['PRODUCTEUR'] },
+    loadComponent: () =>
+      import('./features/producteur/profil/profil-producteur').then((m) => m.ProfilProducteur),
+  },
+  {
     path: 'acheteur',
     pathMatch: 'full',
     redirectTo: 'acheteur/commandes',

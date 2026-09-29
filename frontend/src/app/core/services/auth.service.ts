@@ -50,6 +50,27 @@ export class AuthService {
     this.purgerSession();
   }
 
+  /**
+   * Rafraîchit l'identité conservée localement après une modification du profil.
+   * Le jeton reste inchangé : cette donnée ne sert qu'à l'affichage (en-tête, tableau
+   * de bord) et l'autorisation est de toute façon rendue par le backend, qui relit le
+   * compte en base à chaque requête. Sans elle, l'en-tête afficherait l'ancienne
+   * identité jusqu'à la prochaine connexion.
+   */
+  mettreAJourIdentite(identite: Pick<SessionUtilisateur, 'nom' | 'prenom' | 'email'>): void {
+    const session = this.etatSession();
+    if (!session) {
+      return;
+    }
+    const actualisee: SessionUtilisateur = { ...session, ...identite };
+    try {
+      localStorage.setItem(CLE_UTILISATEUR, JSON.stringify(actualisee));
+    } catch {
+      // Stockage indisponible : seule la copie en mémoire est à jour.
+    }
+    this.etatSession.set(actualisee);
+  }
+
   jeton(): string | null {
     return this.etatJeton();
   }

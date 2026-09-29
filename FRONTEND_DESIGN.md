@@ -847,3 +847,96 @@ lignes à chacun d'eux. Le frontend ne filtre pas ces lignes à l'aveugle — un
 serait plus trompeuse qu'un excédent visible, et le serveur, lui, accepte bien le `PATCH` sur cette commande.
 La distinction relève d'une décision backend (champ ajouté au DTO ou filtrage dans `CommandeService`), pas
 d'un tri inventé ici.
+
+## 36. Profil producteur (Phase 5.8, étendu : les sept champs du compte et de l'exploitation)
+
+Écran « Profil » (`/producteur/profil`), `features/producteur/profil/`, protégé par `authGuard` puis
+`roleGuard` avec `data.roles: ['PRODUCTEUR']`, chargé paresseusement. Titre de page : « SunuRecolte — Profil ».
+Même patron de page que §35 : surtitr « Espace producteur », un seul `<h1>`, entrée depuis l'en-tête de
+« Mes récoltes », lien de retour vers « Mes récoltes ».
+
+**Deux groupes.** Un `<fieldset>` « Compte » (prénom, nom, adresse e-mail, téléphone) et un `<fieldset>`
+« Exploitation » (localisation, filière, description), chacun avec son `<legend>`. Une note ferme le premier
+groupe : « Le rôle du compte et le mot de passe ne se modifient pas depuis cet écran. »
+
+**Données.** `GET /api/producteurs/moi` sans aucun paramètre envoyé : l'identité vient du jeton, et le
+serveur renvoie un 403 pour tout rôle qui n'est pas producteur (ADMIN compris). La modification passe par
+`PUT /api/producteurs/moi` : même URL, même source de vérité. **Aucun identifiant ne sort de l'écran** — ni
+dans l'URL, ni dans le corps — donc un producteur ne peut pas viser le compte d'un autre.
+`PUT /api/producteurs/{id}` reste en service pour un autre contrat (les trois seules colonnes d'exploitation,
+par le propriétaire ou l'ADMIN, §25) et n'est plus appelé par le frontend. L'`id` renvoyé par `moi()` continue
+de servir d'`producteurId` aux formulaires de récolte (§29, §30).
+
+**Sept champs éditables.** Compte : `prenom` (texte, obligatoire, `autocomplete="given-name"`), `nom`
+(texte, obligatoire, `family-name`), `email` (`type="email"`, obligatoire, `autocomplete="email"`),
+`téléphone` (`type="tel"`, obligatoire, `autocomplete="tel"`). Exploitation : `localisationExploitation`
+(libellé « Localisation de l'exploitation », texte, facultatif), `filiere` (liste de sélection,
+**obligatoire**), `description` (zone de texte, facultatif). Ces sept noms sont exactement ceux du DTO Java
+`ModifierProfilProducteurRequest` : aucun champ inventé, aucun champ du record oublié. La liste des filières
+est peuplée à partir des référentiels existants (`FILIERES`, `LIBELLES_FILIERE`, §26).
+
+**Contrat d'envoi — non négociable.** `ProducteurService.modifierMoi` réécrit le compte **et** l'exploitation à
+chaque appel, sans fusion partielle : une propriété omise efface la valeur en base. Le corps du `PUT` contient
+donc **toujours** les sept propriétés, même celles que l'utilisateur n'a pas touchées. Une chaîne vide est
+envoyée `null` (comportement `texteOuNull()` de §29), jamais `""`, et l'identité est `trim()` avant envoi.
+Un objet partiel est un défaut de conception, pas une optimisation.
+
+**Bornage local.** Longueurs reprises colonne par colonne du schéma réel : `utilisateurs.prenom` et `nom`
+`varchar(100)`, `email` `varchar(150)`, `telephone` `varchar(20)`,
+`producteurs.localisation_exploitation` `varchar(255)`. Chaque champ porte le `maxlength` correspondant et le
+même `Validators.maxLength` côté formulaire ; la description, colonne `TEXT`, n'est bornée nulle part, parce
+que le schéma ne l'est pas. Ce bornage est une précaution d'usage, pas une règle de sécurité — l'autorité
+reste le backend (§19).
+
+**Adresse e-mail.** `type="email"` plus `Validators.email` : un confort de saisie, l'autorité en la matière
+étant le `@Email` du DTO. Une aide visible prévient du changement de connexion (« Sert à vous connecter : notez
+le changement pour la prochaine connexion. »). Si l'adresse appartient déjà à un autre compte, le backend
+répond **400** avec un message seul — « Un compte existe déjà avec cette adresse email. » — et jamais une
+erreur 500 pour ce conflit prévisible ; `BusinessException` ne portant pas de carte de champs, ce message
+s'affiche en `.message--erreur`, pas sous le champ, et le frontend n'invente pas une attribution de champ que
+l'API ne renvoie pas. Conserver sa propre adresse reste valide : le serveur exclut le titulaire avant de
+conclure au doublon, et normalise l'adresse en minuscules.
+
+**Téléphone.** Obligatoire, 20 caractères, `type="tel"`. **Aucune unicité** : le schéma ne porte aucune
+contrainte `unique` sur `utilisateurs.telephone`, et `existsByTelephone()` n'est appelé nulle part du backend.
+Aucune règle inventée non plus : pas de format « sénégalais », pas de préfixe, pas de regex — deux comptes
+peuvent légalement porter le même numéro, rien dans l'interface ne doit laisser croire le contraire.
+
+**Validation.** `prenom`, `nom`, `email`, `telephone` et `filiere` obligatoires : validation native
+(`required`, `aria-required="true"`) plus le message du serveur si le champ arrive absent (`@NotBlank`,
+`@NotNull`, §31). Un 400 avec `erreurs.<champ>` remplit `erreursParChamp` et affiche l'erreur sous le champ
+concerné ; un 400 sans détail de champ remplit le message global ; 403, 401 et panne réseau sont traités comme
+en §35 (le 403 reste un refus d'accès, **sans déconnexion ni purge**, et ne devient jamais un 401).
+
+**Six états (§11).** Chargement (`aria-busy`, formulaire absent : on ne préremplit pas un formulaire vide
+puis peuplé), erreur de chargement avec « Réessayer », formulaire en cours de saisie, envoi en cours, succès,
+erreur d'envoi. Bouton « Enregistrer les modifications » : `disabled` pendant l'envoi, `aria-busy`, libellé
+« … », et garde d'exécution dans le composant — deux clics ne produisent **qu'une** requête.
+
+**Après succès.** Le formulaire est **reprérempli à partir de la réponse du serveur** (`ProducteurResponse`
+retournée par le `PUT`), et non de l'objet envoyé : c'est la valeur persistée qui est affichée. Message
+`.message--succes` (`role="status"`) : « Profil mis à jour. » Le focus reste sur le bouton réactivé, seul
+élément ayant persisté. La session locale (§19) est **rafraîchie** par `AuthService.mettreAJourIdentite` :
+prénom, nom et e-mail du fichier de session sont remplacés, pour que l'en-tête affiche l'identité courante
+au lieu de celle de l'inscription. Le jeton n'est **pas** touché — changer d'adresse ne déconnecte pas,
+l'autorité restant le backend qui relit le compte en base à chaque requête — et `utilisateurId` comme `role`
+sont conservés tels quels ; l'objet écrit est une copie, jamais une mutation de la session en place.
+
+**Après erreur.** Message `.message--erreur` (`role="alert"`, §10.3) avec le texte du serveur mot pour mot ;
+la saisie de l'utilisateur est conservée, rien n'est effacé, aucune redirection.
+
+**Accessibilité (§10.2, §13).** Un `<label class="champ__libelle">` visible par champ, mention
+« (obligatoire) » sur les cinq champs obligatoires, `aria-invalid` et `aria-describedby` pointant vers
+`<p … class="champ__erreur">` généré conditionnellement, aide discrète sous l'e-mail, le téléphone, la
+localisation et la description. `autocomplete` sur les quatre champs de compte pour que le gestionnaire du
+navigateur propose la bonne valeur. Navigation clavier complète, focus visible (§10.1).
+
+**Responsive (§12).** Une colonne à 375 px ; chaque `.profil-producteur__rangee` (prénom + nom, e-mail +
+téléphone, localisation + filière) passe en deux colonnes dès la tablette (`min-width: 768 px`), la description
+restant pleine largeur ; bouton d'action `min-height: 44 px` sur mobile. Largeur de lecture plafonnée
+(`max-width: 44 rem`), même gabarit que §29.
+
+**Ce que cet écran ne fait pas.** Aucun changement de mot de passe, aucun avatar, aucun lien vers l'Admin.
+`id`, `utilisateurId`, `role`, `actif` et `dateCreation` ne sont pas seulement masqués à l'interface : ils
+n'existent pas dans le DTO d'écriture, et le serveur ignore toute propriété hors contrat. La relation
+`Producteur` ↔ `Utilisateur` n'est ni lue ni réécrite ici.

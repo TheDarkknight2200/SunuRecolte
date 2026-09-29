@@ -4,8 +4,9 @@ import {
   TestRequest,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
+import { provideRouter, withDisabledInitialNavigation, Router } from '@angular/router';
 import { SessionUtilisateur } from '../../core/modeles/auth.modeles';
 import { NotificationResponse } from '../../core/modeles/domaine.modeles';
 import { Role } from '../../core/modeles/referentiels';
@@ -354,6 +355,24 @@ describe('EnTete — compteur de notifications non lues (§29)', () => {
     ).toEqual(['Catalogue', 'Tableau de bord', 'Mes commandes', 'Panier 0']);
   });
 
+  /** §10.5 : l'entrée du profil vit dans l'espace producteur, jamais dans l'en-tête. */
+  it('n’ajoute aucun lien « Profil » à la navigation de l’en-tête pour un producteur', () => {
+    ouvrir('PRODUCTEUR', []);
+
+    const liens = elements<HTMLAnchorElement>(racine, '.entete__navigation a');
+    expect(liens.map((lien) => sansIcone(texteDe(lien)))).toEqual([
+      'Catalogue',
+      'Tableau de bord',
+      'Mes récoltes',
+    ]);
+    expect(liens.map((lien) => lien.getAttribute('href'))).toEqual([
+      '/recoltes',
+      '/tableau-de-bord',
+      '/producteur',
+    ]);
+    expect(liens.length).toBeLessThanOrEqual(4);
+  });
+
   it('annonce les changements de nombre sans interrompre la navigation', () => {
     ouvrir('ACHETEUR', [notification(1, false)]);
 
@@ -418,5 +437,53 @@ describe('EnTete — compteur de notifications non lues (§29)', () => {
 
     expect(badge()).toBeNull();
     expect(http.match(() => true)).toEqual([]);
+  });
+});
+
+/** Sonde de test : une page fille de « /producteur », sans appel HTTP. */
+@Component({ selector: 'app-sonde-profil', template: '<p>Profil</p>' })
+class SondeProfil {}
+
+/**
+ * Le lien d'espace pointe vers « /producteur » : une page producteur de plus reste sous le
+ * même préfixe, §10.5 n'a donc pas à être redéclaré pour elle.
+ */
+describe('EnTete — lien d’espace actif depuis une page producteur', () => {
+  it('conserve aria-current sur « Mes récoltes » quand l’écran affiché est /producteur/profil', async () => {
+    localStorage.clear();
+    localStorage.setItem(CLE_JETON, fabriquerJeton(Math.floor(Date.now() / 1000) + 3600));
+    localStorage.setItem(CLE_UTILISATEUR, JSON.stringify(session('PRODUCTEUR')));
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter(
+          [{ path: 'producteur/profil', component: SondeProfil }],
+          withDisabledInitialNavigation(),
+        ),
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClientTesting(),
+      ],
+    });
+    const controle = TestBed.inject(HttpTestingController);
+
+    // L'en-tête est monté AVANT la navigation : RouterLinkActive ne réagit qu'aux
+    // événements du routeur, une navigation antérieure à l'enregistrement des liens serait perdue.
+    const montage = TestBed.createComponent(EnTete);
+    montage.detectChanges();
+    controle.expectOne(URL_NOTIFICATIONS).flush([]);
+
+    await TestBed.inject(Router).navigate(['/producteur/profil']);
+    montage.detectChanges();
+    const tete = montage.nativeElement as HTMLElement;
+
+    const lienEspace = element<HTMLAnchorElement>(tete, '.entete__lien[href="/producteur"]');
+    expect(lienEspace.getAttribute('aria-current')).toBe('page');
+    expect(lienEspace.classList.contains('entete__lien--actif')).toBe(true);
+    expect(
+      element<HTMLAnchorElement>(tete, '.entete__lien[href="/recoltes"]').getAttribute('aria-current'),
+    ).toBeNull();
+
+    controle.verify();
+    localStorage.clear();
   });
 });

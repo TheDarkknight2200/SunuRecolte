@@ -130,8 +130,8 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [x] Intercepteur JWT (Bearer, 401 → purge et redirection, 403 non transformé)
 - [x] Guards (`authGuard` puis `roleGuard`)
 - [x] Auth UI (connexion, inscription, tableau de bord, pages d'erreur)
-- [ ] Producteur UI (partiel : gestion des récoltes faite — voir 5.4 ; commandes reçues faites — voir
-  5.6 ; profil restant)
+- [x] Producteur UI (gestion des récoltes faite — voir 5.4 ; commandes reçues faites — voir 5.6 ; profil fait
+  — voir 5.8, QA navigateur de ce dernier écran non faite)
 - [ ] Acheteur UI (partiel : panier, commande, consultation, annulation et paiement simulé faits —
   voir 5.5 ; notifications restantes)
 - [x] Catalogue (page publique `/recoltes` + détail `/recoltes/:id` — voir 5.3)
@@ -144,13 +144,13 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [ ] Notifications
 - [ ] Responsive (vérifié écran par écran au fil des pages métier)
 
-## Sous-phases 5.2 → 5.7 (détail réel)
+## Sous-phases 5.2 → 5.8 (détail réel)
 
-> **Avertissement de numérotation** : « 5.2 », « 5.3 », « 5.4 », « 5.5 », « 5.6 » et « 5.7 » sont les repères des
-> consignes de travail, pas les phases de ce fichier. Les cinq premiers portent sur le frontend Angular
-> (Phase 9) et n'ont aucun rapport avec la « Phase 5 — Acheteur » ni avec la « Phase 4 — Producteur » décrites
-> plus haut. **5.7 fait exception : elle est purement backend** (Phase 7 — Notifications), sans aucune ligne de
-> frontend modifiée.
+> **Avertissement de numérotation** : « 5.2 », « 5.3 », « 5.4 », « 5.5 », « 5.6 », « 5.7 » et « 5.8 » sont les
+> repères des consignes de travail, pas les phases de ce fichier. Les cinq premiers et le dernier portent sur le
+> frontend Angular (Phase 9) et n'ont aucun rapport avec la « Phase 5 — Acheteur » ni avec la
+> « Phase 4 — Producteur » décrites plus haut. **5.7 fait exception : elle est purement backend** (Phase 7 —
+> Notifications), sans aucune ligne de frontend modifiée.
 >
 > **Contradiction signalée, non résolue ici** : les listes « Phase 4 — Producteur » et « Phase 5 —
 > Acheteur » restent non cochées alors que les endpoints backend correspondants existent depuis les
@@ -536,6 +536,107 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [ ] 5.7 — Case « Notifications paiement » de la Phase 7 laissée **décochée** : le périmètre backend est livré
   et testé ici, mais les cases de cette phase relèvent d'une décision de l'auteur (même traitement que pour
   « Liste », « Marquer comme lue » et « Notifications commande », voir la divergence signalée en Phase 7).
+
+### 5.8 — Profil producteur (frontend)
+
+> **Périmètre du brief** : frontend uniquement, écran `/producteur/profil`. Interdits explicites : modifier le
+> backend, créer un endpoint, créer une migration, créer une entité, toucher à la base, ajouter photo/avatar,
+> ajouter le changement de mot de passe, rendre nom/prénom/email/téléphone modifiables, modifier le contrat JWT,
+> toucher à l'Admin, commencer le redesign premium, ajouter une fonctionnalité non demandée. Aucun commit,
+> aucun push.
+
+- [x] 5.8 — Contrat lu en lecture seule avant codage : `ProducteurController` n'expose que `GET /moi`,
+  `GET /{id}` et `PUT /{id}` ; `ProducteurRequest` Java porte exactement `localisationExploitation`,
+  `filiere` (`@NotNull`) et `description` ; `ProducteurService.modifier` **réécrit les trois colonnes** sans
+  fusion partielle — d'où l'obligation d'envoyer les trois champs à chaque `PUT`. `UtilisateurService.modifier`
+  n'existe pas : l'identité reste en lecture seule.
+- [x] 5.8 — `FRONTEND_DESIGN.md` **§36 « Profil producteur (Phase 5.8) »** rédigé **avant** le code : structure,
+  champs en lecture seule, champs éditables, contrat d'envoi des trois champs, bornage local de
+  `localisationExploitation` (colonne `varchar(255)` sans `@Size` côté DTO), validation, six états, accessibilité,
+  responsive, comportement après succès/erreur, et ce que l'écran ne fait pas.
+- [x] 5.8 — Interface `ProducteurRequest` dans `core/modeles/domaine.modeles.ts` : exactement
+  `localisationExploitation: string | null`, `filiere: Filiere` et `description: string | null`, trois
+  propriétés non optionnelles pour que l'envoi complet ne puisse pas s'oublier au niveau du type.
+- [x] 5.8 — `ProducteurService.modifier(id, requete)` (`PUT /api/producteurs/{id}`, `id` venu de la réponse de
+  `moi()`) et sa spec portée de 3 à **8 tests** : cible = identifiant de la réponse, les trois clés toujours
+  présentes (`Object.keys(corps).sort()`), `null` et non `''` pour un champ vidé, 400 avec erreurs par champ,
+  403 au message backend inchangé.
+- [x] 5.8 — Écran `features/producteur/profil/profil-producteur.{ts,html,scss,spec.ts}` : identité en lecture
+  seule rendue en `<dl>` (aucun `input` désactivé), trois champs éditables préremplis, filière issue de
+  `FILIERES` / `LIBELLES_FILIERE`, six états, garde anti double soumission, succès relu depuis la réponse
+  serveur. SCSS de **2 669 octets** (budget 4 kB). Spec de **22 tests**, dont `GET /moi` sans paramètre client,
+  `PUT` vers `/api/producteurs/1285` alors que la session porte `utilisateurId` 9, et non-purge de la session
+  sur 403.
+- [x] 5.8 — Route `producteur/profil` (`authGuard` puis `roleGuard`, `data.roles = ['PRODUCTEUR']`,
+  `loadComponent`, titre « SunuRecolte — Profil ») et entrée « Profil » dans `.mes-recoltes__actions`
+  (`#lien-profil-producteur`) : **aucun cinquième lien d'en-tête ajouté**. `mes-recoltes.spec.ts` met à jour le
+  test des liens d'actions ; `en-tete.spec.ts` gagne **2 tests** (liens producteur de l'en-tête inchangés,
+  `aria-current` conservé sur « Mes récoltes » depuis `/producteur/profil`).
+- [x] 5.8 — Validation automatisée : **519 tests réussis sur 519** (28 fichiers), soit le baseline de 490 +
+  29 tests (5 service nouveaux, 22 écran, 2 en-tête) et **0 test perdu** ; `npm run build` **réussi**, avec le
+  seul warning préexistant (`commande.scss` 4,19 kB). Aucun commit, aucun push.
+- [ ] 5.8 — QA navigateur réelle : **non faite**. Les six états et le responsive 375/768/1366 sont couverts par
+  les tests unitaires et le build, ils n'ont pas été observés dans un navigateur.
+
+### 5.8-bis — Extension du profil producteur (backend + frontend)
+
+> **Périmètre du brief** : rendre modifiables depuis `/producteur/profil` le prénom, le nom, l'e-mail et le
+> téléphone, en plus des trois colonnes d'exploitation. Interdits explicites : nouvelle entité, nouvelle
+> migration, modification du JWT ou du mécanisme d'authentification, exposition de `id`, `role`, `actif`,
+> `dateCreation` ou du mot de passe, endpoint en double, commit, push, reset, rebase.
+
+- [x] 5.8-bis — Audit préalable en lecture seule : `Utilisateur`, `Producteur`, `UtilisateurService`,
+  `ProducteurService`, `UtilisateurController`, `ProducteurController`, DTO, repositories, `ControleAcces`,
+  `SecurityConfig`, `ProfilApiTest`, `SecuriteApiTest` et migrations Flyway. Conclusions retenues : `Producteur` est
+  lié à `Utilisateur` et déjà chargé par `findByUtilisateurId` ; `UtilisateurRepository.findByEmail` existe ;
+  **aucune contrainte d'unicité sur `utilisateurs.telephone`**, et `existsByTelephone()` n'est appelé par
+  personne ; longueurs réelles `varchar(100)`/`varchar(100)`/`varchar(150)`/`varchar(20)`/`varchar(255)` et
+  `description` en `TEXT`.
+- [x] 5.8-bis — Backend : DTO d'écriture dédié `ModifierProfilProducteurRequest` (record, **sept** propriétés,
+  `@NotBlank`/`@Email`/`@Size`/`@NotNull` aux bornes du schéma, messages français) ; `ProducteurService.modifierMoi`
+  (`@Transactional`, 403 hors `PRODUCTEUR`, cible = `findByUtilisateurId(principal.getId())`, e-mail normalisé et
+  doublon vérifié hors titulaire → `BusinessException` **400**, jamais 500) ; `ProducteurController`
+  `PUT /api/producteurs/moi`. `PUT /{id}` (trois colonnes d'exploitation, propriétaire ou ADMIN) est **conservé** :
+  contrat différent, attesté par `DocumentationApiTest`, plus aucun appelant frontend.
+- [x] 5.8-bis — Tests backend : `ProfilApiTest` porté de 17 à **27 tests** (sept champs appliqués et relus par
+  `GET /moi`, voisin intact, `401` sans jeton, `403` ACHETEUR, `403` ADMIN, `403` sans profil producteur, e-mail
+  d'un autre → `400` et non `500`, son propre e-mail conservé et normalisé, six erreurs par champ, champs
+  sensibles hors contrat ignorés, `PUT /{id}` d'un autre producteur → `403`, mot de passe jamais exposé).
+  `./mvnw -o test` → **163 tests réussis sur 163**, `BUILD SUCCESS` (baseline 153 + 10, 0 échec) ; PostgreSQL réel,
+  aucun mock.
+- [x] 5.8-bis — Frontend `core` : interface `ModifierProfilProducteurRequest` (sept propriétés) en remplacement de
+  `ProducteurRequest` ; `ProducteurService.modifierMonProfil` en remplacement de `modifier(id, …)` ;
+  `AuthService.mettreAJourIdentite` rafraîchit prénom/nom/e-mail de la session locale **sans toucher au jeton**.
+  Spec du service portée de 8 à **9 tests**, spec d'authentification de 6 à **8 tests**.
+- [x] 5.8-bis — Écran `profil-producteur` : deux `<fieldset>` (« Compte » puis « Exploitation »), **sept contrôles**
+  préremplis depuis `GET /moi`, `autocomplete` sur les quatre champs de compte, `type="email"` et `type="tel"`,
+  note « Le rôle du compte et le mot de passe ne se modifient pas depuis cet écran. », `PUT` toujours complet des
+  sept clés, chaînes vides envoyées `null`, `trim()` de l'identité, succès relu de la réponse serveur. Six états,
+  garde anti double soumission, `aria-busy` et conservation de la saisie en échec **inchangés**. SCSS ramené à
+  **2 091 octets** (retrait du `<dl>` d'identité). Spec réécrite : **29 tests**.
+- [x] 5.8-bis — Documentation : `FRONTEND_DESIGN.md` §36 réécrit pour les sept champs, `PUT /api/producteurs/moi`,
+  le conflit d'e-mail en 400, l'absence d'unicité du téléphone et le rafraîchissement de la session locale ;
+  `README.md` — ligne `PUT /api/producteurs/moi` ajoutée au tableau des routes.
+- [x] 5.8-bis — Validation automatisée : `npx ng test --watch=false` → **529 tests réussis sur 529** (28 fichiers),
+  soit le baseline de 519 + 10 (1 service producteur, 7 écran, 2 authentification) et **0 test perdu** ;
+  `npx tsc -p tsconfig.spec.json --noEmit` sans erreur ; `npm run build` **réussi**, avec le seul warning
+  préexistant (`commande.scss` 4,19 kB). Aucun commit, aucun push.
+- [x] 5.8-bis — QA navigateur réelle de l'écran étendu (2026-09-29, compte producteur B sur
+  `/producteur/profil`, backend relancé avec les nouveaux mappings) : les **sept contrôles** sont rendus et
+  préremplis depuis `GET /api/producteurs/moi` **sans paramètre d'URL** ; un `PUT` parti de **deux clics** et son
+  corps portait **exactement les sept clés** ; après succès, l'en-tête est passé à l'identité saisie **sans
+  rechargement** (preuve de `mettreAJourIdentite`, jeton conservé) ; un rechargement complet + nouvelle connexion
+  relit les sept valeurs depuis le serveur (persistance) ; `prenom = '   '` → `400` du serveur, message sous
+  `#prenom-erreur`, `aria-invalid="true"`, autres valeurs intactes ; e-mail d'un autre compte → **`400` et non
+  `500`**, « Un compte existe déjà avec cette adresse email. » en erreur générale ; e-mail mal formé et champ
+  obligatoire vidé → message local (`#email-erreur`, « Ce champ est obligatoire. ») et **aucune requête émise**
+  (journal réseau figé) ; sauvegarde déclenchée **au clavier** (deux `Tab` jusqu'à `#profil-soumettre`, puis
+  Espace) ; `aria-current="page"` sur « Mes récoltes », liens « Voir mes récoltes » et « Annuler » vers
+  `/producteur/recoltes`, **zéro `input[type=password]`**, succès en `.message--succes` `role="status"`, bouton
+  réactivé (`aria-busy="false"`) ; **aucune erreur ni avertissement en console** (les seuls messages préservés
+  sont les `400` provoqués volontairement) ; à la largeur courante (437 px) **aucun scroll horizontal** et
+  **aucun élément hors cadre**. **Non testé : 375 / 768 / 1024 / 1366** — le navigateur intégré n'offre aucune
+  émulation d'appareil ni contrôle du viewport (limite d'environnement, pas du composant).
 
 ### État d'intégration (2026-09-29)
 - [x] 5.2, 5.3, 5.4 et 5.5 (5.5.1 → 5.5.9) sont **implémentées et validées par les tests automatisés,

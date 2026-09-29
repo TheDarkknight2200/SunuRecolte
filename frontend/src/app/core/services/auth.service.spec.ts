@@ -158,6 +158,46 @@ describe('AuthService', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
+  /** Recrée le service à partir de ce que contient le stockage local. */
+  function serviceRecharge(): AuthService {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    return TestBed.inject(AuthService);
+  }
+
+  it('mettreAJourIdentite : rafraîchit le nom affiché, jamais le rôle, l’identifiant ni le jeton', () => {
+    localStorage.setItem(CLE_JETON, 'jeton-de-test');
+    localStorage.setItem(CLE_UTILISATEUR, JSON.stringify(SESSION_ATTENDUE));
+
+    const recharge = serviceRecharge();
+    recharge.mettreAJourIdentite({ nom: 'Fall', prenom: 'Moussa', email: 'moussa.fall@example.sn' });
+
+    expect(recharge.session()).toEqual({
+      utilisateurId: 7,
+      nom: 'Fall',
+      prenom: 'Moussa',
+      email: 'moussa.fall@example.sn',
+      role: 'PRODUCTEUR',
+    });
+    expect(recharge.role()).toBe('PRODUCTEUR');
+    expect(JSON.parse(localStorage.getItem(CLE_UTILISATEUR) ?? 'null')).toEqual(recharge.session());
+    expect(recharge.jeton()).toBe('jeton-de-test');
+    expect(localStorage.getItem(CLE_JETON)).toBe('jeton-de-test');
+    // La session de référence n'est pas modifiée : l'objet renvoyé est une copie.
+    expect(SESSION_ATTENDUE.nom).toBe('Diop');
+  });
+
+  it('mettreAJourIdentite sans session : n’invente aucune connexion locale', () => {
+    service.mettreAJourIdentite({ nom: 'Fall', prenom: 'Moussa', email: 'moussa@example.sn' });
+
+    expect(service.estConnecte()).toBe(false);
+    expect(service.session()).toBeNull();
+    expect(localStorage.getItem(CLE_UTILISATEUR)).toBeNull();
+  });
+
   it('récupération du jeton : restitue le jeton stocké et signale un jeton expiré', () => {
     localStorage.setItem(CLE_JETON, fabriquerJeton(dansUneHeure()));
     localStorage.setItem(CLE_UTILISATEUR, JSON.stringify(SESSION_ATTENDUE));

@@ -183,7 +183,8 @@ appliquée côté serveur. Sauf mention « public », une route exige `Authoriza
 | Profils | `GET /api/utilisateurs/{id}` | Utilisateur concerné ou ADMIN (jamais de mot de passe) |
 | Profils | `GET /api/producteurs/moi` | PRODUCTEUR uniquement — son propre profil ; l'identifiant vient du jeton (aucun `producteurId` en entrée). `401` sans jeton, `403` pour ACHETEUR ou ADMIN |
 | Profils | `GET /api/acheteurs/moi` | ACHETEUR uniquement — son propre profil ; l'identifiant vient du jeton (aucun `acheteurId` en entrée). `401` sans jeton, `403` pour PRODUCTEUR ou ADMIN |
-| Profils | `GET /api/producteurs/{id}` · `PUT /api/producteurs/{id}` | Producteur concerné ou ADMIN |
+| Profils | `PUT /api/producteurs/moi` | PRODUCTEUR uniquement — mise à jour complète de son profil (prénom, nom, email, téléphone, localisation, filière, description) ; cible déduite du jeton, `403` pour ACHETEUR ou ADMIN, `400` si l'email est déjà pris |
+| Profils | `GET /api/producteurs/{id}` · `PUT /api/producteurs/{id}` | Producteur concerné ou ADMIN — le `PUT` n'écrit que les trois colonnes d'exploitation |
 | Profils | `GET /api/acheteurs/{id}` | Acheteur concerné ou ADMIN |
 
 En cas d'erreur, l'API renvoie un JSON du type `{"statut": 404, "message": "...", "timestamp": "..."}`

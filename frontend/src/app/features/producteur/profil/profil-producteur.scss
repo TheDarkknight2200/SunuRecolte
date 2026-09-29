@@ -1,0 +1,113 @@
+@use "points-rupture" as pr;
+
+/* Racine : un seul rythme vertical, les marges des .champ sont neutralisées dans les groupes. */
+.profil-producteur {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-5);
+  max-width: 44rem;
+}
+
+.profil-producteur__entete {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+}
+
+.profil-producteur__titre {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+}
+
+.profil-producteur__surtitre {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profil-producteur h1 {
+  margin: 0;
+}
+
+.profil-producteur__intro {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+}
+
+.profil-producteur .message {
+  margin: 0;
+}
+
+/* === Carte === */
+
+.profil-producteur__carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-5);
+}
+
+/* fieldset/legend : repère de groupe structurel, pas décoratif. */
+.profil-producteur__groupe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.profil-producteur__legende {
+  padding: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+  font-weight: 600;
+}
+
+.profil-producteur__groupe .champ {
+  margin-bottom: 0;
+}
+
+.profil-producteur__note {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}
+
+.profil-producteur__rangee {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--espace-4);
+}
+
+.profil-producteur__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-3);
+  margin: 0;
+}
+
+.profil-producteur__actions .bouton {
+  min-height: 44px;
+}
+
+@media (min-width: pr.$point-tablette) {
+  .profil-producteur__entete {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--espace-5);
+  }
+
+  .profil-producteur__rangee {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profil-producteur__actions .bouton {
+    min-height: 36px;
+  }
+}

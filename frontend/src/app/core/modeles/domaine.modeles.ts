@@ -97,6 +97,23 @@ export interface ProducteurResponse {
   description: string | null;
 }
 
+/**
+ * Corps de PUT /api/producteurs/moi (le record Java ModifierProfilProducteurRequest).
+ * Les sept propriétés sont non optionnelles : le service réécrit le compte et
+ * l'exploitation sans fusion partielle, un envoi incomplet effacerait des données
+ * (FRONTEND_DESIGN.md §36). Aucun id, rôle, « actif » ni mot de passe : le serveur
+ * ne les accepte pas, l'identité de la cible vient du jeton.
+ */
+export interface ModifierProfilProducteurRequest {
+  prenom: string;
+  nom: string;
+  email: string;
+  telephone: string;
+  localisationExploitation: string | null;
+  filiere: Filiere;
+  description: string | null;
+}
+
 /** Réponse de GET /api/acheteurs/{id} et GET /api/acheteurs/moi. */
 export interface AcheteurResponse {
   id: number;

@@ -1,0 +1,230 @@
+<section class="profil-producteur">
+  <div class="profil-producteur__entete">
+    <div class="profil-producteur__titre">
+      <p class="profil-producteur__surtitre">Espace producteur</p>
+      <h1>Profil</h1>
+      @if (profil(); as profil) {
+        <p class="profil-producteur__intro">
+          {{ profil.prenom }} {{ profil.nom }} — filière {{ libelleFiliere[profil.filiere] }}.
+          Ces informations sont visibles par les acheteurs avec vos récoltes.
+        </p>
+      }
+    </div>
+    <a class="bouton bouton--secondaire" id="lien-mes-recoltes" routerLink="/producteur/recoltes">
+      Voir mes récoltes
+    </a>
+  </div>
+
+  @if (chargement()) {
+    <div class="etat" aria-busy="true">
+      <p class="etat__texte">Chargement de votre profil…</p>
+    </div>
+  } @else if (erreur(); as message) {
+    <div class="message message--erreur" role="alert">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+      <div>
+        <p>{{ message }}</p>
+        <p class="profil-producteur__actions">
+          <button
+            type="button"
+            class="bouton bouton--secondaire bouton--compact"
+            id="profil-reessayer"
+            (click)="reessayer()"
+          >
+            Réessayer
+          </button>
+        </p>
+      </div>
+    </div>
+  } @else {
+    @if (succes(); as message) {
+      <div class="message message--succes" role="status">
+        <span class="materiel-icone message__icone" aria-hidden="true">&#xf0be;</span>
+        <p>{{ message }}</p>
+      </div>
+    }
+
+    @if (erreurGenerale(); as message) {
+      <div class="message message--erreur" role="alert">
+        <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+        <p>{{ message }}</p>
+      </div>
+    }
+
+    <form class="carte profil-producteur__carte" [formGroup]="formulaire" (ngSubmit)="soumettre()" novalidate>
+      <fieldset class="profil-producteur__groupe">
+        <legend class="profil-producteur__legende">Compte</legend>
+
+        <div class="profil-producteur__rangee">
+          <div class="champ">
+            <label class="champ__libelle" for="prenom">
+              Prénom <span class="champ__obligatoire">(obligatoire)</span>
+            </label>
+            <input
+              id="prenom"
+              class="champ__saisie"
+              type="text"
+              formControlName="prenom"
+              autocomplete="given-name"
+              maxlength="100"
+              [attr.aria-invalid]="invalide('prenom')"
+              aria-describedby="prenom-erreur"
+            />
+            @if (invalide('prenom')) {
+              <p id="prenom-erreur" class="champ__erreur">{{ messageErreur('prenom') }}</p>
+            }
+          </div>
+
+          <div class="champ">
+            <label class="champ__libelle" for="nom">
+              Nom <span class="champ__obligatoire">(obligatoire)</span>
+            </label>
+            <input
+              id="nom"
+              class="champ__saisie"
+              type="text"
+              formControlName="nom"
+              autocomplete="family-name"
+              maxlength="100"
+              [attr.aria-invalid]="invalide('nom')"
+              aria-describedby="nom-erreur"
+            />
+            @if (invalide('nom')) {
+              <p id="nom-erreur" class="champ__erreur">{{ messageErreur('nom') }}</p>
+            }
+          </div>
+        </div>
+
+        <div class="profil-producteur__rangee">
+          <div class="champ">
+            <label class="champ__libelle" for="email">
+              Adresse email <span class="champ__obligatoire">(obligatoire)</span>
+            </label>
+            <input
+              id="email"
+              class="champ__saisie"
+              type="email"
+              formControlName="email"
+              autocomplete="email"
+              maxlength="150"
+              [attr.aria-invalid]="invalide('email')"
+              aria-describedby="email-aide email-erreur"
+            />
+            <p id="email-aide" class="champ__aide">
+              Sert à vous connecter : notez le changement pour la prochaine connexion.
+            </p>
+            @if (invalide('email')) {
+              <p id="email-erreur" class="champ__erreur">{{ messageErreur('email') }}</p>
+            }
+          </div>
+
+          <div class="champ">
+            <label class="champ__libelle" for="telephone">
+              Téléphone <span class="champ__obligatoire">(obligatoire)</span>
+            </label>
+            <input
+              id="telephone"
+              class="champ__saisie"
+              type="tel"
+              formControlName="telephone"
+              autocomplete="tel"
+              maxlength="20"
+              [attr.aria-invalid]="invalide('telephone')"
+              aria-describedby="telephone-aide telephone-erreur"
+            />
+            <p id="telephone-aide" class="champ__aide">
+              Numéro joignable par les acheteurs.
+            </p>
+            @if (invalide('telephone')) {
+              <p id="telephone-erreur" class="champ__erreur">{{ messageErreur('telephone') }}</p>
+            }
+          </div>
+        </div>
+
+        <p class="profil-producteur__note">
+          Le rôle du compte et le mot de passe ne se modifient pas depuis cet écran.
+        </p>
+      </fieldset>
+
+      <fieldset class="profil-producteur__groupe">
+        <legend class="profil-producteur__legende">Exploitation</legend>
+
+        <div class="profil-producteur__rangee">
+          <div class="champ">
+            <label class="champ__libelle" for="localisationExploitation">
+              Localisation de l’exploitation
+            </label>
+            <input
+              id="localisationExploitation"
+              class="champ__saisie"
+              type="text"
+              formControlName="localisationExploitation"
+              maxlength="255"
+              placeholder="Rufisque, Thiénaba…"
+              [attr.aria-invalid]="invalide('localisationExploitation')"
+              aria-describedby="localisationExploitation-aide localisationExploitation-erreur"
+            />
+            <p id="localisationExploitation-aide" class="champ__aide">
+              Secteur où les acheteurs viennent retirer. Facultatif.
+            </p>
+            @if (invalide('localisationExploitation')) {
+              <p id="localisationExploitation-erreur" class="champ__erreur">
+                {{ messageErreur('localisationExploitation') }}
+              </p>
+            }
+          </div>
+
+          <div class="champ">
+            <label class="champ__libelle" for="filiere">
+              Filière <span class="champ__obligatoire">(obligatoire)</span>
+            </label>
+            <select
+              id="filiere"
+              class="champ__saisie"
+              formControlName="filiere"
+              required
+              aria-required="true"
+              [attr.aria-invalid]="invalide('filiere')"
+              aria-describedby="filiere-erreur"
+            >
+              <option [ngValue]="null" disabled>Choisir une filière</option>
+              @for (filiere of filieres; track filiere) {
+                <option [ngValue]="filiere">{{ libelleFiliere[filiere] }}</option>
+              }
+            </select>
+            @if (invalide('filiere')) {
+              <p id="filiere-erreur" class="champ__erreur">{{ messageErreur('filiere') }}</p>
+            }
+          </div>
+        </div>
+
+        <div class="champ">
+          <label class="champ__libelle" for="description">Description</label>
+          <textarea
+            id="description"
+            class="champ__saisie"
+            formControlName="description"
+            rows="4"
+            aria-describedby="description-aide"
+          ></textarea>
+          <p id="description-aide" class="champ__aide">
+            Ce que vous produisez, vos volumes habituels, vos créneaux de retrait.
+          </p>
+        </div>
+      </fieldset>
+
+      <div class="profil-producteur__actions">
+        <button
+          type="submit"
+          class="bouton bouton--primaire"
+          id="profil-soumettre"
+          [disabled]="enCours()"
+          [attr.aria-busy]="enCours()"
+        >
+          {{ enCours() ? '…' : 'Enregistrer les modifications' }}
+        </button>
+        <a class="bouton bouton--discret" routerLink="/producteur/recoltes">Annuler</a>
+      </div>
+    </form>
+  }
+</section>
