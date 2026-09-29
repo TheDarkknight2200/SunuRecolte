@@ -82,9 +82,17 @@ StatutPaiement : EN_ATTENTE, REUSSI, ECHOUE, ANNULE
 ### Notification
 id, utilisateur_id, titre, message, lu, date_creation
 
-MVP sans WebSocket :
-- GET /api/notifications
-- PUT /api/notifications/{id}/lue
+MVP sans WebSocket (les trois endpoints réels de `NotificationController`) :
+- GET /api/notifications (liste du titulaire du jeton, triée date_creation DESC ; l'ADMIN sans paramètre
+  reçoit toutes les notifications ; `utilisateurId` en paramètre = id de compte `Utilisateur`, jamais un id de
+  profil, et un `utilisateurId` d'un autre compte renvoie 403)
+- GET /api/notifications/{id} (404 si inconnue, 403 si elle appartient à un autre compte)
+- PUT /api/notifications/{id}/lue (aucun corps, idempotent, renvoie la notification avec lu = true)
+
+Aucun endpoint de comptage des non-lues, aucune pagination, aucune suppression.
+Création automatique : uniquement dans `CommandeService` (une notification « Nouvelle commande » à chaque
+producteur distinct à la création d'une commande, une « Suivi de commande » à l'acheteur à chaque changement
+de statut). `PaiementService` n'envoie **aucune** notification.
 
 ### PrixMarche
 id, produit, unite, prix_moyen, marche_reference, date_mise_a_jour

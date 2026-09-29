@@ -44,6 +44,15 @@ export const routes: Routes = [
       import('./features/tableau-de-bord/tableau-de-bord').then((m) => m.TableauDeBord),
   },
   {
+    // Écran transverse : le backend écrit des notifications pour un producteur comme pour un
+    // acheteur, et l'ADMIN y a accès. `authGuard` seul, aucun `roleGuard` (FRONTEND_DESIGN.md §29).
+    path: 'notifications',
+    title: 'SunuRecolte — Notifications',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/notifications/notifications').then((m) => m.Notifications),
+  },
+  {
     path: 'producteur',
     pathMatch: 'full',
     redirectTo: 'producteur/recoltes',

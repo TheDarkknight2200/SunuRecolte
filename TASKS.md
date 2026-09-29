@@ -91,6 +91,25 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [ ] Notifications commande
 - [ ] Notifications paiement
 
+> **Divergence signalée (5.5.9), cases laissées en l'état** : cette phase est décrite comme entièrement à
+> faire, alors que son périmètre backend est **déjà partiellement livré** depuis les Phases 2 et 3, sans que
+> rien ici l'ait enregistré. Réel état du backend : `Notification` + repository + service + controller
+> existent, les trois endpoints `GET /api/notifications`, `GET /api/notifications/{id}` et
+> `PUT /api/notifications/{id}/lue` sont implémentés et testés (`NotificationApiTest`, `SecuriteApiTest`),
+> et la **création automatique** est en place dans `CommandeService` uniquement — une notification
+> « Nouvelle commande » à chaque producteur distinct à la création d'une commande, une notification
+> « Suivi de commande » à l'acheteur à chaque changement de statut. « Liste » et « Marquer comme lue » sont
+> donc livrés côté API, et « Notifications commande » aussi.
+>
+> **Ce qui manque réellement** : « Notifications paiement » — `PaiementService` n'importe aucune notification
+> et **aucune** notification de paiement n'existe dans le projet. Ni l'espace producteur (aucune action sur
+> les statuts), ni une pagination, ni un endpoint de comptage n'existent non plus.
+>
+> **L'interface frontend de ces notifications a été réalisée dans la sous-phase 5.5.9**, pas ici : un écran
+> transversal `/notifications` et son compteur d'en-tête, qui n'utilisent que deux des trois endpoints.
+> Ces cases ne sont pas cochées : leur statut historique (périmètre backend, déjà testé mais jamais validé
+> dans cette liste) demande une décision de l'auteur du projet, comme pour « Phase 4 » et « Phase 5 ».
+
 ## Phase 8 — Admin
 - [ ] Dashboard
 - [ ] Utilisateurs
@@ -199,8 +218,11 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 ### 5.5 — Écrans acheteur (panier, commande, consultation et annulation)
 
 > Périmètre réellement couvert : identité acheteur, modèles et DTO, panier local, tunnel de commande,
-> puis consultation et annulation des commandes. **Le paiement et les notifications ne sont pas faits**
-> (aucun écran de paiement, aucun appel à `/api/paiements`, aucun compteur de notifications).
+> puis consultation et annulation des commandes, **paiement simulé** (5.5.8) et **écran de notifications**
+> (5.5.9). Les trois derniers points ont été ajoutés après la rédaction initiale de ce chapeau, qui
+> affirmait que « le paiement et les notifications ne sont pas faits » : c'était exact à l'époque, ce ne
+> l'est plus. **Ce qui reste non fait** : aucune notification de paiement (le backend n'en envoie aucune),
+> et aucune mise à jour des statuts de commande par le producteur.
 
 - [x] 5.5.1 — `GET /api/acheteurs/moi` côté backend (identité lue du JWT, `ADMIN` et `PRODUCTEUR` refusés
   par un **403**), testé dans `ProfilApiTest`
@@ -351,17 +373,74 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
     backend) ; les statuts `REUSSI` et `ECHOUE` : **aucun chemin du backend ne les produit**, aucun
     scénario n’a donc été fabriqué pour les voir à l’écran.
 
+### 5.5.9 — Notifications (écran transversal et compteur d'en-tête)
+
+> **Architecture validée par l'auteur du projet** après l'audit 5.5.9 (verdict « NEEDS ARCHITECTURE
+> DECISION ») : la notification est une donnée **transverse** — le backend en écrit pour un producteur
+> (nouvelle commande) comme pour un acheteur (suivi de statut), et l'ADMIN voit toutes les notifications.
+> L'écran n'est donc **pas** un écran d'espace acheteur : `/notifications`, hors de `features/acheteur`,
+> protégé par `authGuard` **seul**, **sans `roleGuard`**. Le compteur de non-lues vit dans l'en-tête mais
+> **n'est pas cliquable** et n'ajoute **pas** de cinquième lien (§10.5) : on entre dans la liste depuis le
+> Tableau de bord. Décision consignée dans `FRONTEND_DESIGN.md` §29 **avant** le code (§24).
+
+- [x] 5.5.9 — Contrat backend retenu (aucune modification du backend, ce brief l'interdit) :
+  - deux endpoints utilisés seulement : `GET /api/notifications` (liste du titulaire du jeton, `dateCreation`
+    DESC) et `PUT /api/notifications/{id}/lue` (aucun corps, idempotent, renvoie la notification avec
+    `lu = true`) ;
+  - `GET /api/notifications/{id}` existe mais **n'est appelé par aucun écran** : aucune méthode `findById`
+    n'est créée pour lui ;
+  - `NotificationResponse` réel : `id`, `utilisateurId`, `titre`, `message`, `lu`, `dateCreation` — **ni
+    `type`, ni `idCommande`** ;
+  - **aucun endpoint de comptage** : le nombre de non-lues est une conséquence du calcul frontend, pas une
+    donnée serveur ; le frontend n'envoie **jamais** `utilisateurId`.
+- [x] 5.5.9 — `core/services/notification.service.ts` : singleton `providedIn: 'root'`, deux méthodes
+  (`mesNotifications`, `marquerLue`), état des notifications partagé par signal pour que l'en-tête et la page
+  lisent la même source, `PUT` sans corps, aucun retry, aucun polling, un `403` jamais converti en `401`.
+- [x] 5.5.9 — Page `/notifications` (`features/notifications/`, chargement paresseux, `authGuard` seul) :
+  les six états de §11, texte obligatoire « Non lue » (jamais la couleur seule), bouton « Marquer comme lue »
+  (une seule requête, `disabled` + `aria-busy`, état repris de la **réponse du serveur**, échec = état et
+  compteur conservés), bouton « Actualiser » **sans** aucun `setInterval` ni `EventSource`, titre recevant le
+  focus après une actualisation déclenchée par l'utilisateur.
+- [x] 5.5.9 — Compteur de non-lues dans l'en-tête : badge `SPAN` non cliquable, masqué à 0, plafonné `99+`,
+  conteneur `aria-live="polite"`, **aucun appel à `/api/notifications` sans session validée** (risque de
+  boucle 401/redirection). Les quatre liens existants de l'en-tête restent inchangés.
+- [x] 5.5.9 — Entrée « Notifications » depuis le Tableau de bord pour tout utilisateur authentifié.
+- [x] 5.5.9 — Tests : `notification.service.spec.ts` (14), `notifications.spec.ts` (25, dont la route),
+  `en-tete.spec.ts` (18 — la liste exacte des quatre liens est **conservée**). Exécutés le 2026-09-29 :
+  453 tests sur 26 fichiers, build de production sans nouvelle alerte.
+- [ ] 5.5.9 — QA navigateur réelle (anonyme, acheteur, producteur, marquage et rechargement, isolement entre
+  deux comptes, état vide, erreur, accessibilité clavier, responsive). **Partiellement faite le 2026-09-29** :
+  anonyme (redirection `?retour=/notifications`, zéro appel), acheteur QA53 (compteur « 1 », un seul `PUT` pour
+  un clic, compteur vidé sans rechargement, « Lue » conservé après rechargement réel), producteur QA53 A
+  (compteur « 2 » puis « 1 » après marquage par **Espace**, `Tab` jusqu'au bouton, anneau de focus visible),
+  isolement vérifié dans les deux sens, console propre, aucun `utilisateurId` sur le réseau, 44 px de zone
+  tactile à 437 px. **Non couvert en réel** : l'état vide (les deux comptes QA ont au moins une notification),
+  l'état d'erreur (non déclenchable sans arrêter le backend ni couper le réseau) et les largeurs
+  375/768/1024/1366 (viewport intégré figé à 437 px, le redimensionnement de la fenêtre ne changeant pas le
+  viewport, comme en 5.5.7 et 5.5.8). Ces trois points restent couverts par les tests unitaires.
+- [x] 5.5.9 — **Limites connues** : pas de temps réel (aucun WebSocket, aucun polling — une notification
+  créée pendant la session n'apparaît qu'après « Actualiser » ou une navigation) ; aucune notification de
+  paiement à afficher (le backend n'en produit pas) ; le producteur n'a **aucune** action sur les statuts de
+  commande, donc la notification « Suivi de commande » ne peut naître d'un changement fait depuis
+  l'interface ; aucun compteur côté serveur ; l'ADMIN n'a pas d'écran dédié et se voit lister **toutes** les
+  notifications par le service. Deux limites constatées en réel le 2026-09-29 : un **rechargement dur** de
+  `/notifications` émet **deux** `GET /api/notifications` identiques (l'en-tête et la page lisent chacun la
+  liste ; la navigation client n'en émet qu'un) — dédoublonner affaiblirait la recharge à l'ouverture exigée
+  par §29 ; après un marquage, le bouton retiré rend le focus à `<body>` (aucune destination de focus n'était
+  prescrite pour cette action).
+
 ### État d'intégration (2026-09-29)
-- [x] 5.2, 5.3, 5.4 et 5.5 (5.5.1 → 5.5.8) sont **implémentées et validées par les tests automatisés,
-  le build et une QA navigateur réelle** (aux limites de viewport signalées en clôture de 5.5.7 et 5.5.8)
-- [ ] **Rien de ce travail n'a encore été commité** : HEAD est toujours `9f36572` (Phase 4.1) ; les
-  sous-phases « 5.2 → 5.5 » du frontend restent dans l'arborescence (fichiers modifiés, supprimés,
-  non suivis)
-- [ ] Le projet n'est **pas terminé** : les notifications n'ont **aucun écran**, l'espace admin reste à
-  faire, la mise à jour des statuts de commande par le producteur non plus, et l'intégration de bout en
-  bout reste à couvrir (Phase 9 puis Phases 10 et 11)
+- [x] 5.2, 5.3, 5.4 et 5.5 (5.5.1 → 5.5.9) sont **implémentées et validées par les tests automatisés,
+  le build et une QA navigateur réelle** (aux limites de viewport signalées en clôture de 5.5.7, 5.5.8 et
+  5.5.9)
+- [x] Le travail est **commité au fur et à mesure** : les commits Git locaux sont les checkpoints des
+  phases 5.2 à 5.5.9. Le dépôt distant peut rester en retard tant qu'aucun push n'est demandé
+- [ ] Le projet n'est **pas terminé** : l'espace admin reste à faire, la mise à jour des statuts de commande
+  par le producteur non plus, les notifications de paiement n'existent pas côté backend, et l'intégration de
+  bout en bout reste à couvrir (Phase 9 puis Phases 10 et 11)
 - [x] « Phase 5.5 » des consignes de travail (commandes acheteur) : panier, tunnel de commande,
-  consultation, annulation et **paiement simulé** **faits** ; notifications **volontairement hors périmètre**
+  consultation, annulation et **paiement simulé** **faits** ; les notifications, d'abord **volontairement
+  hors périmètre**, ont été livrées ensuite en **5.5.9** (écran transversal et compteur d'en-tête)
 
 ## Phase 10 — Intégration
 - [ ] Angular ↔ backend

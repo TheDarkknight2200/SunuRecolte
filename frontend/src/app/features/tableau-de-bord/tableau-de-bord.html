@@ -53,6 +53,10 @@
         <a class="bouton bouton--secondaire" [routerLink]="lienEspace(utilisateur)">
           Accéder à mon espace
         </a>
+        <!-- Les notifications sont transversales : ce lien est proposé à tout compte connecté (§29). -->
+        <a class="bouton bouton--secondaire" id="lien-notifications" routerLink="/notifications">
+          Notifications
+        </a>
       </p>
     </div>
   }

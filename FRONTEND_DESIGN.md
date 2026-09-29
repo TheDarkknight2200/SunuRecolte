@@ -588,14 +588,39 @@ Mapping statut → couleurs (§5 ; §10.7 applique la couleur au texte et son fo
 
 ## 29. Notifications (Phase 5.5)
 
+**Écran transversal.** `/notifications` est une page de `features/notifications`, **hors** de
+`features/acheteur` : le backend envoie des notifications aux deux rôles métier (un producteur est notifié
+à chaque commande reçue, un acheteur à chaque changement de statut). Elle est protégée par `authGuard`
+**seul**, sans `roleGuard` — ACHETEUR, PRODUCTEUR et ADMIN y accèdent, conformément à `SecurityConfig`
+(aucune règle d'autorisation ne concerne `/api/notifications`, la route tombe sous
+`.anyRequest().authenticated()`).
+
+- **Compteur de non-lues calculé côté frontend** à partir de `GET /api/notifications`
+  (`notifications.filter(n => !n.lu).length`) : **aucun endpoint de comptage n'existe** dans l'API, et il ne
+  faut pas en inventer. Le frontend n'envoie **jamais** `utilisateurId` — ni en paramètre, ni en corps, ni
+  depuis `localStorage` ou la route : l'identité du destinataire vient du jeton (§19).
 - **Compteur de non-lues dans l'en-tête**, dans un conteneur `aria-live="polite"` ; il se met à jour à la
   navigation, après un marquage lu et par le bouton « Actualiser » de la page. **Aucun `setInterval`,
   aucun polling** : le MVP n'a pas de temps réel.
+- Le compteur est plafonné à **`99+`** au-delà de 99 lignes non lues, disparaît à 0, et reste **non
+  cliquable** (§10.7) : le badge n'est pas un lien et ne devient pas un bouton. Il n'est jamais affiché à un
+  visiteur anonyme, et `GET /api/notifications` n'est **jamais** appelé sans session validée — un appel
+  anonyme renverrait `401` et déclencherait la purge de la session (§19).
+- **Aucune actualisation automatique.** Les trois seules causes d'un `GET /api/notifications` sont :
+  l'ouverture ou la navigation vers `/notifications`, le bouton « Actualiser » de cette page, et le
+  rafraîchissement local après un marquage comme lue réussi. Pas de WebSocket, pas d'`EventSource`, pas de
+  notification push, pas d'e-mail ni de SMS.
+- **Accès à la liste depuis le Tableau de bord** (« Notifications »), pas depuis l'en-tête : l'en-tête garde
+  ses quatre liens (§10.5) et n'en reçoit pas un cinquième.
 - Une notification non lue est signalée par un **texte** (« Non lue ») en plus de tout traitement visuel ;
   l'état lu ne repose pas sur la seule absence de couleur.
 - Le passage à l'état lu passe par un **bouton explicite** « Marquer comme lue », jamais par un simple
-  clic sur la ligne.
+  clic sur la ligne. Le clic envoie **une** requête `PUT /api/notifications/{id}/lue` et l'état affiché est
+  ensuite **celui de la réponse du serveur** : le frontend ne pose jamais `lu = true` avant elle (§19,
+  le frontend n'est pas l'autorité). Si le `PUT` échoue, l'état précédent et le compteur sont conservés.
 - Liste sobre : titre, message, date (§30), état.
+- Les six états de §11 s'appliquent à la page : un chargement ne rend jamais un faux état vide, et l'erreur
+  propose « Réessayer ».
 
 ## 30. Montants, quantités et dates (Phase 5.5)
 

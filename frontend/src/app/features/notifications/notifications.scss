@@ -1,0 +1,117 @@
+@use "points-rupture" as pr;
+
+.notifications {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+}
+
+.notifications__titre h1 {
+  margin: 0;
+}
+
+/* Le titre reçoit le focus après une actualisation : sa silhouette ne change pas. */
+.notifications__titre h1:focus {
+  outline-offset: var(--espace-2);
+}
+
+.notifications__surtitre {
+  margin: 0 0 var(--espace-1);
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.notifications__intro {
+  margin: var(--espace-2) 0 0;
+  color: var(--couleur-texte-secondaire);
+}
+
+.notifications__barre {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--espace-3);
+  margin: 0;
+}
+
+.notifications__liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notifications__carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+}
+
+/* Marque visuelle d'une notification non lue, toujours accompagnée du texte « Non lue » (§29). */
+.notifications__carte--non-lue {
+  border-left: 3px solid var(--couleur-primaire);
+}
+
+.notifications__entete-carte {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-3);
+}
+
+.notifications__carte .carte__titre {
+  margin: 0;
+  font-size: var(--taille-lg);
+}
+
+.notifications__message {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.notifications__champs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--espace-3);
+  margin: 0;
+}
+
+.notifications__champs dt {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+}
+
+.notifications__champs dd {
+  margin: var(--espace-1) 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.notifications__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+  margin: 0;
+}
+
+/* Zone tactile : la variante compacte (36 px) est rehaussée sur mobile, jamais en dessous. */
+.notifications__actions .bouton,
+.notifications__barre .bouton {
+  min-height: 44px;
+}
+
+@media (min-width: pr.$point-tablette) {
+  .notifications__actions {
+    justify-content: flex-end;
+  }
+
+  .notifications__actions .bouton,
+  .notifications__barre .bouton {
+    min-height: 36px;
+  }
+}

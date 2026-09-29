@@ -25,5 +25,8 @@
 }
 
 .tableau-de-bord__lien {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
   margin: 0;
 }

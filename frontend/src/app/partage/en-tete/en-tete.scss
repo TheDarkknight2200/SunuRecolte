@@ -104,6 +104,29 @@
 }
 
 /*
+ * Compteur de notifications non lues (§29) : un badge, jamais un lien, jamais une cinquième
+ * entrée de navigation (§10.5). Le nombre visible reste seul à l'écran ; la légende, hors
+ * écran, porte le sens de ce que l'annonce `aria-live` fait entendre.
+ */
+.entete__notifications {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-1);
+}
+
+.entete__notifications-legende {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
  * Une ligne de liens ne tient qu'à partir de la tablette : un acheteur connecté cumule
  * quatre liens, son identité et « Se déconnecter ». Sous ce point, ils passent à la ligne
  * (§10.5) plutôt que de faire déborder l'en-tête en scroll horizontal.

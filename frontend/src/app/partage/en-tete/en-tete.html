@@ -54,6 +54,17 @@
           <span class="entete__identite-nom">{{ utilisateur.prenom }} {{ utilisateur.nom }}</span>
           <span class="badge entete__identite-role">{{ libelleRole() }}</span>
         </span>
+        <!--
+          Compteur de notifications non lues (§29) : badge **non cliquable**, jamais un lien,
+          jamais une cinquième entrée de navigation (§10.5). Le conteneur est poli pour
+          qu'un changement de nombre soit annoncé sans interrompre la navigation clavier.
+        -->
+        <span class="entete__notifications" aria-live="polite">
+          @if (compteurNotifications(); as compteur) {
+            <span class="badge entete__notifications-compteur">{{ compteur }}</span>
+            <span class="entete__notifications-legende">notifications non lues</span>
+          }
+        </span>
         <button
           type="button"
           class="bouton bouton--discret bouton--compact"
