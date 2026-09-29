@@ -765,3 +765,85 @@ commande, déjà rendu sur la fiche (§33). Aucun accès à une API Wave ou Oran
 
 **Zone tactile.** Options de paiement à `min-height: 44 px` sur mobile (§12), ramenées à 36 px dès la
 tablette avec les boutons d'actions, en deux colonnes.
+
+## 35. Statuts de commande côté producteur (Phase 5.6)
+
+Écran « Commandes reçues » (`/producteur/commandes`), `features/producteur/commandes-recues/`, protégé par
+`authGuard` puis `roleGuard` avec `data.roles: ['PRODUCTEUR']`, chargé paresseusement. Titre de page :
+« SunuRecolte — Commandes reçues ».
+
+**Pourquoi un écran distinct et non une extension des écrans acheteur.** `CommandeService` n'admet
+`CONFIRMEE`, `PRETE` et `LIVREE` que de la part d'un producteur concerné ou de l'ADMIN
+(`verifierDroitDeChangerStatut`) : un acheteur qui tenterait ces transitions reçoit un 403. Les écrans de
+§33 restent donc **inchangés** — l'acheteur n'y voit que consultation et annulation — et aucune règle de
+§33 n'est déplacée ici.
+
+**Données.** `GET /api/commandes` sans aucun paramètre : pour un producteur, le serveur filtre sur le jeton
+et renvoie toute commande comportant au moins une de ses lignes, triée par `dateCreation` décroissante.
+Aucun `producteurId` n'est envoyé, aucun filtre, tri ni pagination inventés (§33). Les montants, quantités,
+statuts et lignes affichés sont **ceux de la réponse du serveur**.
+
+**Une seule action par commande, jamais une action impossible.** La table `TRANSITIONS_AUTORISEES` de
+`CommandeService` borne le cycle : `EN_ATTENTE → CONFIRMEE`, `CONFIRMEE → PRETE`, `PRETE → LIVREE`.
+`LIVREE` et `ANNULEE` sont terminaux : aucune action n'y est proposée. Libellés (voix active, l'effet réel
+est nommé — §16) :
+
+| Statut affiché | Action | Transition demandée |
+|---|---|---|
+| `EN_ATTENTE` | « Confirmer la commande » | `CONFIRMEE` |
+| `CONFIRMEE` | « Marquer comme prête » | `PRETE` |
+| `PRETE` | « Marquer comme livrée » | `LIVREE` |
+| `LIVREE`, `ANNULEE` | aucune | — |
+
+La table du composant (`ETAPES_SUIVANTES`) est un **reflet** de celle du service, pas une règle concurrente :
+le frontend n'est jamais l'autorité (§19), et un statut changé entre-temps se refuse par 400 avec le message
+du serveur affiché tel quel.
+
+**Ce que l'API autorise mais que l'écran ne propose pas.** `EN_ATTENTE → ANNULEE` et `CONFIRMEE → ANNULEE`
+sont aussi ouverts à un producteur concerné. L'annulation reste pilotée par l'acheteur (§33) : la proposer
+ici serait un second point d'annulation, avec sa modale (§31) et son état de plus, hors du cycle demandé.
+Rien dans l'interface ne laisse donc croire que le producteur peut annuler.
+
+**Action.** `PATCH /api/commandes/{id}/statut`, corps `{ "statut": … }` uniquement ; l'identifiant vient de
+la commande chargée, jamais de l'URL ni d'une saisie. Pas de modale : le patron de §31 couvre les
+confirmations **destructives** (suppression, annulation) ; ici l'action fait avancer la commande d'un cran,
+elle est nommée par son effet réel et son résultat est rendu par le statut de la réponse. Deux clics ne produisent
+**qu'une** requête : bouton `disabled`, `aria-busy`, libellé « … », et garde d'exécution dans le composant.
+Après succès, le statut et les lignes de la carte sont **remplacés par la réponse du serveur** ; la
+notification « Suivi de commande » que ce `PATCH` provoque côté backend reste le seul avertissement envoyé à
+l'acheteur — cet écran n'envoie aucune notification lui-même.
+
+**Retour visuel.** Une carte sur laquelle une action a réussi porte un message `.message--succes`
+(`role="status"`) reprenant le nouveau statut. Si le bouton a disparu (statut terminal), le focus est posé
+sur ce message (`tabindex="-1"`), seule destination explicite une fois le déclencheur retiré (§31).
+
+**Erreurs.** 400 : le message du serveur, mot pour mot, dans la carte concernée ; la commande garde le statut
+affiché. 403 : accès refusé, sans déconnexion ni purge (§19). 401 : laissé à `authInterceptor`. Panne réseau
+ou 500 : texte générique via `messageErreurApi`. Jamais de trace technique dans l'interface (§16).
+
+**Contenu d'une carte.** En-tête « Commande n° {{id}} » + badge de statut (§27, `VARIANTES_BADGE_COMMANDE`,
+le texte du libellé conservé à côté de la couleur) ; champs date et heure, acheteur (`nomAcheteur` renvoyé
+par le serveur), réception, lignes, total (§30) ; **liste des lignes** (§32 : produit, unité et quantité, prix
+unitaire, sous-total — c'est ce que le producteur a à préparer) ; réception en `LIVRAISON` : adresse,
+téléphone et instructions, une valeur absente rendue par `—`, et en `RETRAIT` une notice, sans adresse
+inventée (§33).
+
+**États (§11).** Chargement (`aria-busy`, « Chargement des commandes reçues… »), erreur avec « Réessayer »,
+vide (« Aucune commande reçue pour le moment. » + lien « Voir mes récoltes »), liste. Un chargement ne rend
+jamais un faux état vide.
+
+**Navigation.** Le lien d'entrée est dans l'en-tête de « Mes récoltes » (« Commandes reçues ») et le lien de
+retour dans celle-ci : l'en-tête global conserve ses quatre liens, sans cinquième entrée (§10.5, même arbitrage
+qu'en §29). Le lien d'espace de l'en-tête reste actif par préfixe sur les deux pages producteur (§10.5).
+
+**Ce que cet écran ne fait pas.** Aucun paiement, aucun vocabulaire de paiement (§28), aucune annulation
+offerte au producteur, aucune notification envoyée, aucun appel de récolte, **aucun polling, aucun
+`setInterval`, aucun `WebSocket`, aucun `EventSource`** : la liste est relue à l'ouverture de la page et par
+« Réessayer » après une erreur.
+
+**Limite connue, héritée du contrat serveur.** `LigneCommandeResponse` ne porte aucun identifiant de
+producteur : sur une commande qui mélange plusieurs producteurs, la réponse du serveur présente **toutes** ses
+lignes à chacun d'eux. Le frontend ne filtre pas ces lignes à l'aveugle — une commande tronquée localement
+serait plus trompeuse qu'un excédent visible, et le serveur, lui, accepte bien le `PATCH` sur cette commande.
+La distinction relève d'une décision backend (champ ajouté au DTO ou filtrage dans `CommandeService`), pas
+d'un tri inventé ici.

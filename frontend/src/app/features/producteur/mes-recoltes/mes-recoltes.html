@@ -10,9 +10,15 @@
         </p>
       }
     </div>
-    <a class="bouton bouton--primaire" #lienPublication routerLink="/producteur/recoltes/nouvelle">
-      Publier une récolte
-    </a>
+    <div class="mes-recoltes__actions">
+      <a class="bouton bouton--primaire" #lienPublication routerLink="/producteur/recoltes/nouvelle">
+        Publier une récolte
+      </a>
+      <!-- Entrée de la page « Commandes reçues » : l'en-tête global garde ses quatre liens (§10.5, §35). -->
+      <a class="bouton bouton--secondaire" id="lien-commandes-recues" routerLink="/producteur/commandes">
+        Commandes reçues
+      </a>
+    </div>
   </div>
 
   @if (messageSucces(); as message) {

@@ -86,6 +86,18 @@ export const routes: Routes = [
       ),
   },
   {
+    // Le backend n'admet CONFIRMEE / PRETE / LIVREE que de la part d'un producteur concerné
+    // (CommandeService.verifierDroitDeChangerStatut) : écran séparé des écrans acheteur (§35).
+    path: 'producteur/commandes',
+    title: 'SunuRecolte — Commandes reçues',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['PRODUCTEUR'] },
+    loadComponent: () =>
+      import('./features/producteur/commandes-recues/commandes-recues').then(
+        (m) => m.CommandesRecues,
+      ),
+  },
+  {
     path: 'acheteur',
     pathMatch: 'full',
     redirectTo: 'acheteur/commandes',

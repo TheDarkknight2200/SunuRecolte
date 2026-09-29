@@ -126,24 +126,25 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [x] Intercepteur JWT (Bearer, 401 → purge et redirection, 403 non transformé)
 - [x] Guards (`authGuard` puis `roleGuard`)
 - [x] Auth UI (connexion, inscription, tableau de bord, pages d'erreur)
-- [ ] Producteur UI (partiel : gestion des récoltes faite — voir 5.4 ; profil et commandes restants)
+- [ ] Producteur UI (partiel : gestion des récoltes faite — voir 5.4 ; commandes reçues faites — voir
+  5.6 ; profil restant)
 - [ ] Acheteur UI (partiel : panier, commande, consultation, annulation et paiement simulé faits —
   voir 5.5 ; notifications restantes)
 - [x] Catalogue (page publique `/recoltes` + détail `/recoltes/:id` — voir 5.3)
 - [ ] Admin UI
 - [x] Panier (5.5.3 et 5.5.5 : `PanierService` local + page `/acheteur/panier`)
-- [ ] Commandes (passer : 5.5.6 ; consulter et annuler : 5.5.7 ; mise à jour des statuts côté producteur
-  non faite)
+- [x] Commandes (passer : 5.5.6 ; consulter et annuler : 5.5.7 ; mise à jour des statuts côté producteur :
+  5.6 — `EN_ATTENTE → CONFIRMEE → PRETE → LIVREE` via `PATCH /api/commandes/{id}/statut`)
 - [x] Paiement **simulé** (5.5.8 : `/acheteur/paiement/:id` et `POST /api/paiements` ; le serveur n'écrit
   que `EN_ATTENTE` avec une référence `SIMU-…`, aucun paiement réel n'existe dans le projet)
 - [ ] Notifications
 - [ ] Responsive (vérifié écran par écran au fil des pages métier)
 
-## Sous-phases frontend 5.2 → 5.5 (détail réel)
+## Sous-phases frontend 5.2 → 5.6 (détail réel)
 
-> **Avertissement de numérotation** : « 5.2 », « 5.3 », « 5.4 » et « 5.5 » sont les repères des consignes
-> de travail, pas les phases de ce fichier. Elles portent sur le frontend Angular (Phase 9) et n'ont aucun
-> rapport avec la « Phase 5 — Acheteur » ni avec la « Phase 4 — Producteur » décrites plus haut.
+> **Avertissement de numérotation** : « 5.2 », « 5.3 », « 5.4 », « 5.5 » et « 5.6 » sont les repères des
+> consignes de travail, pas les phases de ce fichier. Elles portent sur le frontend Angular (Phase 9) et
+> n'ont aucun rapport avec la « Phase 5 — Acheteur » ni avec la « Phase 4 — Producteur » décrites plus haut.
 >
 > **Contradiction signalée, non résolue ici** : les listes « Phase 4 — Producteur » et « Phase 5 —
 > Acheteur » restent non cochées alors que les endpoints backend correspondants existent depuis les
@@ -221,8 +222,9 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 > puis consultation et annulation des commandes, **paiement simulé** (5.5.8) et **écran de notifications**
 > (5.5.9). Les trois derniers points ont été ajoutés après la rédaction initiale de ce chapeau, qui
 > affirmait que « le paiement et les notifications ne sont pas faits » : c'était exact à l'époque, ce ne
-> l'est plus. **Ce qui reste non fait** : aucune notification de paiement (le backend n'en envoie aucune),
-> et aucune mise à jour des statuts de commande par le producteur.
+> l'est plus. **Ce qui reste non fait** : aucune notification de paiement (le backend n'en envoie aucune).
+> La mise à jour des statuts de commande par le producteur, un temps annoncée comme absente, a été livrée
+> en 5.6 (écran `/producteur/commandes`) ; elle n'est donc plus une lacune de ce périmètre.
 
 - [x] 5.5.1 — `GET /api/acheteurs/moi` côté backend (identité lue du JWT, `ADMIN` et `PRODUCTEUR` refusés
   par un **403**), testé dans `ProfilApiTest`
@@ -429,15 +431,71 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   par §29 ; après un marquage, le bouton retiré rend le focus à `<body>` (aucune destination de focus n'était
   prescrite pour cette action).
 
+### 5.6 — Mise à jour des statuts de commande côté producteur
+
+> **Périmètre du brief** : frontend uniquement — aucun nouveau backend, aucune entité, aucune migration, aucun
+> endpoint, aucune modification du paiement, aucun espace admin, aucun commit ni push. La règle visuelle est
+> écrite dans `FRONTEND_DESIGN.md` **§35 avant le code** (§24).
+
+- [x] 5.6 — Contrat backend réellement vérifié (lecture seule, aucun fichier de `sunurecolte-backend/` modifié) :
+  - `CommandeService.TRANSITIONS_AUTORISEES` : `EN_ATTENTE → {CONFIRMEE, ANNULEE}`,
+    `CONFIRMEE → {PRETE, ANNULEE}`, `PRETE → {LIVREE}`, `LIVREE` et `ANNULEE` terminaux ;
+  - `verifierDroitDeChangerStatut` : `CONFIRMEE`, `PRETE` et `LIVREE` sont réservés à un **producteur concerné**
+    ou à l'ADMIN — un acheteur qui les demande reçoit un **403**. D'où un écran producteur séparé, et non une
+    extension des écrans de §33 ;
+  - ordre réel des réponses sur `PATCH /api/commandes/{id}/statut` : 404 (`ResourceNotFoundException("Commande", id)`)
+    → 403 (`ControleAcces.accesRefuse()`) → 400 « La commande est déjà au statut X. » → 400
+    « Transition de statut interdite : X vers Y. » ;
+  - corps exact `{ "statut": … }` (`StatutCommandeRequest`, un seul champ, `@NotNull`) ; réponse =
+    `CommandeResponse` complet ;
+  - `GET /api/commandes` sans paramètre, pour un PRODUCTEUR, renvoie toute commande contenant au moins une de
+    ses lignes, triée par `dateCreation` DESC (`commandesDuProducteur`) ;
+  - chaque transition acceptée émet côté serveur la notification « Suivi de commande » à l'acheteur : appel du
+    `PATCH` suffit à la conserver, **le frontend n'envoie aucune notification**.
+- [x] 5.6 — `FRONTEND_DESIGN.md` §35 : table des actions par statut, raison de l'écran séparé, absence de
+  modale (§31 réservé aux confirmations destructives), retour visuel et destination du focus quand le bouton
+  disparaît, erreurs 400/403/401/réseau, contenu de carte (§27, §30, §32, §33), six états (§11), entrée de
+  navigation sans cinquième lien d'en-tête (§10.5), et **limite du contrat** : `LigneCommandeResponse` ne porte
+  aucun `producteurId`, donc aucune ligne n'est filtrée à l'aveugle par le frontend.
+- [x] 5.6 — Page `features/producteur/commandes-recues/` (`CommandesRecues`, route `producteur/commandes`,
+  `authGuard` puis `roleGuard` `data.roles: ['PRODUCTEUR']`, `loadComponent`, titre « SunuRecolte — Commandes
+  reçues ») : cartes de commandes avec lignes, une seule action par commande selon `ETAPES_SUIVANTES` (reflet de
+  la table du service), `PATCH` unique par clic (`disabled` + `aria-busy` + garde d'exécution), statut et lignes
+  remplacés par **la réponse du serveur**, message de succès par carte avec focus posé dessus quand l'action a
+  disparu, message d'erreur du serveur repris tel quel dans la carte, chargement / erreur + « Réessayer » /
+  état vide, **aucun** polling, `setInterval`, `WebSocket` ni `EventSource`.
+- [x] 5.6 — Navigation sans toucher à l'en-tête global : lien « Commandes reçues » ajouté à l'en-tête de
+  « Mes récoltes » (après « Publier une récolte », seule ancre pour que `aria-current` et les tests existants
+  restent inchangés) et lien « Mes récoltes » de retour.
+- [x] 5.6 — Aucune régression sur le périmètre acheteur : `features/acheteur/**` (liste, détail, annulation,
+  paiement), `core/services/commande.service.ts`, `CommandeService` frontend et `features/notifications/`
+  **non modifiés** ; aucune action d'annulation ni de paiement exposée au producteur.
+- [x] 5.6 — Tests de cette étape : `commandes-recues.spec.ts` (36 nouveaux : liste sans identifiant client,
+  ordre, badges des cinq statuts, lignes, réception, une action par étape, `PATCH` unique au corps exact,
+  statut et message venus de la réponse, focus après `LIVREE`, transitions interdites rendues 400 tel quel,
+  403 sans purge, erreur réseau isolée sur une carte, état vide, erreur de liste + « Réessayer », absence
+  d'annulation et de vocabulaire de paiement, aucun polling ni second GET, garde de route) et +1 test dans
+  `mes-recoltes.spec.ts` pour l'entrée de navigation sans déplacer « Publier une récolte »
+- [x] 5.6 — Validation exécutée : suite producteur **91/91** (dont les 36 nouveaux), suite complète
+  **490/490 dans 27 fichiers**, build de production **réussi** (`chunk` `commandes-recues` 11,53 kB), seul
+  dépassement de budget toujours présent et non corrigé volontairement : `commande.scss` (4,19 kB pour un
+  budget de 4,00 kB, préexistant à 5.6) ; `git status` sur `sunurecolte-backend/` **vide**
+- [ ] 5.6 — QA navigateur réelle (connexion producteur, confirmation d'une commande, passage en prête puis
+  livrée, refus des transitions impossibles, 400 après changement concurrent, isolement des commandes d'un
+  autre producteur, responsive 375/768/1024/1366) : **non faite** — hors du brief, qui demande tests
+  automatisés et build. À couvrir avant de cocher cette case.
+
 ### État d'intégration (2026-09-29)
 - [x] 5.2, 5.3, 5.4 et 5.5 (5.5.1 → 5.5.9) sont **implémentées et validées par les tests automatisés,
   le build et une QA navigateur réelle** (aux limites de viewport signalées en clôture de 5.5.7, 5.5.8 et
   5.5.9)
 - [x] Le travail est **commité au fur et à mesure** : les commits Git locaux sont les checkpoints des
-  phases 5.2 à 5.5.9. Le dépôt distant peut rester en retard tant qu'aucun push n'est demandé
-- [ ] Le projet n'est **pas terminé** : l'espace admin reste à faire, la mise à jour des statuts de commande
-  par le producteur non plus, les notifications de paiement n'existent pas côté backend, et l'intégration de
-  bout en bout reste à couvrir (Phase 9 puis Phases 10 et 11)
+  phases 5.2 à 5.5.9. Le dépôt distant peut rester en retard tant qu'aucun push n'est demandé.
+  **5.6 est en cours et volontairement non commitée** (le brief de la sous-phase l'interdit)
+- [ ] Le projet n'est **pas terminé** : l'espace admin reste à faire, les notifications de paiement
+  n'existent pas côté backend, la QA navigateur de 5.6 n'a pas été faite, et l'intégration de bout en bout
+  reste à couvrir (Phase 9 puis Phases 10 et 11). La mise à jour des statuts de commande par le producteur,
+  un temps listée ici, a été livrée en **5.6**
 - [x] « Phase 5.5 » des consignes de travail (commandes acheteur) : panier, tunnel de commande,
   consultation, annulation et **paiement simulé** **faits** ; les notifications, d'abord **volontairement
   hors périmètre**, ont été livrées ensuite en **5.5.9** (écran transversal et compteur d'en-tête)

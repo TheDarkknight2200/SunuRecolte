@@ -1,0 +1,148 @@
+<section class="commandes-recues">
+  <div class="commandes-recues__entete">
+    <div class="commandes-recues__titre">
+      <p class="commandes-recues__surtitre">Espace producteur</p>
+      <h1>Commandes reçues</h1>
+      <p class="commandes-recues__intro">
+        Commandes comportant au moins une de vos récoltes, de la plus récente à la plus ancienne.
+        Vous faites avancer le statut ; c’est le serveur qui l’établit.
+      </p>
+    </div>
+    <a class="bouton bouton--secondaire" id="lien-mes-recoltes" routerLink="/producteur/recoltes">
+      Voir mes récoltes
+    </a>
+  </div>
+
+  @if (chargement()) {
+    <div class="etat" aria-busy="true">
+      <p class="etat__texte">Chargement des commandes reçues…</p>
+    </div>
+  } @else if (erreur(); as message) {
+    <div class="message message--erreur" role="alert">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+      <div>
+        <p>{{ message }}</p>
+        <p class="commandes-recues__actions">
+          <button
+            type="button"
+            class="bouton bouton--secondaire bouton--compact"
+            id="commandes-recues-reessayer"
+            (click)="reessayer()"
+          >
+            Réessayer
+          </button>
+        </p>
+      </div>
+    </div>
+  } @else if (liste().length === 0) {
+    <div class="etat">
+      <p class="etat__titre">Aucune commande reçue pour le moment.</p>
+      <p class="etat__texte">
+        Une commande apparaît ici dès qu’un acheteur commande l’une de vos récoltes.
+      </p>
+      <a class="bouton bouton--primaire" routerLink="/producteur/recoltes">Voir mes récoltes</a>
+    </div>
+  } @else {
+    <ul class="commandes-recues__liste">
+      @for (commande of liste(); track commande.id) {
+        <li class="carte commandes-recues__carte">
+          <div class="commandes-recues__entete-carte">
+            <h2 class="carte__titre">Commande n° {{ commande.id }}</h2>
+            <span [class]="classesStatut(commande.statut)">{{ libelleStatut(commande.statut) }}</span>
+          </div>
+
+          <dl class="commandes-recues__champs">
+            <div>
+              <dt>Date</dt>
+              <dd>{{ formaterDateHeure(commande.dateCreation) }}</dd>
+            </div>
+            <div>
+              <dt>Acheteur</dt>
+              <dd>{{ commande.nomAcheteur }}</dd>
+            </div>
+            <div>
+              <dt>Réception</dt>
+              <dd>{{ libelleReception(commande.modeReception) }}</dd>
+            </div>
+            <div>
+              <dt>Total</dt>
+              <dd class="commandes-recues__total">{{ formaterMontant(commande.total) }}</dd>
+            </div>
+          </dl>
+
+          @if (livraison(commande)) {
+            <dl class="commandes-recues__champs">
+              <div>
+                <dt>Adresse de livraison</dt>
+                <dd>{{ ouValeurAbsente(commande.adresseLivraison) }}</dd>
+              </div>
+              <div>
+                <dt>Téléphone</dt>
+                <dd>{{ ouValeurAbsente(commande.telephoneLivraison) }}</dd>
+              </div>
+              <div>
+                <dt>Instructions</dt>
+                <dd>{{ ouValeurAbsente(commande.instructionsLivraison) }}</dd>
+              </div>
+            </dl>
+          } @else {
+            <p class="commandes-recues__notice">
+              Retrait : l’acheteur récupère la commande auprès de vous. Aucune adresse de livraison
+              n’a été enregistrée.
+            </p>
+          }
+
+          <ul class="commandes-recues__lignes">
+            @for (ligne of commande.lignes; track ligne.id) {
+              <li class="commandes-recues__ligne">
+                <p class="commandes-recues__produit">{{ ligne.produit }}</p>
+                <p class="commandes-recues__quantite">
+                  {{ formaterQuantite(ligne.quantite, ligne.unite) }}
+                </p>
+                <p class="commandes-recues__prix">
+                  {{ formaterMontant(ligne.prixUnitaire) }} / {{ ligne.unite }}
+                </p>
+                <p class="commandes-recues__sous-total">{{ formaterMontant(ligne.sousTotal) }}</p>
+              </li>
+            }
+          </ul>
+
+          @if (succesPour(commande); as message) {
+            <div
+              class="message message--succes"
+              role="status"
+              tabindex="-1"
+              #zoneSucces
+            >
+              <span class="materiel-icone message__icone" aria-hidden="true">&#xf0be;</span>
+              <p>{{ message }}</p>
+            </div>
+          }
+
+          @if (refusPour(commande); as message) {
+            <div class="message message--erreur" role="alert">
+              <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+              <p>{{ message }}</p>
+            </div>
+          }
+
+          <p class="commandes-recues__actions">
+            @if (etapeDe(commande); as etape) {
+              <button
+                type="button"
+                class="bouton bouton--primaire bouton--compact"
+                [id]="'commande-' + commande.id + '-etape'"
+                [attr.aria-label]="libelleAccessible(commande, etape.libelle)"
+                [disabled]="commandeEnCours() !== null"
+                [attr.aria-busy]="enCoursPour(commande)"
+                (click)="appliquerEtape(commande)"
+              >
+                {{ enCoursPour(commande) ? '…' : etape.libelle }}
+              </button>
+            }
+          </p>
+        </li>
+      }
+    </ul>
+  }
+</section>

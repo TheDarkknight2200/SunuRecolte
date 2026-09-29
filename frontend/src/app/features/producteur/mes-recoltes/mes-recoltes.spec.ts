@@ -249,6 +249,23 @@ describe('MesRecoltes', () => {
     expect(hrefs).toEqual(['/producteur/recoltes/12/modifier', '/recoltes/12']);
   });
 
+  it('offre une entrée vers les commandes reçues sans déplacer « Publier une récolte »', () => {
+    ouvrir();
+    charger([produit(12)]);
+
+    const liens = elements<HTMLAnchorElement>(racine, '.mes-recoltes__entete a');
+    expect(liens.map((lien) => lien.getAttribute('href'))).toEqual([
+      '/producteur/recoltes/nouvelle',
+      '/producteur/commandes',
+    ]);
+    expect(texteDe(liens[0])).toContain('Publier une récolte');
+    expect(texteDe(liens[1])).toBe('Commandes reçues');
+    // La première ancre de l'en-tête reste le déclencheur attendu par le rendu du focus.
+    expect(element<HTMLAnchorElement>(racine, '.mes-recoltes__entete a').getAttribute('href')).toBe(
+      '/producteur/recoltes/nouvelle',
+    );
+  });
+
   it('ne propose aucune saisie de quantité ni de prix dans la liste', () => {
     ouvrir();
     charger([produit(1), produit(2)]);
