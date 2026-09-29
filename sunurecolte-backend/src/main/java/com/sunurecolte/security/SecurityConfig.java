@@ -31,7 +31,9 @@ import java.util.List;
  * - PRODUCTEUR : publier et modifier ses récoltes, faire évoluer les commandes ;
  * - ACHETEUR : commander, payer, annuler sa propre commande ;
  * - ADMIN : accès transverse en écriture sur les récoltes, les commandes et les
- *   paiements (même doctrine que les contrôles d'ownership des services) ;
+ *   paiements (même doctrine que les contrôles d'ownership des services), et seul rôle
+ *   des routes d'administration : liste des comptes, activation d'un compte, modération
+ *   du statut d'une récolte, écriture des prix indicatifs ;
  * - tout le reste exige une authentification, puis un contrôle de propriété
  *   dans les services (403 sinon).
  *
@@ -92,6 +94,14 @@ public class SecurityConfig {
                         .hasAnyRole("ACHETEUR", "PRODUCTEUR", "ADMIN")
                         // Paiements : un acheteur paie sa commande
                         .requestMatchers(HttpMethod.POST, "/api/paiements").hasAnyRole("ACHETEUR", "ADMIN")
+                        // Administration (Phase 5) : premières routes exclusively ADMIN du projet.
+                        // La consultation d'un compte par id reste « propriétaire ou ADMIN » (service).
+                        .requestMatchers(HttpMethod.GET, "/api/utilisateurs").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/utilisateurs/*/actif").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/recoltes/*/statut").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/prix-marche").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/prix-marche/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/prix-marche/*").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(filtreJwt, UsernamePasswordAuthenticationFilter.class);
         return http.build();

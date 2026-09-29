@@ -159,6 +159,20 @@ describe('Inscription', () => {
     expect(erreurs(fixture)).toEqual(["Format d'adresse email invalide."]);
   });
 
+  it('refuse un domaine sans extension, que le backend accepterait pourtant', () => {
+    const fixture = creer();
+    choisirRole(fixture.nativeElement, 'PRODUCTEUR');
+    remplirIdentite(fixture, { email: 'moussa.ndiaye@exemple' });
+    choisirOption(fixture.nativeElement, '#inscription-filiere', 'Maraîchage');
+
+    soumettre(fixture);
+
+    expect(erreurs(fixture)).toEqual([
+      'Il manque l’extension du domaine, par exemple prenom@exemple.sn.',
+    ]);
+    expect(http.match(() => true)).toHaveLength(0);
+  });
+
   it('signale un mot de passe de moins de six caractères', () => {
     const fixture = creer();
     choisirRole(fixture.nativeElement, 'PRODUCTEUR');

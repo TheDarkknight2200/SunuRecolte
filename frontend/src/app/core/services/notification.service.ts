@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, tap } from 'rxjs';
+import { Observable, finalize, shareReplay, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { NotificationResponse } from '../modeles/domaine.modeles';
 
@@ -28,16 +28,39 @@ export class NotificationService {
 
   readonly notifications = this.etatNotifications.asReadonly();
 
+  /** La lecture en cours, partagée le temps de la réponse ; `null` dès qu'elle est terminée. */
+  private lectureEnVol: Observable<NotificationResponse[]> | null = null;
+
   /** Nombre de non-lues calculé sur la dernière réponse du serveur. */
   readonly nonLues = computed(() =>
     this.etatNotifications().filter((notification) => !notification.lu).length,
   );
 
-  /** Liste des notifications du titulaire du jeton, triée par le serveur (dateCreation DESC). */
+  /** Liste des notifications du titulaire du jeton, triée par le serveur (dateCreation DESC).
+   *
+   * Une lecture déjà partie est **partagée** : l'en-tête et la page `/notifications` se montent
+   * l'un et l'autre au rechargement du navigateur et demandent chacun la liste à la même
+   * milliseconde. Sans ce partage, deux `GET` identiques partaient. Aucun résultat n'est mis en
+   * cache : dès que la réponse est reçue (ou perdue), la lecture suivante repart au serveur, donc
+   * « Actualiser » et « Réessayer » restent des requêtes réelles.
+   */
   mesNotifications(): Observable<NotificationResponse[]> {
-    return this.http
+    if (this.lectureEnVol !== null) {
+      return this.lectureEnVol;
+    }
+    const partagee: Observable<NotificationResponse[]> = this.http
       .get<NotificationResponse[]>(`${environment.apiUrl}/notifications`)
-      .pipe(tap((liste) => this.etatNotifications.set(liste)));
+      .pipe(
+        tap((liste) => this.etatNotifications.set(liste)),
+        shareReplay({ bufferSize: 1, refCount: true }),
+        finalize(() => {
+          if (this.lectureEnVol === partagee) {
+            this.lectureEnVol = null;
+          }
+        }),
+      );
+    this.lectureEnVol = partagee;
+    return partagee;
   }
 
   /**

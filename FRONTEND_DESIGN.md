@@ -297,6 +297,9 @@ Angular ne redéfinit pas un bouton ou un champ, il réutilise ces classes.
   (`<details>`) n'apportait rien et ajoutait un état à gérer, donc à tester. Le seuil a été relevé de 480 px
   à 768 px après une QA réelle : à ~510 px, les quatre liens, l'identité et « Se déconnecter » ne tenaient
   plus sur une ligne et l'en-tête débordait en scroll horizontal.
+- Le libellé du lien d'espace suit le rôle : « Mes récoltes » (producteur), « Mes commandes » (acheteur),
+  « Administration » (`/admin`) pour un administrateur, qui ne voit alors que trois liens — Catalogue,
+  Tableau de bord, Administration — le « Panier » n'étant pas son domaine (§37).
 - **Pied de page** : une seule ligne sobre (mention du projet, année, lien GitHub du dépôt),
   sans colonnes marketing.
 
@@ -417,7 +420,12 @@ Sont interdits, sans exception :
   - `styles/_tokens.scss`, `styles/_points-rupture.scss`, `styles/_composants.scss` ;
   - BEM allégé : `.bloc__element--variante` ; pas de sélecteurs d'éléments profonds ;
   - styles de composant encapsulés par défaut ; un style transverse va dans `styles/` ;
-  - aucune couleur, taille d'espacement ou rayon écrit en dur dans un composant : uniquement des tokens.
+  - aucune couleur, taille d'espacement ou rayon écrit en dur dans un composant : uniquement des tokens ;
+  - **budget de styles par composant** : `angular.json` borne `anyComponentStyle` à 4 ko en avertissement et
+    8 ko en erreur, mesurés sur le CSS compilé et minifié d'un composant. Un dépassement se corrige en réduisant
+    le CSS — règle sans effet (marge avalée par un `margin-bottom` déjà porté ailleurs), membres aux
+    déclarations identiques fusionnés sous un seul sélecteur — et jamais en retouchant ces seuils : la
+    configuration des budgets n'est pas modifiée par une phase d'implémentation.
 - **Aucune bibliothèque UI externe** (pas de Tailwind, Bootstrap, Angular Material, PrimeNG…) et
   aucune bibliothèque d'icônes supplémentaire sans justification écrite dans ce document.
 
@@ -610,8 +618,17 @@ Mapping statut → couleurs (§5 ; §10.7 applique la couleur au texte et son fo
   l'ouverture ou la navigation vers `/notifications`, le bouton « Actualiser » de cette page, et le
   rafraîchissement local après un marquage comme lue réussi. Pas de WebSocket, pas d'`EventSource`, pas de
   notification push, pas d'e-mail ni de SMS.
-- **Accès à la liste depuis le Tableau de bord** (« Notifications »), pas depuis l'en-tête : l'en-tête garde
-  ses quatre liens (§10.5) et n'en reçoit pas un cinquième.
+- **Une lecture en vol est partagée, jamais mise en cache.** Au rechargement du navigateur, l'en-tête et la page
+  `/notifications` se montent l'un et l'autre et demandent la liste à la même milliseconde : `mesNotifications()`
+  renvoie l'`Observable` déjà parti (`shareReplay` + `refCount`, avec remise à zéro en `finalize` si c'est bien
+  lui qui se termine) au lieu d'émettre un second `GET` identique. Dès que la réponse est reçue ou perdue, la
+  lecture suivante repart au serveur : « Actualiser » et « Réessayer » restent des requêtes réelles (§11).
+- **Accès à la liste : Tableau de bord et espaces principaux** (lien « Notifications »), jamais depuis l'en-tête.
+  Le point d'entrée est proposé sur `/tableau-de-bord`, sur les pages d'atterrissage d'espace — `/producteur/recoltes`
+  (`#lien-notifications-producteur`) et `/acheteur/commandes` (`#lien-notifications-acheteur`) — et sur les écrans
+  de l'ADMIN (`/admin`, `/admin/utilisateurs`, `/admin/recoltes`, `/admin/prix-marche`). L'en-tête garde ses quatre
+  liens (§10.5) et n'en reçoit pas un cinquième : son compteur de non-lues reste un **badge non cliquable** (§10.7),
+  et ces entrées sont des liens d'espace, pas des remplacements du badge.
 - Une notification non lue est signalée par un **texte** (« Non lue ») en plus de tout traitement visuel ;
   l'état lu ne repose pas sur la seule absence de couleur.
 - Le passage à l'état lu passe par un **bouton explicite** « Marquer comme lue », jamais par un simple
@@ -888,8 +905,12 @@ même `Validators.maxLength` côté formulaire ; la description, colonne `TEXT`,
 que le schéma ne l'est pas. Ce bornage est une précaution d'usage, pas une règle de sécurité — l'autorité
 reste le backend (§19).
 
-**Adresse e-mail.** `type="email"` plus `Validators.email` : un confort de saisie, l'autorité en la matière
-étant le `@Email` du DTO. Une aide visible prévient du changement de connexion (« Sert à vous connecter : notez
+**Adresse e-mail.** `type="email"`, `Validators.email` et `domaineEmailComplet` : un confort de saisie, l'autorité
+en la matière étant le `@Email` du DTO. `Validators.email` comme `@Email` acceptent un domaine sans point
+(`awa@exemple` est passé jusqu'en base lors de la QA 5.8-bis), d'où ce contrôle supplémentaire, partagé par les
+trois formulaires qui saisissent une adresse (connexion, inscription, profil) via
+`core/utilitaires/validation-email.ts` : il est **plus strict** que le backend, jamais plus permissif, et son
+message explique la réparation — « Il manque l'extension du domaine, par exemple prenom@exemple.sn. ». Une aide visible prévient du changement de connexion (« Sert à vous connecter : notez
 le changement pour la prochaine connexion. »). Si l'adresse appartient déjà à un autre compte, le backend
 répond **400** avec un message seul — « Un compte existe déjà avec cette adresse email. » — et jamais une
 erreur 500 pour ce conflit prévisible ; `BusinessException` ne portant pas de carte de champs, ce message
@@ -940,3 +961,122 @@ restant pleine largeur ; bouton d'action `min-height: 44 px` sur mobile. Largeur
 `id`, `utilisateurId`, `role`, `actif` et `dateCreation` ne sont pas seulement masqués à l'interface : ils
 n'existent pas dans le DTO d'écriture, et le serveur ignore toute propriété hors contrat. La relation
 `Producteur` ↔ `Utilisateur` n'est ni lue ni réécrite ici.
+
+## 37. Espace administrateur (Phase 5.9 : comptes, récoltes et prix indicatifs)
+
+Quatre routes, chacune protégée par `authGuard` **puis** `roleGuard` avec `data.roles: ['ADMIN']` et chargée
+paresseusement : `/admin` (`EspaceAdmin`, « SunuRecolte — Espace administrateur »), `/admin/utilisateurs`
+(`Utilisateurs`, « SunuRecolte — Utilisateurs »), `/admin/recoltes` (`RecoltesAdmin`,
+« SunuRecolte — Récoltes ») et `/admin/prix-marche` (`PrixMarche`, « SunuRecolte — Prix indicatifs »).
+Fichiers : `features/admin/`. Ces quatre routes sont **les premières du projet réservées à un seul rôle** ;
+avant elles, l'ADMIN n'était qu'un rôle de secours en écriture sur les ressources d'autrui (§25, §33).
+La protection est vérifiée sur la table de routes réelle dans `src/app/routes-admin.spec.ts`, fichier qui
+n'importe et ne monte **aucun** composant (§18).
+
+**Aucune route personnelle n'est utilisée ici.** L'administration porte toujours sur une ressource désignée par
+son identifiant : `mes-recoltes`, `/producteurs/moi` et `/acheteurs/moi` sont des endpoints de titulaire, et un
+ADMIN y reçoit un 403 (§36). C'est une conséquence du contrat backend, pas une préférence d'interface.
+
+**Entrée et gabarit.** L'en-tête connecté d'un administrateur porte trois liens — Catalogue, Tableau de bord,
+« Administration » — et jamais « Panier », réservé à l'acheteur (§10.5, §25). Chaque écran reprend le patron des
+espaces de rôle : surtitre « Espace administrateur », un seul `<h1>`, lien de retour vers `/admin`, contenu
+contraint à `--largeur-contenu`, six états gérés (§11), aucune nouvelle couleur (§5), aucune bibliothèque de
+composants (§17).
+
+**`/admin` n'est pas un tableau de bord.** La page d'entrée est une liste de trois cartes — « Gérer les
+utilisateurs », « Modérer les récoltes », « Gérer les prix indicatifs » — plus un lien discret vers les
+notifications (§29). Aucun chiffre, aucun graphique, aucune statistique : le backend n'expose **aucun** endpoint
+de comptage ni d'agrégation, et afficher un nombre que personne ne calcule serait du faux contenu (§17). Les
+données ne sont chargées que sur l'écran qui les administre.
+
+### 37.1 Comptes utilisateurs
+
+- **Données.** `GET /api/utilisateurs`, avec en option un filtre `role`. La réponse est
+  `UtilisateurResponse` : `id`, `nom`, `prenom`, `email`, `telephone`, `role`, `dateCreation`, `actif`. Ni le
+  mot de passe ni son hash BCrypt ne sortent du service (§19 côté serveur). Le tri vient du serveur
+  (`dateCreation DESC`, puis `id DESC`) et n'est jamais recalculé côté client ; aucune pagination, le volume du
+  MVP (une région) ne la justifie pas. Une ligne affiche nom complet, email, téléphone, rôle (`LIBELLES_ROLE`),
+  date de création (`formaterDateHeure`, §30) et état.
+- **Une seule action.** `PATCH /api/utilisateurs/{id}/actif` avec un corps `{ "actif": true | false }`. Le
+  contenu d'un compte — nom, email, rôle, mot de passe — n'est administrable **par aucune route** du backend,
+  donc par aucun écran : le proposer serait promettre un endpoint inexistant.
+- **Confirmation.** La désactivation est l'action la plus lourde de l'espace (elle coupe l'accès d'un compte
+  éventuellement en session) : elle passe par une modale de confirmation aux conventions de §31 — `role="dialog"`,
+  `aria-modal="true"`, `aria-labelledby`, focus posé sur « Annuler » à l'ouverture, Tab et Shift+Tab piégés dans le
+  sous-arbre, Escape écouté sur le `document` et non sur l'overlay, focus rendu au bouton déclencheur à la
+  fermeture (ou à « Actualiser » si ce bouton n'est plus connecté). Le bouton de la modale se nomme
+  « Désactiver » ou « Réactiver » selon l'état lu, jamais « Confirmer » ; le libellé du bouton de liste porte le
+  nom du compte visé, pour que l'intention soit audible avant l'activation clavier.
+- **Anti double soumission.** Un signal `enCours` porte l'identifiant dont le `PATCH` est en vol : tous les
+  boutons de la liste et les deux boutons de la modale sont `disabled`, le bouton trait porte `aria-busy="true"`
+  et son libellé devient « … ». Deux clics ne produisent qu'un appel.
+- **Résultat.** La ligne est remplacée par la **réponse du serveur**, jamais par un état écrit localement, et un
+  message `.message--succes` (`role="status"`) nomme le compte concerné. En cas de refus — 400
+  (auto-désactivation : « Vous ne pouvez pas modifier l'état de votre propre compte. »), 403, 404 — le message du
+  backend s'affiche **dans la modale restée ouverte**, le focus revient sur « Annuler », et il n'y a ni
+  déconnexion ni purge de session : un 403 ne devient jamais un 401 (§19).
+- **Effet réel d'une désactivation.** Le filtre JWT relit le compte en base à chaque requête et écarte un compte
+  inactif : le jeton pourtant valide d'un compte désactivé reçoit un **401** à la requête suivante (comportement
+  vérifié par le test backend `unJetonDunCompteDesactiveRepond401`). C'est ce que dit la modale, et ce que
+  l'interface ne peut pas contredire.
+- **Limite assumée.** Le filtre `?role=` de l'API n'est pas exposé à l'écran : sans lui la liste complète tient
+  sur un écran, et une liste de sélection de rôle serait un contrôle d'interface sans équivalent testé.
+
+### 37.2 Modération des récoltes
+
+- **Données.** `GET /api/recoltes` — le endpoint public du catalogue (§25), volontairement : la liste administrée
+  est la liste **complète**, récoltes épuisées comprises, et non une liste filtrée « pour l'admin » que le
+  backend ne fournit pas. `mes-recoltes` n'est jamais appelé ici.
+- **Une seule action.** `PATCH /api/recoltes/{id}/statut`, corps `{ "statut": … }` (DTO `StatutRecolteRequest`,
+  distinct de `RecolteRequest`, qui ne porte **jamais** de statut : le producteur ne saisit pas son statut, il
+  résulte du cycle de vie du stock). Le domaine ne connaît que deux statuts, contrainte `ck_recoltes_statut` en
+  base : la modération est donc un **aller-retour** `DISPONIBLE ⇄ EPUISEE`, libellés « Marquer comme épuisée » et
+  « Marquer comme disponible ». Aucun statut de retrait, de validation ou de blocage n'a été inventé.
+- **Pas de modale ici.** Le changement est immédiatement réversible depuis la même carte — le bouton qui vient
+  d'agir reste présent avec l'autre destination — et §31 demande une confirmation pour ce qui ne peut pas être
+  annulé à l'écran. Une confirmation pour un geste réversible en un clic serait du bruit.
+- **Ni création, ni modification, ni suppression** : le contenu d'une récolte reste la propriété de son
+  producteur (§29). Le statut affiché après un `PATCH` est celui renvoyé par le serveur ; les états vide,
+  chargement (`aria-busy`) et erreur avec « Réessayer » sont gérés comme sur les autres écrans (§11).
+- **Ce que l'écran ne peut pas empêcher.** Un ADMIN peut marquer `DISPONIBLE` une récolte dont le stock est à
+  zéro : `changerStatut` écrit le statut demandé, sans règle de cohérence avec `quantiteDisponible` — le modèle
+  approuvé n'en porte aucune, et l'interface n'invente pas une règle que l'API n'applique pas.
+
+### 37.3 Prix indicatifs de marché
+
+Un seul écran pour les quatre opérations du contrat réel : lecture `GET /api/prix-marche` (publique), écriture
+`POST /api/prix-marche`, `PUT /api/prix-marche/{id}` et `DELETE /api/prix-marche/{id}` (les trois réservées à
+l'ADMIN par `SecurityConfig`, et le GET public reste public).
+
+- **Formulaire unique, deux usages.** Le même bloc sert à la création (titre « Nouveau prix indicatif », bouton
+  « Ajouter le prix ») et à la modification (titre « Modifier un prix indicatif », bouton
+  « Enregistrer les modifications ») ; « Modifier » charge la ligne dans ce formulaire, avec une note indiquant
+  l'identifiant en édition et un bouton « Annuler » qui l'abandonne sans requête.
+- **Bornes reprises du DTO Java**, vérifiées avant l'envoi pour éviter un aller-retour inutile : `produit`
+  obligatoire, 150 caractères ; `unite` obligatoire, 30 ; `prixMoyen` obligatoire, `0.01` à `99 999 999.99` ;
+  `marcheReference` facultatif, 150. `dateMiseAJour` n'est **jamais** envoyé : c'est l'entité qui le remplit, et
+  l'écran l'affiche en lecture seule (`formaterDateHeure`).
+- **L'API reste seule autorité.** Si elle refuse, son message et ses `erreurs` par champ reprennent la main sur
+  le message local (§10.2, §31). Une saisie `type="number"` livrant une chaîne, toute comparaison et tout envoi
+  passent par une conversion numérique explicite.
+- **Suppression confirmée** par une modale de même convention que §37.1 (`role="dialog"`, focus piégé, Escape
+  global, bouton « Retirer le prix » distinct de « Annuler »), avec un `DELETE` en vol et un seul.
+- **Limite assumée.** Aucune unicité de `(produit, marcheReference)` n'existe dans le schéma : rien à l'écran ne
+  laisse croire qu'ajouter une ligne ferait doublon avec une ligne existante.
+
+### 37.4 Statuts de commande vus de l'ADMIN
+
+L'ADMIN reste une partie prenante transverse sur `PATCH /api/commandes/{id}/statut` (§33) : il **ne peut pas**
+contourner les transitions métier. Un refus suit le même chemin que pour un acheteur ou un producteur —
+« La commande est déjà au statut … » ou « Transition de statut interdite : … vers … » (400) — et l'annulation
+décrémente toujours le stock et annule le paiement en attente côté serveur. Aucun écran d'administration des
+commandes n'a été créé : la capacité existe côté API, elle n'a pas d'interface, et cette sous-phase n'invente pas
+un écran sans contrat de liste administrable dédié.
+
+### 37.5 Ce que l'espace administrateur ne fait pas
+
+Pas de dashboard analytique, pas de graphique, pas de statistique, pas d'export, pas de création de compte, pas
+de changement de mot de passe ou de rôle, pas de livraison ni de transporteur, pas de deuxième facteur, pas de
+journal d'audit. Les guards `authGuard`/`roleGuard` sont du confort de navigation : seule l'API autorise, et un
+rôle non ADMIN qui appelle l'une de ces routes reçoit 401 sans jeton, 403 avec un jeton d'un autre rôle —
+vérifié par les tests backend, pas par l'interface (§19).

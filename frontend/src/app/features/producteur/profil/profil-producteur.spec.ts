@@ -383,6 +383,22 @@ describe('ProfilProducteur — profil du producteur connecté', () => {
     aucuneModification();
   });
 
+  it('bloque un domaine sans extension, que le backend @Email accepterait', () => {
+    ouvrir();
+    chargerProfil();
+
+    // Constat QA 5.8-bis : `mariama@exemple` était passé jusqu'en base (HTTP 200).
+    // Le blocage est ici purement client ; l'autorité de sécurité reste le backend.
+    taper('#email', 'awa.diop@exemple');
+    soumettre();
+
+    expect(texteDe(element(racine, '#email-erreur'))).toBe(
+      'Il manque l’extension du domaine, par exemple prenom@exemple.sn.',
+    );
+    expect(element(racine, '#email').getAttribute('aria-invalid')).toBe('true');
+    aucuneModification();
+  });
+
   it('bloque l’envoi d’un champ obligatoire vidé et nomme chaque champ fautif', () => {
     ouvrir();
     chargerProfil();

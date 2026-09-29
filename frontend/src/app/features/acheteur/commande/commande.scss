@@ -1,26 +1,36 @@
 @use 'points-rupture' as pr;
 
-.commande {
+/* Trois empilements verticaux, seuls les respirations diffèrent (§20). */
+.commande,
+.commande__entete,
+.commande__succes {
   display: flex;
   flex-direction: column;
+}
+
+.commande {
   gap: var(--espace-5);
 }
 
 /* === En-tête de page === */
 
 .commande__entete {
-  display: flex;
-  flex-direction: column;
   gap: var(--espace-2);
+}
+
+/* Mentions en capitules : la sourtitle de l'en-tête et les intitulés du récapitulatif
+ * partagent la même typographie, seule la chasse change. */
+.commande__surtitre,
+.commande__chiffres dt {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
 .commande__surtitre {
   margin: 0;
-  color: var(--couleur-texte-secondaire);
-  font-size: var(--taille-xs);
-  font-weight: 600;
   letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .commande__entete h1 {
@@ -86,12 +96,25 @@
   font-weight: 600;
 }
 
-.commande__sous-total {
-  text-align: right;
+/* Chiffres à chasse fixe : les montants s'alignent d'une ligne à l'autre (§30). */
+.commande__sous-total,
+.commande__total-valeur,
+.commande__chiffres dd {
   font-variant-numeric: tabular-nums;
 }
 
+.commande__sous-total {
+  text-align: right;
+}
+
 /* === Total indicatif (§2) === */
+
+/* Le séparateur du total de zone et celui du récapitulatif serveur sont identiques. */
+.commande__total,
+.commande__chiffres-total {
+  padding-top: var(--espace-3);
+  border-top: 1px solid var(--couleur-bordure);
+}
 
 .commande__total {
   display: flex;
@@ -99,8 +122,6 @@
   justify-content: space-between;
   gap: var(--espace-4);
   margin: var(--espace-4) 0 0;
-  padding-top: var(--espace-3);
-  border-top: 1px solid var(--couleur-bordure);
 }
 
 /* Les deux membres du total sont des <span> : aucune marge à réinitialiser. */
@@ -111,7 +132,6 @@
 
 .commande__total-valeur {
   font-size: var(--taille-lg);
-  font-variant-numeric: tabular-nums;
 }
 
 .commande__mention {
@@ -135,7 +155,9 @@
   font-weight: 600;
 }
 
-.commande__options {
+/* Deux grilles à écart identique : les options de réception et le récapitulatif serveur. */
+.commande__options,
+.commande__chiffres {
   display: grid;
   gap: var(--espace-3);
 }
@@ -187,10 +209,6 @@
   outline-offset: 2px;
 }
 
-.commande__champs .champ + .champ {
-  margin-top: var(--espace-4);
-}
-
 /* === Actions et envoi === */
 
 .commande__actions {
@@ -208,36 +226,25 @@
 /* === Récapitulatif serveur (succès) === */
 
 .commande__succes {
-  display: flex;
-  flex-direction: column;
   gap: var(--espace-3);
 }
 
 .commande__chiffres {
-  display: grid;
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: var(--espace-3);
   margin: var(--espace-4) 0 0;
 }
 
 .commande__chiffres dt {
-  color: var(--couleur-texte-secondaire);
-  font-size: var(--taille-xs);
-  font-weight: 600;
   letter-spacing: 0.02em;
-  text-transform: uppercase;
 }
 
 .commande__chiffres dd {
   margin: var(--espace-1) 0 0;
-  font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 
 .commande__chiffres-total {
   grid-column: 1 / -1;
-  padding-top: var(--espace-3);
-  border-top: 1px solid var(--couleur-bordure);
 }
 
 .commande__chiffres-total dd {
@@ -271,7 +278,8 @@
     padding-bottom: 0;
   }
 
-  .commande__produit {
+  .commande__produit,
+  .commande__sous-total {
     grid-column: auto;
   }
 
@@ -282,10 +290,6 @@
 
   .commande__prix {
     color: var(--couleur-texte);
-  }
-
-  .commande__sous-total {
-    grid-column: auto;
   }
 }
 

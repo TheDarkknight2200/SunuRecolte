@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Filiere, StatutRecolte } from '../modeles/referentiels';
-import { RecolteRequest, RecolteResponse } from '../modeles/domaine.modeles';
+import { RecolteRequest, RecolteResponse, StatutRecolteRequest } from '../modeles/domaine.modeles';
 
 /** Filtres acceptés par GET /api/recoltes (catalogue public). */
 export interface CriteresRechercheRecolte {
@@ -61,6 +61,16 @@ export class RecolteService {
   /** DELETE /api/recoltes/{id} — réponse 204, sans corps. */
   supprimer(id: number): Observable<void> {
     return this.http.delete<void>(`${this.url}/${id}`);
+  }
+
+  /**
+   * PATCH /api/recoltes/{id}/statut — modération réservée à l'ADMIN (403 pour un
+   * producteur, même propriétaire). `statut` n'existe pas dans RecolteRequest : la
+   * modération ne passe jamais par une création ni par une modification.
+   */
+  changerStatut(id: number, statut: StatutRecolte): Observable<RecolteResponse> {
+    const requete: StatutRecolteRequest = { statut };
+    return this.http.patch<RecolteResponse>(`${this.url}/${id}/statut`, requete);
   }
 
   private versParametres(criteres: CriteresRechercheRecolte): HttpParams {

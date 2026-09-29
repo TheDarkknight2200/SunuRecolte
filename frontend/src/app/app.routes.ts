@@ -161,6 +161,36 @@ export const routes: Routes = [
     loadComponent: () => import('./features/admin/espace-admin').then((m) => m.EspaceAdmin),
   },
   {
+    // GET /api/utilisateurs + PATCH /api/utilisateurs/{id}/actif : aucun endpoint « moi »,
+    // l'administration porte toujours sur un compte désigné par son identifiant (B5).
+    path: 'admin/utilisateurs',
+    title: 'SunuRecolte — Utilisateurs',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['ADMIN'] },
+    loadComponent: () =>
+      import('./features/admin/utilisateurs/utilisateurs').then((m) => m.Utilisateurs),
+  },
+  {
+    // GET /api/recoltes (public) + PATCH /api/recoltes/{id}/statut (ADMIN) : la modération
+    // de statut ne passe jamais par /api/recoltes/mes-recoltes, propriété d'un producteur.
+    path: 'admin/recoltes',
+    title: 'SunuRecolte — Récoltes',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['ADMIN'] },
+    loadComponent: () =>
+      import('./features/admin/recoltes-admin/recoltes-admin').then((m) => m.RecoltesAdmin),
+  },
+  {
+    // Les quatre opérations du contrat prix-marché : GET public, POST/PUT/DELETE réservés
+    // à l'ADMIN, sur un même écran.
+    path: 'admin/prix-marche',
+    title: 'SunuRecolte — Prix indicatifs',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['ADMIN'] },
+    loadComponent: () =>
+      import('./features/admin/prix-marche/prix-marche').then((m) => m.PrixMarche),
+  },
+  {
     path: 'acces-interdit',
     title: 'SunuRecolte — Accès refusé',
     loadComponent: () => import('./features/erreurs/acces-interdit').then((m) => m.AccesInterdit),

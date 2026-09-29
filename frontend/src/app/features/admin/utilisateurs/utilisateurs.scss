@@ -1,0 +1,127 @@
+@use "points-rupture" as pr;
+
+/* Racine : un seul rythme vertical (§20), aucune marge enfantine à annuler. */
+.utilisateurs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-5);
+}
+
+.utilisateurs__entete {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+}
+
+.utilisateurs__surtitre {
+  margin: 0 0 var(--espace-1);
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.utilisateurs__titre h1 {
+  margin: 0;
+}
+
+.utilisateurs__intro {
+  margin: var(--espace-2) 0 0;
+  color: var(--couleur-texte-secondaire);
+}
+
+.utilisateurs__liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.utilisateurs__carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+}
+
+.utilisateurs__entete-carte {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-3);
+}
+
+/* Une adresse email ne doit jamais faire déborder la carte (§12). */
+.utilisateurs__carte .carte__titre,
+.utilisateurs__champs dd {
+  overflow-wrap: anywhere;
+}
+
+.utilisateurs__champs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--espace-3);
+  margin: 0;
+}
+
+.utilisateurs__champs dt {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+}
+
+.utilisateurs__champs dd {
+  margin: var(--espace-1) 0 0;
+}
+
+.utilisateurs__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+  margin: 0;
+}
+
+/* === Modale de confirmation (§31) === */
+
+.utilisateurs__fond {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--espace-4);
+  background-color: rgba(30, 36, 32, 0.55);
+}
+
+.utilisateurs__modale {
+  width: 100%;
+  max-width: 28rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+  box-shadow: var(--ombre-surface);
+}
+
+.utilisateurs__modale .message {
+  margin: 0;
+}
+
+.utilisateurs__modale-titre {
+  margin: 0;
+  font-size: var(--taille-lg);
+  font-weight: 600;
+}
+
+.utilisateurs__modale-texte {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: pr.$point-tablette) {
+  .utilisateurs__entete {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}

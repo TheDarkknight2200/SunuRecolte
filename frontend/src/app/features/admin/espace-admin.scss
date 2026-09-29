@@ -1,0 +1,52 @@
+/* === Espace administrateur — accueil === */
+
+.espace-admin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-5);
+}
+
+.espace-admin__surtitre {
+  margin: 0 0 var(--espace-1);
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.espace-admin__entete h1 {
+  margin: 0;
+}
+
+.espace-admin__intro {
+  margin: var(--espace-2) 0 0;
+  color: var(--couleur-texte-secondaire);
+  max-width: 60ch;
+}
+
+.espace-admin__liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.espace-admin__carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+  align-items: flex-start;
+}
+
+.espace-admin__texte {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}
+
+.espace-admin__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+  margin: 0;
+}

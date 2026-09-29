@@ -51,11 +51,6 @@ export class PanierService {
   /** Lignes dans l'ordre d'ajout ; une seule ligne par récolte. */
   readonly lignes = this.etatLignes.asReadonly();
 
-  /** Somme des quantités saisies, pas le nombre de lignes. */
-  readonly quantiteTotale = computed(() =>
-    this.etatLignes().reduce((somme, ligne) => somme + ligne.quantite, 0),
-  );
-
   /**
    * Total indicatif, calculé sur les snapshots locaux (quantité × prix à l'ajout).
    * À présenter avec la mention « total indicatif, confirmé au serveur » (§25) :

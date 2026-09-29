@@ -198,6 +198,35 @@ describe('NotificationService', () => {
     expect(service.notifications()).toHaveLength(3);
   });
 
+  it('partage la lecture déjà partie : l’en-tête et la page montés ensemble n’émettent qu’un seul GET', () => {
+    const recuesEnTete: NotificationResponse[][] = [];
+    const recuesPage: NotificationResponse[][] = [];
+
+    service.mesNotifications().subscribe((liste) => recuesEnTete.push(liste));
+    service.mesNotifications().subscribe((liste) => recuesPage.push(liste));
+
+    // `expectOne` échoue dès que deux `GET` identiques sont partis : l’unique requête est la preuve.
+    const requete = http.expectOne(URL_NOTIFICATIONS);
+    expect(requete.request.method).toBe('GET');
+    requete.flush([notification(1, false)]);
+
+    expect(recuesEnTete).toHaveLength(1);
+    expect(recuesPage).toHaveLength(1);
+    expect(service.nonLues()).toBe(1);
+  });
+
+  it('ne met aucun résultat en cache : la lecture qui suit une réponse repart au serveur', () => {
+    service.mesNotifications().subscribe();
+    http.expectOne(URL_NOTIFICATIONS).flush([notification(1, true)]);
+
+    service.mesNotifications().subscribe();
+    const seconde = http.expectOne(URL_NOTIFICATIONS);
+    expect(seconde.request.method).toBe('GET');
+    seconde.flush([notification(1, false)]);
+
+    expect(service.nonLues()).toBe(1);
+  });
+
   it('n’anticipe jamais l’état lu : le passage à lu vient de la réponse du serveur', () => {
     service.mesNotifications().subscribe();
     http.expectOne(URL_NOTIFICATIONS).flush([notification(1, false)]);

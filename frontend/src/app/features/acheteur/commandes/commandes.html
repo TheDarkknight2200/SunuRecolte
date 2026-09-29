@@ -7,6 +7,17 @@
     </p>
   </div>
 
+  <!-- Les notifications sont transversales (§29) : l'accès se propose dans l'espace, jamais dans l'en-tête. -->
+  <p class="commandes__actions">
+    <a
+      class="bouton bouton--discret bouton--compact"
+      id="lien-notifications-acheteur"
+      routerLink="/notifications"
+    >
+      Notifications
+    </a>
+  </p>
+
   @if (chargement()) {
     <div class="etat" aria-busy="true">
       <p class="etat__texte">Chargement de vos commandes…</p>

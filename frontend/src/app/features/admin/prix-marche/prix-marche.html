@@ -1,0 +1,309 @@
+<section class="prix-marche">
+  <div class="prix-marche__entete">
+    <div class="prix-marche__titre">
+      <p class="prix-marche__surtitre">Espace administrateur</p>
+      <h1>Prix indicatifs</h1>
+      <p class="prix-marche__intro">
+        Ces prix de marché sont consultés par tout visiteur, même non connecté. Vous les déposez,
+        les corrigez et les retirez ici ; la date de mise à jour est posée par le serveur, jamais
+        par vous.
+      </p>
+    </div>
+    <div class="prix-marche__actions">
+      <button
+        type="button"
+        class="bouton bouton--secondaire bouton--compact"
+        id="bouton-actualiser"
+        #boutonRetourListe
+        [disabled]="chargement() || envoi() || suppressionEnCours()"
+        (click)="reessayer()"
+      >
+        Actualiser
+      </button>
+      <a class="bouton bouton--discret bouton--compact" routerLink="/admin">
+        Retour à l’administration
+      </a>
+      <!-- Les notifications sont transversales (§29, §37) : l'accès reste proposé sur chaque écran admin. -->
+      <a
+        class="bouton bouton--discret bouton--compact"
+        id="lien-notifications-prix-marche"
+        routerLink="/notifications"
+      >
+        Notifications
+      </a>
+    </div>
+  </div>
+
+  @if (succes(); as message) {
+    <div class="message message--succes" role="status">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf0be;</span>
+      <p>{{ message }}</p>
+    </div>
+  }
+
+  <form
+    class="carte prix-marche__formulaire"
+    [formGroup]="formulaire"
+    aria-labelledby="formulaire-titre"
+    (ngSubmit)="soumettre()"
+    novalidate
+  >
+    <div class="prix-marche__formulaire-entete">
+      <h2 class="carte__titre" id="formulaire-titre">{{ titreFormulaire() }}</h2>
+      @if (enEdition() !== null) {
+        <p class="prix-marche__aide">
+          Ligne n° {{ enEdition() }} chargée dans le formulaire. « Annuler » l’abandonne sans la
+          modifier.
+        </p>
+      }
+    </div>
+
+    @if (erreurFormulaire(); as message) {
+      <p class="message message--erreur" role="alert">{{ message }}</p>
+    }
+
+    <div class="champ">
+      <label class="champ__libelle" for="produit">
+        Produit <span class="champ__obligatoire">(obligatoire)</span>
+      </label>
+      <input
+        id="produit"
+        class="champ__saisie"
+        #champProduit
+        type="text"
+        formControlName="produit"
+        maxlength="150"
+        placeholder="Mande de 1er choix, tomate locale…"
+        required
+        aria-required="true"
+        [attr.aria-invalid]="invalide('produit')"
+        aria-describedby="produit-erreur"
+      />
+      @if (invalide('produit')) {
+        <p id="produit-erreur" class="champ__erreur">{{ messageErreur('produit') }}</p>
+      }
+    </div>
+
+    <div class="prix-marche__rangee">
+      <div class="champ">
+        <label class="champ__libelle" for="unite">
+          Unité <span class="champ__obligatoire">(obligatoire)</span>
+        </label>
+        <input
+          id="unite"
+          class="champ__saisie"
+          type="text"
+          formControlName="unite"
+          maxlength="30"
+          placeholder="kg, sac, litre"
+          required
+          aria-required="true"
+          [attr.aria-invalid]="invalide('unite')"
+          aria-describedby="unite-erreur"
+        />
+        @if (invalide('unite')) {
+          <p id="unite-erreur" class="champ__erreur">{{ messageErreur('unite') }}</p>
+        }
+      </div>
+
+      <div class="champ">
+        <label class="champ__libelle" for="prixMoyen">
+          Prix moyen en FCFA <span class="champ__obligatoire">(obligatoire)</span>
+        </label>
+        <input
+          id="prixMoyen"
+          class="champ__saisie"
+          type="number"
+          formControlName="prixMoyen"
+          min="0.01"
+          max="99999999.99"
+          step="0.01"
+          inputmode="decimal"
+          required
+          aria-required="true"
+          [attr.aria-invalid]="invalide('prixMoyen')"
+          aria-describedby="prixMoyen-erreur"
+        />
+        @if (invalide('prixMoyen')) {
+          <p id="prixMoyen-erreur" class="champ__erreur">{{ messageErreur('prixMoyen') }}</p>
+        }
+      </div>
+    </div>
+
+    <div class="champ">
+      <label class="champ__libelle" for="marcheReference">Marché de référence</label>
+      <input
+        id="marcheReference"
+        class="champ__saisie"
+        type="text"
+        formControlName="marcheReference"
+        maxlength="150"
+        placeholder="Marché de Thiaroye"
+        aria-describedby="marcheReference-aide marcheReference-erreur"
+      />
+      <p id="marcheReference-aide" class="champ__aide">
+        Facultatif. Le marché sur lequel l’observation a été faite.
+      </p>
+      @if (invalide('marcheReference')) {
+        <p id="marcheReference-erreur" class="champ__erreur">
+          {{ messageErreur('marcheReference') }}
+        </p>
+      }
+    </div>
+
+    <div class="prix-marche__actions">
+      <button
+        type="submit"
+        class="bouton bouton--primaire"
+        id="formulaire-soumettre"
+        [disabled]="envoi()"
+        [attr.aria-busy]="envoi()"
+      >
+        {{ envoi() ? '…' : libelleBouton() }}
+      </button>
+      @if (enEdition() !== null) {
+        <button
+          type="button"
+          class="bouton bouton--discret"
+          id="formulaire-annuler"
+          [disabled]="envoi()"
+          (click)="quitterEdition()"
+        >
+          Annuler
+        </button>
+      }
+    </div>
+  </form>
+
+  @if (chargement()) {
+    <div class="etat" aria-busy="true">
+      <p class="etat__texte">Chargement des prix indicatifs…</p>
+    </div>
+  } @else if (erreur(); as message) {
+    <div class="message message--erreur" role="alert">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+      <div>
+        <p>{{ message }}</p>
+        <p class="prix-marche__actions">
+          <button
+            type="button"
+            class="bouton bouton--secondaire bouton--compact"
+            id="erreur-reessayer"
+            (click)="reessayer()"
+          >
+            Réessayer
+          </button>
+        </p>
+      </div>
+    </div>
+  } @else if (liste().length === 0) {
+    <div class="etat">
+      <p class="etat__titre">Aucun prix indicatif publié.</p>
+      <p class="etat__texte">
+        Ajoutez une première ligne avec le formulaire ci-dessus : elle sera immédiatement lisible
+        dans le catalogue public.
+      </p>
+    </div>
+  } @else {
+    <h2 class="prix-marche__liste-titre">{{ denombrement() }}</h2>
+    <ul class="prix-marche__liste grille-2">
+      @for (prix of liste(); track prix.id) {
+        <li
+          class="carte prix-marche__carte"
+          [class.prix-marche__carte--en-cours]="enEdition() === prix.id"
+        >
+          <h3 class="carte__titre prix-marche__produit">{{ prix.produit }}</h3>
+
+          <dl class="prix-marche__champs">
+            <div>
+              <dt>Prix moyen</dt>
+              <dd>{{ formaterMontant(prix.prixMoyen) }}</dd>
+            </div>
+            <div>
+              <dt>Unité</dt>
+              <dd>{{ prix.unite }}</dd>
+            </div>
+            <div>
+              <dt>Marché de référence</dt>
+              <dd>{{ ouValeurAbsente(prix.marcheReference) }}</dd>
+            </div>
+            <div>
+              <dt>Mis à jour le</dt>
+              <dd>{{ formaterDateHeure(prix.dateMiseAJour) }}</dd>
+            </div>
+          </dl>
+
+          <p class="prix-marche__actions">
+            <button
+              type="button"
+              class="bouton bouton--secondaire bouton--compact"
+              [id]="'modifier-' + prix.id"
+              [disabled]="envoi() || suppressionEnCours()"
+              (click)="preparerEdition(prix)"
+            >
+              Modifier
+            </button>
+            <button
+              type="button"
+              class="bouton bouton--danger bouton--compact"
+              [id]="'supprimer-' + prix.id"
+              [attr.aria-label]="'Supprimer le prix de ' + prix.produit"
+              [disabled]="envoi() || suppressionEnCours()"
+              (click)="demanderSuppression(prix, $event)"
+            >
+              Supprimer
+            </button>
+          </p>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (ligneASupprimer(); as prix) {
+    <div class="prix-marche__fond" (click)="annulerSuppression()">
+      <div
+        class="carte prix-marche__modale"
+        #modale
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="suppression-titre"
+        (click)="$event.stopPropagation()"
+      >
+        <h2 class="prix-marche__modale-titre" id="suppression-titre">
+          Voulez-vous vraiment retirer ce prix indicatif ?
+        </h2>
+        <p class="prix-marche__modale-texte">
+          « {{ prix.produit }} » ({{ formaterMontant(prix.prixMoyen) }} / {{ prix.unite }})
+          disparaîtra du catalogue public. Cette action est définitive.
+        </p>
+
+        @if (erreurSuppression(); as message) {
+          <p class="message message--erreur" role="alert">{{ message }}</p>
+        }
+
+        <div class="prix-marche__actions">
+          <button
+            type="button"
+            class="bouton bouton--secondaire"
+            id="suppression-annuler"
+            #boutonAnnuler
+            [disabled]="suppressionEnCours()"
+            (click)="annulerSuppression()"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            class="bouton bouton--danger"
+            id="suppression-confirmer"
+            [disabled]="suppressionEnCours()"
+            [attr.aria-busy]="suppressionEnCours()"
+            (click)="confirmerSuppression()"
+          >
+            {{ suppressionEnCours() ? '…' : 'Retirer le prix' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</section>

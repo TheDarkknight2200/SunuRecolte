@@ -1,7 +1,11 @@
 // Modèles alignés sur les DTO Java réels.
 // UtilisateurResponse : user/dto/UtilisateurResponse.java
+// ModifierActifRequest : user/dto/ModifierActifRequest.java
 // RecolteResponse : recolte/dto/RecolteResponse.java
 // RecolteRequest : recolte/dto/RecolteRequest.java
+// StatutRecolteRequest : recolte/dto/StatutRecolteRequest.java
+// PrixMarcheResponse : prixmarche/dto/PrixMarcheResponse.java
+// PrixMarcheRequest : prixmarche/dto/PrixMarcheRequest.java
 // ProducteurResponse : user/dto/ProducteurResponse.java
 // AcheteurResponse : user/dto/AcheteurResponse.java
 // CommandeResponse : commande/dto/CommandeResponse.java
@@ -28,7 +32,7 @@ import {
   TypeAcheteur,
 } from './referentiels';
 
-/** Réponse de GET /api/utilisateurs/{id}. */
+/** Réponse de GET /api/utilisateurs/{id} et GET /api/utilisateurs (liste ADMIN). */
 export interface UtilisateurResponse {
   id: number;
   nom: string;
@@ -36,7 +40,16 @@ export interface UtilisateurResponse {
   email: string;
   telephone: string;
   role: Role;
+  /** LocalDateTime Jackson → chaîne ISO « AAAA-MM-JJTHH:MM:SS ». */
   dateCreation: string;
+  actif: boolean;
+}
+
+/**
+ * Corps de PATCH /api/utilisateurs/{id}/actif.
+ * Une seule propriété : l'identifiant de la cible est dans l'URL, jamais dans le corps.
+ */
+export interface ModifierActifRequest {
   actif: boolean;
 }
 
@@ -61,6 +74,7 @@ export interface RecolteResponse {
   localisation: string | null;
   dateDisponibilite: string | null;
   statut: StatutRecolte;
+  /** LocalDateTime Jackson → chaîne ISO « AAAA-MM-JJTHH:MM:SS ». */
   dateCreation: string;
 }
 
@@ -81,6 +95,39 @@ export interface RecolteRequest {
   imageUrl?: string | null;
   localisation?: string | null;
   dateDisponibilite?: string | null;
+}
+
+/**
+ * Corps de PATCH /api/recoltes/{id}/statut (modération ADMIN).
+ * Volontairement séparé de RecolteRequest : le backend refuse `statut` dans le
+ * corps d'une création ou d'une modification de récolte.
+ */
+export interface StatutRecolteRequest {
+  statut: StatutRecolte;
+}
+
+/** Réponse de GET /api/prix-marche et GET /api/prix-marche/{id} (lecture publique). */
+export interface PrixMarcheResponse {
+  id: number;
+  produit: string;
+  unite: string;
+  prixMoyen: number;
+  /** PrixMarche.marche_reference : colonne sans nullable = false. */
+  marcheReference: string | null;
+  /** LocalDateTime Jackson → chaîne ISO. Alimentée par @PrePersist/@PreUpdate, jamais par le client. */
+  dateMiseAJour: string;
+}
+
+/**
+ * Corps de POST /api/prix-marche et PUT /api/prix-marche/{id} (écriture ADMIN).
+ * Le record Java impose @NotBlank sur produit et unite, @NotNull + @DecimalMin/@DecimalMax
+ * sur prixMoyen ; marcheReference est seulement borné à 150 caractères, donc nullable.
+ */
+export interface PrixMarcheRequest {
+  produit: string;
+  unite: string;
+  prixMoyen: number;
+  marcheReference: string | null;
 }
 
 /** Réponse de GET /api/producteurs/{id} et GET /api/producteurs/moi. */

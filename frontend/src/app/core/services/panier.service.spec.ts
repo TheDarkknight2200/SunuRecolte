@@ -196,21 +196,12 @@ describe('PanierService', () => {
       panier.vider();
 
       expect(panier.lignes()).toEqual([]);
-      expect(panier.quantiteTotale()).toBe(0);
       expect(panier.totalIndicatif()).toBe(0);
       expect(localStorage.getItem(CLE_PANIER)).toBeNull();
     });
   });
 
   describe('calculs', () => {
-    it('additionne les quantités de toutes les lignes', () => {
-      const panier = nouveauService();
-      panier.ajouter(recolte({ id: 101 }), 2.5);
-      panier.ajouter(recolte({ id: 102 }), 3);
-
-      expect(panier.quantiteTotale()).toBe(5.5);
-    });
-
     it('calcule un total indicatif à partir des snapshots locaux', () => {
       const panier = nouveauService();
       panier.ajouter(recolte({ id: 101, prixUnitaire: 500 }), 2);

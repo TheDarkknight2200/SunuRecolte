@@ -4,6 +4,7 @@ import com.sunurecolte.commande.entity.Commande;
 import com.sunurecolte.commande.entity.LigneCommande;
 import com.sunurecolte.commande.entity.ModeReception;
 import com.sunurecolte.recolte.entity.Recolte;
+import com.sunurecolte.recolte.entity.StatutRecolte;
 import com.sunurecolte.support.IntegrationTestSupport;
 import com.sunurecolte.user.entity.Acheteur;
 import com.sunurecolte.user.entity.Filiere;
@@ -18,6 +19,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -312,6 +314,130 @@ class RecolteApiTest extends IntegrationTestSupport {
                         .value("Cette récolte est utilisée dans une commande et ne peut pas être supprimée."));
 
         assertThat(recolteRepository.findById(recolte.getId())).isPresent();
+    }
+
+    // --- Modération du statut (administration) -----------------------------
+
+    @Test
+    void leChangementDeStatutSansJetonRepond401() throws Exception {
+        mockMvc.perform(patch("/api/recoltes/{id}/statut", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"statut\": \"EPUISEE\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void lAdministrateurChangeLeStatutDUneRecolteEtLeServeurLeRelit() throws Exception {
+        Producteur producteur = creerProducteur();
+        Recolte recolte = creerRecolte(producteur, "Tomate", "100.00", "450.00");
+
+        mockMvc.perform(patch("/api/recoltes/{id}/statut", recolte.getId())
+                        .with(avecJetonDe(creerAdministrateur()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"statut\": \"EPUISEE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(recolte.getId()))
+                .andExpect(jsonPath("$.statut").value("EPUISEE"));
+
+        mockMvc.perform(get("/api/recoltes/{id}", recolte.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statut").value("EPUISEE"));
+
+        assertThat(recolteRepository.findById(recolte.getId()))
+                .get()
+                .extracting(Recolte::getStatut)
+                .isEqualTo(StatutRecolte.EPUISEE);
+    }
+
+    @Test
+    void lAdministrateurRemetUneRecolteDisponible() throws Exception {
+        Producteur producteur = creerProducteur();
+        Recolte recolte = creerRecolte(producteur, "Niébé", "0.00", "900.00");
+        recolte.setStatut(StatutRecolte.EPUISEE);
+        recolteRepository.save(recolte);
+
+        mockMvc.perform(patch("/api/recoltes/{id}/statut", recolte.getId())
+                        .with(avecJetonDe(creerAdministrateur()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"statut\": \"DISPONIBLE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statut").value("DISPONIBLE"));
+    }
+
+    @Test
+    void leProducteurProprietaireNePeutPasModererLeStatut() throws Exception {
+        Producteur producteur = creerProducteur();
+        Recolte recolte = creerRecolte(producteur, "Tomate", "100.00", "450.00");
+
+        mockMvc.perform(patch("/api/recoltes/{id}/statut", recolte.getId())
+                        .with(avecJetonDe(producteur.getUtilisateur()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"statut\": \"EPUISEE\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.statut").value(403))
+                .andExpect(jsonPath("$.message")
+                        .value("Accès refusé : vous n'avez pas les droits nécessaires pour cette action."));
+
+        assertThat(recolteRepository.findById(recolte.getId()))
+                .get()
+                .extracting(Recolte::getStatut)
+                .isEqualTo(StatutRecolte.DISPONIBLE);
+    }
+
+    @Test
+    void unAcheteurNePeutPasModererLeStatut() throws Exception {
+        Producteur producteur = creerProducteur();
+        Recolte recolte = creerRecolte(producteur, "Tomate", "100.00", "450.00");
+
+        mockMvc.perform(patch("/api/recoltes/{id}/statut", recolte.getId())
+                        .with(avecJetonDe(creerAcheteur().getUtilisateur()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"statut\": \"EPUISEE\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void modererUneRecolteInconnueRepond404() throws Exception {
+        mockMvc.perform(patch("/api/recoltes/{id}/statut", 999_999L)
+                        .with(avecJetonDe(creerAdministrateur()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"statut\": \"EPUISEE\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Recolte introuvable avec l'id : 999999"));
+    }
+
+    @Test
+    void unStatutHorsDomaineRepond400() throws Exception {
+        Producteur producteur = creerProducteur();
+        Recolte recolte = creerRecolte(producteur, "Tomate", "100.00", "450.00");
+
+        // Le domaine ne connaît que DISPONIBLE et EPUISEE (contrainte CHECK du schéma).
+        mockMvc.perform(patch("/api/recoltes/{id}/statut", recolte.getId())
+                        .with(avecJetonDe(creerAdministrateur()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"statut\": \"RETIREE\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("Requête invalide : corps malformé ou valeur non autorisée."));
+
+        assertThat(recolteRepository.findById(recolte.getId()))
+                .get()
+                .extracting(Recolte::getStatut)
+                .isEqualTo(StatutRecolte.DISPONIBLE);
+    }
+
+    @Test
+    void unStatutManquantRepond400AvecLeDetailDuChamp() throws Exception {
+        Producteur producteur = creerProducteur();
+        Recolte recolte = creerRecolte(producteur, "Tomate", "100.00", "450.00");
+
+        mockMvc.perform(patch("/api/recoltes/{id}/statut", recolte.getId())
+                        .with(avecJetonDe(creerAdministrateur()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Données invalides"))
+                .andExpect(jsonPath("$.erreurs.statut").value("Le statut est obligatoire"));
     }
 
     // --- Contrat d'erreur générique ----------------------------------------

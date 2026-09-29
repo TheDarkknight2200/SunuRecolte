@@ -249,7 +249,7 @@ describe('MesRecoltes', () => {
     expect(hrefs).toEqual(['/producteur/recoltes/12/modifier', '/recoltes/12']);
   });
 
-  it('offre une entrée vers les commandes reçues et le profil sans déplacer « Publier une récolte »', () => {
+  it('offre une entrée vers les commandes reçues, le profil et les notifications, sans déplacer « Publier une récolte »', () => {
     ouvrir();
     charger([produit(12)]);
 
@@ -258,14 +258,26 @@ describe('MesRecoltes', () => {
       '/producteur/recoltes/nouvelle',
       '/producteur/commandes',
       '/producteur/profil',
+      '/notifications',
     ]);
     expect(texteDe(liens[0])).toContain('Publier une récolte');
     expect(texteDe(liens[1])).toBe('Commandes reçues');
     expect(texteDe(liens[2])).toBe('Profil');
+    expect(texteDe(liens[3])).toBe('Notifications');
     // La première ancre de l'en-tête reste le déclencheur attendu par le rendu du focus.
     expect(element<HTMLAnchorElement>(racine, '.mes-recoltes__entete a').getAttribute('href')).toBe(
       '/producteur/recoltes/nouvelle',
     );
+  });
+
+  it('donne au producteur un accès nommé aux notifications depuis sa page d’atterrissage', () => {
+    ouvrir();
+    charger([produit(12)]);
+
+    const lien = element<HTMLAnchorElement>(racine, '#lien-notifications-producteur');
+    expect(lien.getAttribute('href')).toBe('/notifications');
+    expect(texteDe(lien)).toBe('Notifications');
+    expect(lien.classList.contains('bouton--discret')).toBe(true);
   });
 
   it('ne propose aucune saisie de quantité ni de prix dans la liste', () => {

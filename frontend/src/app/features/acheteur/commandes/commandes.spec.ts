@@ -173,13 +173,23 @@ describe('Commandes — liste « Mes commandes »', () => {
     ouvrir();
     charger([commande(512), commande(511)]);
 
-    const liens = elements<HTMLAnchorElement>(racine, '.commandes__actions a');
+    const liens = elements<HTMLAnchorElement>(racine, '.commandes__carte .commandes__actions a');
     expect(liens.map((lien) => lien.getAttribute('href'))).toEqual([
       '/acheteur/commandes/512',
       '/acheteur/commandes/511',
     ]);
     expect(texteDe(liens[0])).toContain('Voir le détail');
     expect(liens[0].getAttribute('aria-label')).toBe('Voir le détail de la commande n° 512');
+  });
+
+  it('donne à l’acheteur un accès nommé aux notifications depuis sa page d’atterrissage', () => {
+    ouvrir();
+    charger([commande(512)]);
+
+    const lien = element<HTMLAnchorElement>(racine, '#lien-notifications-acheteur');
+    expect(lien.getAttribute('href')).toBe('/notifications');
+    expect(texteDe(lien)).toBe('Notifications');
+    expect(lien.classList.contains('bouton--discret')).toBe(true);
   });
 
   it.each([

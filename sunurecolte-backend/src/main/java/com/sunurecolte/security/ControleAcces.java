@@ -29,6 +29,18 @@ public final class ControleAcces {
         return principal.getRole() == Role.ADMIN;
     }
 
+    /**
+     * Opérations d'administration (liste des comptes, activation d'un compte, modération
+     * d'une récolte, gestion des prix indicatifs) : refus 403 pour tout autre rôle.
+     * Toujours vérifié ici en plus de la règle `hasRole("ADMIN")` de `SecurityConfig`,
+     * pour que la règle métier reste dans la couche service.
+     */
+    public static void exigerAdmin(UtilisateurPrincipal principal) {
+        if (!estAdmin(principal)) {
+            throw accesRefuse();
+        }
+    }
+
     /** Le demandeur est le propriétaire de la ressource, ou un administrateur. */
     public static boolean estProprietaireOuAdmin(UtilisateurPrincipal principal, Long idUtilisateurProprietaire) {
         return estAdmin(principal) || idUtilisateurProprietaire.equals(principal.getId());

@@ -2,6 +2,7 @@ package com.sunurecolte.recolte.controller;
 
 import com.sunurecolte.recolte.dto.RecolteRequest;
 import com.sunurecolte.recolte.dto.RecolteResponse;
+import com.sunurecolte.recolte.dto.StatutRecolteRequest;
 import com.sunurecolte.recolte.entity.StatutRecolte;
 import com.sunurecolte.recolte.service.RecolteService;
 import com.sunurecolte.security.UtilisateurPrincipal;
@@ -61,6 +62,14 @@ public class RecolteController {
                                     @Valid @RequestBody RecolteRequest request,
                                     @AuthenticationPrincipal UtilisateurPrincipal principal) {
         return recolteService.modifier(id, request, principal);
+    }
+
+    /** Modération du statut par l'administrateur : distincte du formulaire de saisie. */
+    @PatchMapping("/{id}/statut")
+    public RecolteResponse changerStatut(@PathVariable Long id,
+                                         @Valid @RequestBody StatutRecolteRequest request,
+                                         @AuthenticationPrincipal UtilisateurPrincipal principal) {
+        return recolteService.changerStatut(id, request, principal);
     }
 
     @DeleteMapping("/{id}")

@@ -1,0 +1,183 @@
+<section class="utilisateurs">
+  <div class="utilisateurs__entete">
+    <div class="utilisateurs__titre">
+      <p class="utilisateurs__surtitre">Espace administrateur</p>
+      <h1>Utilisateurs</h1>
+      @if (!chargement() && erreur() === null) {
+        <p class="utilisateurs__intro">
+          {{ denombrement() }} sur la plateforme. Seul l’état du compte se modifie ici :
+          le nom, l’email et le rôle d’un compte ne sont administrables par aucune route.
+        </p>
+      }
+    </div>
+    <div class="utilisateurs__actions">
+      <button
+        type="button"
+        class="bouton bouton--secondaire bouton--compact"
+        id="bouton-actualiser"
+        #boutonActualiser
+        [disabled]="chargement() || enCours() !== null"
+        (click)="reessayer()"
+      >
+        Actualiser
+      </button>
+      <a class="bouton bouton--discret bouton--compact" routerLink="/admin">
+        Retour à l’administration
+      </a>
+      <!-- Les notifications sont transversales (§29, §37) : l'accès reste proposé sur chaque écran admin. -->
+      <a
+        class="bouton bouton--discret bouton--compact"
+        id="lien-notifications-utilisateurs"
+        routerLink="/notifications"
+      >
+        Notifications
+      </a>
+    </div>
+  </div>
+
+  @if (succes(); as message) {
+    <div class="message message--succes" role="status">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf0be;</span>
+      <p>{{ message }}</p>
+    </div>
+  }
+
+  @if (chargement()) {
+    <div class="etat" aria-busy="true">
+      <p class="etat__texte">Chargement des comptes…</p>
+    </div>
+  } @else if (erreur(); as message) {
+    <div class="message message--erreur" role="alert">
+      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+      <div>
+        <p>{{ message }}</p>
+        <p class="utilisateurs__actions">
+          <button
+            type="button"
+            class="bouton bouton--secondaire bouton--compact"
+            id="erreur-reessayer"
+            (click)="reessayer()"
+          >
+            Réessayer
+          </button>
+        </p>
+      </div>
+    </div>
+  } @else if (liste().length === 0) {
+    <div class="etat">
+      <p class="etat__titre">Aucun compte inscrit.</p>
+      <p class="etat__texte">
+        Tant qu’aucune inscription n’a été déposée, la liste reste vide. Les comptes créés
+        apparaîtront ici après une actualisation.
+      </p>
+    </div>
+  } @else {
+    <ul class="utilisateurs__liste grille-2">
+      @for (utilisateur of liste(); track utilisateur.id) {
+        <li class="carte utilisateurs__carte">
+          <div class="utilisateurs__entete-carte">
+            <h2 class="carte__titre">{{ nomComplet(utilisateur) }}</h2>
+            <span
+              class="badge"
+              [class.badge--succes]="utilisateur.actif"
+              [class.badge--erreur]="!utilisateur.actif"
+            >
+              {{ utilisateur.actif ? 'Actif' : 'Inactif' }}
+            </span>
+          </div>
+
+          <dl class="utilisateurs__champs">
+            <div>
+              <dt>Email</dt>
+              <dd>{{ utilisateur.email }}</dd>
+            </div>
+            <div>
+              <dt>Téléphone</dt>
+              <dd>{{ utilisateur.telephone }}</dd>
+            </div>
+            <div>
+              <dt>Rôle</dt>
+              <dd>
+                <span class="badge">{{ libelleRole(utilisateur.role) }}</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Compte créé le</dt>
+              <dd>{{ formaterDateHeure(utilisateur.dateCreation) }}</dd>
+            </div>
+          </dl>
+
+          <p class="utilisateurs__actions">
+            <button
+              type="button"
+              class="bouton bouton--compact"
+              [class.bouton--danger]="utilisateur.actif"
+              [class.bouton--secondaire]="!utilisateur.actif"
+              [id]="'changer-actif-' + utilisateur.id"
+              [disabled]="enCours() !== null"
+              [attr.aria-busy]="enCours() === utilisateur.id"
+              (click)="demander(utilisateur, $event)"
+            >
+              {{ libelleBouton(utilisateur) }} {{ nomComplet(utilisateur) }}
+            </button>
+          </p>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (cible(); as utilisateur) {
+    <div class="utilisateurs__fond" (click)="annuler()">
+      <div
+        class="carte utilisateurs__modale"
+        #modale
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="changement-titre"
+        (click)="$event.stopPropagation()"
+      >
+        <h2 class="utilisateurs__modale-titre" id="changement-titre">
+          {{ utilisateur.actif ? 'Désactiver ce compte ?' : 'Réactiver ce compte ?' }}
+        </h2>
+        <p class="utilisateurs__modale-texte">
+          Compte de {{ nomComplet(utilisateur) }} — {{ utilisateur.email }}
+          ({{ libelleRole(utilisateur.role) }}).
+          {{
+            utilisateur.actif
+              ? 'Il ne pourra plus se connecter, et son jeton en cours sera refusé dès la requête suivante.'
+              : 'Il redeviendra utilisable immédiatement, ses récoltes et ses commandes étant conservées.'
+          }}
+        </p>
+
+        @if (refus(); as message) {
+          <p class="message message--erreur" role="alert">{{ message }}</p>
+        }
+
+        <div class="utilisateurs__actions">
+          <button
+            type="button"
+            class="bouton bouton--secondaire"
+            id="changement-annuler"
+            #boutonAnnuler
+            [disabled]="enCours() !== null"
+            (click)="annuler()"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            class="bouton"
+            [class.bouton--danger]="utilisateur.actif"
+            [class.bouton--primaire]="!utilisateur.actif"
+            id="changement-confirmer"
+            [disabled]="enCours() !== null"
+            [attr.aria-busy]="enCours() === utilisateur.id"
+            (click)="confirmer()"
+          >
+            {{ enCours() === utilisateur.id ? '…' : libelleBouton(utilisateur) }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</section>

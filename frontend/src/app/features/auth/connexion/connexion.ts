@@ -5,6 +5,10 @@ import { Role } from '../../../core/modeles/referentiels';
 import { AuthService } from '../../../core/services/auth.service';
 import { messageErreurApi } from '../../../core/utilitaires/erreurs-api';
 import { espaceParRole } from '../../../core/utilitaires/navigation';
+import {
+  MESSAGE_DOMAINE_INCOMPLET,
+  domaineEmailComplet,
+} from '../../../core/utilitaires/validation-email';
 
 /** Connexion : POST /api/auth/connexion puis redirection selon le rôle renvoyé. */
 @Component({
@@ -20,7 +24,10 @@ export class Connexion {
   private readonly route = inject(ActivatedRoute);
 
   protected readonly formulaire = this.fb.group({
-    email: ['', [Validators.required, Validators.email, Validators.maxLength(150)]],
+    email: [
+      '',
+      [Validators.required, Validators.email, domaineEmailComplet, Validators.maxLength(150)],
+    ],
     motDePasse: ['', [Validators.required]],
   });
 
@@ -42,6 +49,9 @@ export class Connexion {
     }
     if (controle.hasError('email')) {
       return "Format d'adresse email invalide.";
+    }
+    if (controle.hasError('domaineIncomplete')) {
+      return MESSAGE_DOMAINE_INCOMPLET;
     }
     if (controle.hasError('maxlength')) {
       return 'Ce champ est trop long.';

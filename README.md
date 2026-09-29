@@ -123,13 +123,42 @@ migration versionnée (`V2__...`).
 ### 4. Compte administrateur initial
 
 Aucune migration Flyway ne contient de mot de passe : un compte ADMIN ne peut pas être obtenu depuis le
-dépôt. Pour en amorcer un localement, renseigner `app.admin.email` et `app.admin.password`
-(ou `APP_ADMIN_EMAIL` / `APP_ADMIN_PASSWORD`) puis démarrer l'application : le compte est créé au premier
-démarrage si aucun utilisateur ne porte déjà cet email, avec un mot de passe haché BCrypt. L'amorçage est
-idempotent (un second démarrage ne recrée ni n'écrase rien) et n'affiche jamais le mot de passe dans les journaux.
+dépôt. L'inscription publique, elle, ne peut créer que des comptes PRODUCTEUR ou ACHETEUR (enum
+`RoleInscription`), jamais ADMIN. **Sans amorçage, aucune route d'administration n'est atteignable** : ni
+`GET /api/utilisateurs`, ni l'écran `/admin` du frontend.
 
-Le mot de passe source ne doit **jamais** apparaître dans Git. L'inscription publique, elle, ne peut créer
-que des comptes PRODUCTEUR ou ACHETEUR (enum `RoleInscription`), jamais ADMIN.
+Procédure locale :
+
+1. Choisir une adresse et un mot de passe **locaux** (au moins 6 caractères, comme à l'inscription) ;
+2. Les fournir **soit** en variables d'environnement avant de lancer l'API :
+
+   ```bash
+   # Git Bash / Linux / macOS
+   export APP_ADMIN_EMAIL="adresse@exemple.sn"
+   export APP_ADMIN_PASSWORD="mot_de_passe_local"
+   ./mvnw spring-boot:run
+   ```
+
+   ```powershell
+   # Windows PowerShell
+   $env:APP_ADMIN_EMAIL = "adresse@exemple.sn"
+   $env:APP_ADMIN_PASSWORD = "mot_de_passe_local"
+   .\mvnw.cmd spring-boot:run
+   ```
+
+   **soit** dans `src/main/resources/application-local.properties` (`app.admin.email`,
+   `app.admin.password`, et éventuellement `app.admin.telephone`, hors Git) ;
+3. Démarrer l'API : l'amorçage crée le compte au premier démarrage si aucun utilisateur ne porte déjà cet email,
+   avec un mot de passe haché BCrypt par le même encodeur que l'inscription.
+
+L'opération est **idempotente** (un second démarrage ne recrée ni n'écrase rien), **silencieuse** (le mot de passe
+n'apparaît jamais dans les journaux) et **facultative par construction** : sans email ou sans mot de passe fourni,
+l'application démarre normalement en signalant simplement que le compte ADMIN n'a pas été amorcé ; un mot de passe
+trop court est refusé de la même façon. L'adresse est normalisée en minuscules, le nom porté par le compte amorce
+est « SunuRecolte Administrateur ».
+
+Le mot de passe source ne doit **jamais** apparaître dans Git, dans un journal, dans une capture d'écran de QA ni
+dans un fichier de test.
 
 ### 5. Lancer les tests
 
@@ -171,7 +200,7 @@ appliquée côté serveur. Sauf mention « public », une route exige `Authoriza
 | Commandes | `GET /api/commandes` | Connecté — filtre optionnel `acheteurId`, restreint aux ressources accessibles |
 | Commandes | `GET /api/commandes/{id}` | Acheteur propriétaire, producteur concerné ou ADMIN |
 | Commandes | `POST /api/commandes` | ACHETEUR — total calculé serveur, stock décrémenté et contrôlé |
-| Commandes | `PATCH /api/commandes/{id}/statut` | Acheteur propriétaire, producteur concerné ou ADMIN |
+| Commandes | `PATCH /api/commandes/{id}/statut` | Acheteur propriétaire, producteur concerné ou ADMIN — l'ADMIN **ne contourne aucune transition métier** : mêmes bornes `TRANSITIONS_AUTORISEES`, mêmes refus `400` (« Transition de statut interdite : … », « La commande est déjà au statut … ») |
 | Paiements | `GET /api/paiements/{id}` | Acheteur propriétaire ou ADMIN |
 | Paiements | `GET /api/paiements/commande/{commandeId}` | Acheteur propriétaire ou ADMIN |
 | Paiements | `POST /api/paiements` | ACHETEUR — paiement **simulé** (WAVE / ORANGE_MONEY, aucune transaction réelle), notifie chaque producteur concerné |
@@ -186,12 +215,45 @@ appliquée côté serveur. Sauf mention « public », une route exige `Authoriza
 | Profils | `PUT /api/producteurs/moi` | PRODUCTEUR uniquement — mise à jour complète de son profil (prénom, nom, email, téléphone, localisation, filière, description) ; cible déduite du jeton, `403` pour ACHETEUR ou ADMIN, `400` si l'email est déjà pris |
 | Profils | `GET /api/producteurs/{id}` · `PUT /api/producteurs/{id}` | Producteur concerné ou ADMIN — le `PUT` n'écrit que les trois colonnes d'exploitation |
 | Profils | `GET /api/acheteurs/{id}` | Acheteur concerné ou ADMIN |
+| Administration | `GET /api/utilisateurs` | **ADMIN uniquement** — tous les comptes, ou filtrés par `role` ; réponse triée par le serveur (`dateCreation DESC`, puis `id DESC`), portée par `UtilisateurResponse` : jamais de mot de passe ni de hash. `401` sans jeton, `403` pour ACHETEUR ou PRODUCTEUR |
+| Administration | `PATCH /api/utilisateurs/{id}/actif` | **ADMIN uniquement** — corps `{"actif": true|false}` ; un administrateur ne peut pas modifier son propre compte (`400`) ; `404` si le compte n'existe pas. Un compte désactivé voit son **jeton existant refusé (`401`) dès la requête suivante**, l'état étant relu en base à chaque requête |
+| Administration | `PATCH /api/recoltes/{id}/statut` | **ADMIN uniquement** — modération du statut d'une récolte entre les deux seules valeurs du domaine (`DISPONIBLE`, `EPUISEE`) ; DTO séparé `StatutRecolteRequest`, `RecolteRequest` ne portant jamais de statut |
+| Administration | `POST /api/prix-marche` · `PUT /api/prix-marche/{id}` · `DELETE /api/prix-marche/{id}` | **ADMIN uniquement** — écriture des prix indicatifs ; les deux routes de lecture `GET` restent publiques |
 
 En cas d'erreur, l'API renvoie un JSON du type `{"statut": 404, "message": "...", "timestamp": "..."}`
 (ou `erreurs` par champ en cas d'échec de validation), sans jamais exposer de détails internes.
 
 > Le paiement est une **simulation** pour le MVP : aucune transaction réelle n'est effectuée et aucune
 > intégration Wave / Orange Money n'existe à ce stade.
+
+### 7.1 Capacités de l'ADMIN
+
+Les routes d'administration ci-dessus sont les **premières du projet réservées à un seul rôle** ; l'ADMIN était
+jusque-là un rôle de secours en écriture sur les ressources d'autrui (récoltes, commandes, paiements,
+notifications).
+
+**Ce qu'un ADMIN peut faire** : lister les comptes (avec le filtre facultatif `?role=`), activer ou désactiver
+un compte, modérer le statut d'une récolte entre `DISPONIBLE` et `EPUISEE`, créer / modifier / supprimer un prix
+indicatif, et rester partie prenante sur les récoltes, commandes, paiements et notifications d'autrui.
+
+**Ce qu'aucun ADMIN ne peut faire** :
+
+- **contourner une transition de statut de commande** — `PATCH /api/commandes/{id}/statut` applique exactement les
+  mêmes bornes `TRANSITIONS_AUTORISEES` qu'à un acheteur ou un producteur, et refuse une transition interdite ou un
+  statut déjà atteint par un `400` ;
+- **se désactiver lui-même** — la seule auto-modification refusée (`400`), pour ne pas fermer la porte à la
+  dernière administration disponible ;
+- **lire un mot de passe** — ni en clair ni haché : `UtilisateurResponse` ne porte que l'identité de contact, le
+  rôle, la date de création et l'état `actif` ;
+- **se créer un pair** — l'inscription publique ne sait produire que `PRODUCTEUR` ou `ACHETEUR` (enum
+  `RoleInscription`), `ADMIN` étant impossible par construction ;
+- **redéfinir le contenu d'un compte ou d'une récolte d'autrui depuis l'écran d'administration** — aucune route
+  d'API ne le permet, donc aucun écran ne le propose : la liste des comptes n'a qu'une action, et la modération
+  des récoltes aussi.
+
+L'effet d'une désactivation est vérifié côté serveur : le rôle et l'état étant relus en base à chaque requête,
+le **jeton déjà émis** d'un compte désactivé produit un `401` sur la requête suivante (test backend
+`unJetonDunCompteDesactiveRepond401`).
 
 ### 8. Frontend Angular
 
@@ -211,6 +273,20 @@ L'URL de l'API est centralisée dans `src/environments/` : `http://localhost:808
 
 > **Rappel** : le frontend n'est jamais l'autorité de sécurité. Les guards et l'intercepteur gèrent la
 > navigation et l'expérience (redirection, purge locale) ; toute autorisation est rendue par l'API.
+
+Écrans protégés par rôle (règle : `authGuard` puis `roleGuard`, `data.roles`, chargement paresseux) :
+
+- **tous connectés** : `/tableau-de-bord`, `/notifications` (écran transversal, `authGuard` seul — les trois
+  rôles y accèdent) ;
+- **PRODUCTEUR** : `/producteur/recoltes` (liste et suppression), `/producteur/recoltes/nouvelle`,
+  `/producteur/recoltes/:id/modifier`, `/producteur/commandes` (commandes reçues et statuts),
+  `/producteur/profil` ;
+- **ACHETEUR** : `/acheteur/panier`, `/acheteur/commande` (tunnel), `/acheteur/commandes` et
+  `/acheteur/commandes/:id` (consultation, annulation), `/acheteur/paiement/:id` ;
+- **ADMIN** : `/admin` (trois entrées, aucun chiffre ni graphique : le backend n'expose aucun endpoint de
+  comptage), `/admin/utilisateurs`, `/admin/recoltes`, `/admin/prix-marche`. La protection de ces quatre routes
+  est vérifiée sur la table de routes réelle par `src/app/routes-admin.spec.ts`. Règles et états de ces écrans :
+  `FRONTEND_DESIGN.md` §37.
 
 L'identité visuelle, les tokens de design et les règles d'interface font foi dans
 [`FRONTEND_DESIGN.md`](./FRONTEND_DESIGN.md).

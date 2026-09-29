@@ -118,6 +118,20 @@ describe('Connexion', () => {
     expect(erreurs(fixture)).toEqual(["Format d'adresse email invalide."]);
   });
 
+  it('refuse un domaine sans extension, que le backend accepterait pourtant', () => {
+    const fixture = creer();
+    // `@Email` (Jakarta) accepte `awa@exemple` : le blocage est ici purement client, avant requête.
+    saisir(fixture.nativeElement, '#connexion-email', 'awa@exemple');
+    saisir(fixture.nativeElement, '#connexion-mot-de-passe', 'secret1');
+
+    soumettre(fixture);
+
+    expect(erreurs(fixture)).toEqual([
+      'Il manque l’extension du domaine, par exemple prenom@exemple.sn.',
+    ]);
+    expect(http.match(() => true)).toHaveLength(0);
+  });
+
   it('envoie les identifiants, affiche l’état de chargement puis redirige selon le rôle', () => {
     const fixture = creer();
     identifier(fixture);

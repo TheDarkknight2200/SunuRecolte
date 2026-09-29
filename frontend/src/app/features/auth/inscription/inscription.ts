@@ -15,6 +15,10 @@ import {
 } from '../../../core/modeles/referentiels';
 import { AuthService } from '../../../core/services/auth.service';
 import { erreursParChamp, messageErreurApi } from '../../../core/utilitaires/erreurs-api';
+import {
+  MESSAGE_DOMAINE_INCOMPLET,
+  domaineEmailComplet,
+} from '../../../core/utilitaires/validation-email';
 
 type ChampInscription =
   | 'role'
@@ -50,7 +54,10 @@ export class Inscription {
     role: this.fb.control<RoleInscription | null>(null, Validators.required),
     nom: ['', [Validators.required, Validators.maxLength(100)]],
     prenom: ['', [Validators.required, Validators.maxLength(100)]],
-    email: ['', [Validators.required, Validators.email, Validators.maxLength(150)]],
+    email: [
+      '',
+      [Validators.required, Validators.email, domaineEmailComplet, Validators.maxLength(150)],
+    ],
     telephone: ['', [Validators.required, Validators.maxLength(20)]],
     motDePasse: ['', [Validators.required, Validators.minLength(6)]],
     filiere: this.fb.control<Filiere | null>(null),
@@ -100,6 +107,9 @@ export class Inscription {
     }
     if (controle.hasError('email')) {
       return "Format d'adresse email invalide.";
+    }
+    if (controle.hasError('domaineIncomplete')) {
+      return MESSAGE_DOMAINE_INCOMPLET;
     }
     if (controle.hasError('minlength')) {
       return 'Le mot de passe doit contenir au moins 6 caractères.';

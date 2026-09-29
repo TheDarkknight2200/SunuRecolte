@@ -1,0 +1,177 @@
+@use "points-rupture" as pr;
+
+/* Racine : un seul rythme vertical, aucune marge enfantine à annuler. */
+.prix-marche {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-5);
+}
+
+.prix-marche__entete {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+}
+
+.prix-marche__surtitre {
+  margin: 0 0 var(--espace-1);
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.prix-marche__titre h1 {
+  margin: 0;
+}
+
+.prix-marche__intro {
+  margin: var(--espace-2) 0 0;
+  color: var(--couleur-texte-secondaire);
+}
+
+.prix-marche__liste-titre {
+  margin: 0;
+  font-size: var(--taille-lg);
+  font-weight: 600;
+}
+
+.prix-marche__liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prix-marche__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+  margin: 0;
+}
+
+/* === Formulaire (création et modification) === */
+
+.prix-marche__formulaire {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+}
+
+.prix-marche__formulaire-entete {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+}
+
+/* .carte__titre porte un margin-bottom : annulé ici, le flex gère l'écart. */
+.prix-marche__formulaire-entete .carte__titre {
+  margin: 0;
+}
+
+.prix-marche__aide {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}
+
+.prix-marche__formulaire .champ {
+  margin-bottom: 0;
+}
+
+.prix-marche__formulaire .message {
+  margin: 0;
+}
+
+.prix-marche__rangee {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--espace-4);
+}
+
+/* === Liste des lignes === */
+
+.prix-marche__carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+}
+
+.prix-marche__produit {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Renfort de la ligne chargée dans le formulaire : le sens reste dit par le titre,
+   la couleur seule ne suffit jamais (§27). */
+.prix-marche__carte--en-cours {
+  border-color: var(--couleur-primaire);
+  box-shadow: var(--ombre-surface);
+}
+
+.prix-marche__champs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--espace-3);
+  margin: 0;
+}
+
+.prix-marche__champs dt {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+}
+
+.prix-marche__champs dd {
+  margin: var(--espace-1) 0 0;
+  overflow-wrap: anywhere;
+}
+
+/* === Modale de confirmation === */
+
+.prix-marche__fond {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--espace-4);
+  background-color: rgba(30, 36, 32, 0.55);
+}
+
+.prix-marche__modale {
+  width: 100%;
+  max-width: 28rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+  box-shadow: var(--ombre-surface);
+}
+
+.prix-marche__modale .message {
+  margin: 0;
+}
+
+.prix-marche__modale-titre {
+  margin: 0;
+  font-size: var(--taille-lg);
+  font-weight: 600;
+}
+
+.prix-marche__modale-texte {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: pr.$point-tablette) {
+  .prix-marche__entete {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .prix-marche__rangee {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

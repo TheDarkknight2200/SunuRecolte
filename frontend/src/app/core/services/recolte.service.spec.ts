@@ -191,6 +191,63 @@ describe('RecolteService', () => {
     expect(resultat).toEqual(RECOLTE);
   });
 
+  it('changerStatut : PATCH /api/recoltes/{id}/statut avec un corps réduit à `statut`', () => {
+    let resultat: RecolteResponse | undefined;
+
+    service.changerStatut(12, 'EPUISEE').subscribe((recolte) => (resultat = recolte));
+
+    const requete = http.expectOne(`${RECOLTES}/12/statut`);
+    expect(requete.request.method).toBe('PATCH');
+    expect(requete.request.urlWithParams).toBe(`${RECOLTES}/12/statut`);
+    expect(requete.request.params.keys()).toEqual([]);
+    expect(requete.request.body).toEqual({ statut: 'EPUISEE' });
+
+    requete.flush({ ...RECOLTE, statut: 'EPUISEE' });
+    expect(resultat?.statut).toBe('EPUISEE');
+  });
+
+  it('changerStatut : la réversibilité du domaine est offerte dans les deux sens', () => {
+    service.changerStatut(12, 'DISPONIBLE').subscribe();
+
+    const requete = http.expectOne(`${RECOLTES}/12/statut`);
+    expect(requete.request.body).toEqual({ statut: 'DISPONIBLE' });
+    requete.flush({ ...RECOLTE, statut: 'DISPONIBLE' });
+  });
+
+  it('le corps d’une création ou d’une modification ne porte jamais `statut`', () => {
+    service.creer(REQUETE).subscribe();
+    const creation = http.expectOne(RECOLTES);
+    expect((creation.request.body as Record<string, unknown>)['statut']).toBeUndefined();
+    creation.flush(RECOLTE, { status: 201, statusText: 'Created' });
+
+    service.modifier(12, REQUETE).subscribe();
+    const modification = http.expectOne(`${RECOLTES}/12`);
+    expect((modification.request.body as Record<string, unknown>)['statut']).toBeUndefined();
+    modification.flush(RECOLTE);
+  });
+
+  it('changerStatut : un producteur qui tente la modération reçoit un 403 non transformé', () => {
+    const jeton = ouvrirSession();
+    let erreurRecue: unknown;
+
+    service.changerStatut(12, 'EPUISEE').subscribe({ error: (erreur) => (erreurRecue = erreur) });
+
+    http
+      .expectOne(`${RECOLTES}/12/statut`)
+      .flush(
+        {
+          statut: 403,
+          message: "Accès refusé : vous n'avez pas les droits nécessaires pour cette ressource.",
+          timestamp: '2026-01-01T10:00:00',
+        },
+        { status: 403, statusText: 'Forbidden' },
+      );
+
+    expect((erreurRecue as HttpErrorResponse).status).toBe(403);
+    expect(localStorage.getItem(CLE_JETON)).toBe(jeton);
+    expect(routeurFactice.navigate).not.toHaveBeenCalled();
+  });
+
   it('supprimer : DELETE /api/recoltes/{id} et réponse 204 sans corps', () => {
     let terminez = false;
     let statut = 0;

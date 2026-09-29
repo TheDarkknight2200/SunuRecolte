@@ -115,11 +115,23 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 > dans cette liste) demande une décision de l'auteur du projet, comme pour « Phase 4 » et « Phase 5 ».
 
 ## Phase 8 — Admin
-- [ ] Dashboard
-- [ ] Utilisateurs
-- [ ] Modération récoltes
-- [ ] Prix indicatifs
-- [ ] Statistiques
+
+> **Décadrage de la sous-phase 5.9** : l'espace administrateur livré ne contient **ni tableau de bord analytique,
+> ni graphique, ni statistique**. Le backend n'expose aucun endpoint de comptage ou d'agrégation, et afficher un
+> nombre que personne ne calcule serait du faux contenu (`FRONTEND_DESIGN.md` §17 et §37). Les deux cases
+> « Dashboard » et « Statistiques » décrivent un périmètre qui n'a pas été retenu : elles restent décochées.
+
+- [ ] Dashboard — **non retenu** (aucune donnée agrégée n'existe dans le modèle approuvé)
+- [x] Utilisateurs — `GET /api/utilisateurs` (liste, filtre `role`) et `PATCH /api/utilisateurs/{id}/actif`,
+  écran `/admin/utilisateurs` avec modale de confirmation (5.9)
+- [x] Modération récoltes — `PATCH /api/recoltes/{id}/statut` entre les deux statuts du domaine,
+  écran `/admin/recoltes` (5.9)
+- [x] Prix indicatifs — `POST`, `PUT` et `DELETE /api/prix-marche` côté API, écran `/admin/prix-marche`
+  pour les quatre opérations du contrat, lecture publique préservée (5.9)
+- [ ] Statistiques — **non retenu**, même motif que « Dashboard »
+
+> Cases cochées sur la foi des **tests réellement exécutés** (intégration backend PostgreSQL, unitaires frontend).
+> La **QA navigateur** de ces trois écrans reste à valider (5.9).
 
 ## Phase 9 — Angular
 - [x] Initialiser Angular
@@ -131,26 +143,29 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [x] Guards (`authGuard` puis `roleGuard`)
 - [x] Auth UI (connexion, inscription, tableau de bord, pages d'erreur)
 - [x] Producteur UI (gestion des récoltes faite — voir 5.4 ; commandes reçues faites — voir 5.6 ; profil fait
-  — voir 5.8, QA navigateur de ce dernier écran non faite)
-- [ ] Acheteur UI (partiel : panier, commande, consultation, annulation et paiement simulé faits —
-  voir 5.5 ; notifications restantes)
+  — voir 5.8 et 5.8-bis, QA navigateur réelle de ce dernier écran faite en 5.8-bis)
+- [x] Acheteur UI (panier, tunnel de commande, consultation, annulation, paiement simulé et notifications —
+  voir 5.5.1 → 5.5.9)
 - [x] Catalogue (page publique `/recoltes` + détail `/recoltes/:id` — voir 5.3)
-- [ ] Admin UI
+- [x] Admin UI (5.9 : `/admin`, `/admin/utilisateurs`, `/admin/recoltes`, `/admin/prix-marche` — quatre routes
+  réservées à `ADMIN` ; **QA navigateur à faire**, largeurs 375/768/1024/1366 non émules dans cet environnement)
 - [x] Panier (5.5.3 et 5.5.5 : `PanierService` local + page `/acheteur/panier`)
 - [x] Commandes (passer : 5.5.6 ; consulter et annuler : 5.5.7 ; mise à jour des statuts côté producteur :
   5.6 — `EN_ATTENTE → CONFIRMEE → PRETE → LIVREE` via `PATCH /api/commandes/{id}/statut`)
 - [x] Paiement **simulé** (5.5.8 : `/acheteur/paiement/:id` et `POST /api/paiements` ; le serveur n'écrit
   que `EN_ATTENTE` avec une référence `SIMU-…`, aucun paiement réel n'existe dans le projet)
-- [ ] Notifications
+- [x] Notifications (5.5.9 : écran transversal `/notifications` et compteur d'en-tête, QA navigateur réelle faite ;
+  les cases **backend** de la Phase 7 restent en attente d'une décision de l'auteur, voir la note de cette phase)
 - [ ] Responsive (vérifié écran par écran au fil des pages métier)
 
-## Sous-phases 5.2 → 5.8 (détail réel)
+## Sous-phases 5.2 → 5.9 (détail réel)
 
-> **Avertissement de numérotation** : « 5.2 », « 5.3 », « 5.4 », « 5.5 », « 5.6 », « 5.7 » et « 5.8 » sont les
-> repères des consignes de travail, pas les phases de ce fichier. Les cinq premiers et le dernier portent sur le
-> frontend Angular (Phase 9) et n'ont aucun rapport avec la « Phase 5 — Acheteur » ni avec la
+> **Avertissement de numérotation** : « 5.2 », « 5.3 », « 5.4 », « 5.5 », « 5.6 », « 5.7 », « 5.8 » et « 5.9 »
+> sont les repères des consignes de travail, pas les phases de ce fichier. Les cinq premiers et les deux derniers
+> portent sur le frontend Angular (Phase 9) et n'ont aucun rapport avec la « Phase 5 — Acheteur » ni avec la
 > « Phase 4 — Producteur » décrites plus haut. **5.7 fait exception : elle est purement backend** (Phase 7 —
-> Notifications), sans aucune ligne de frontend modifiée.
+> Notifications), sans aucune ligne de frontend modifiée. **5.9 est les deux à la fois** : backend (Phase 8 —
+> Admin) puis frontend, dans cet ordre imposé.
 >
 > **Contradiction signalée, non résolue ici** : les listes « Phase 4 — Producteur » et « Phase 5 —
 > Acheteur » restent non cochées alors que les endpoints backend correspondants existent depuis les
@@ -486,6 +501,8 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   **490/490 dans 27 fichiers**, build de production **réussi** (`chunk` `commandes-recues` 11,53 kB), seul
   dépassement de budget toujours présent et non corrigé volontairement : `commande.scss` (4,19 kB pour un
   budget de 4,00 kB, préexistant à 5.6) ; `git status` sur `sunurecolte-backend/` **vide**
+  *(le 5.6 note ce dépassement comme non corrigé à cette date ; il l'a été depuis, en 5.9-bis, en réduisant le
+  CSS lui-même — plus aucun avertissement au build)*
 - [ ] 5.6 — QA navigateur réelle (connexion producteur, confirmation d'une commande, passage en prête puis
   livrée, refus des transitions impossibles, 400 après changement concurrent, isolement des commandes d'un
   autre producteur, responsive 375/768/1024/1366) : **non faite** — hors du brief, qui demande tests
@@ -638,17 +655,153 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   **aucun élément hors cadre**. **Non testé : 375 / 768 / 1024 / 1366** — le navigateur intégré n'offre aucune
   émulation d'appareil ni contrôle du viewport (limite d'environnement, pas du composant).
 
+### 5.9 — Espace administrateur (backend puis frontend)
+
+> **Périmètre du brief** : **aucune** nouvelle entité métier, **aucune** migration Flyway, **aucun** champ ajouté,
+> **aucune** fonctionnalité hors liste (pas de livraison, transporteur, WebSocket, chat, paiement réel, catalogue
+> Produit, export, RBAC supplémentaire, 2FA, journal d'audit, nouvelle bibliothèque UI). **Aucun** endpoint de
+> comptage ou d'agrégation : l'espace livré n'a ni dashboard analytique, ni graphique, ni statistique.
+> Ni commit ni push demandés.
+
+**Backend (A)**
+
+- [x] A1 — `GET /api/utilisateurs`, réservé ADMIN (`SecurityConfig` **puis** `ControleAcces.exigerAdmin` dans le
+  service), avec filtre facultatif `?role=`. Réutilise `UtilisateurResponse` telle quelle : `id`, `nom`, `prenom`,
+  `email`, `telephone`, `role`, `dateCreation`, `actif` — **jamais** de mot de passe ni de hash. Tri serveur
+  `dateCreation DESC, id DESC` (`findAllByOrderByDateCreationDescIdDesc`, `findByRoleOrderByDateCreationDescIdDesc`).
+  Fichiers : `user/controller/UtilisateurController.java`, `user/service/UtilisateurService.java`,
+  `user/repository/UtilisateurRepository.java`, `security/SecurityConfig.java`, `security/ControleAcces.java`
+- [x] A2 — `PATCH /api/utilisateurs/{id}/actif`, corps `{"actif": true|false}` (DTO
+  `user/dto/ModifierActifRequest.java`, `@NotNull`). Un ADMIN ne peut pas modifier son propre compte :
+  **400** « Vous ne pouvez pas modifier l'état de votre propre compte. » ; **404** si le compte n'existe pas ;
+  **403** pour tout autre rôle, le contrôle du rôle intervenant **avant** le chargement de la ressource.
+  `Utilisateur.actif` étant déjà une colonne du schéma, **aucune migration** : la réactivation est le chemin
+  inverse du même champ. Effet réel : le rôle et l'état étant relus en base à chaque requête, le jeton déjà émis
+  d'un compte désactivé reçoit **401** (`SecuriteApiTest.unJetonDunCompteDesactiveRepond401`)
+- [x] A3 — `PATCH /api/recoltes/{id}/statut`, réservé ADMIN, DTO minimal
+  `recolte/dto/StatutRecolteRequest.java` (`@NotNull StatutRecolte statut`). `statut` n'a **pas** été ajouté à
+  `RecolteRequest` : le formulaire de saisie d'un producteur ne porte toujours pas de statut. Seules les valeurs
+  déjà définies par le domaine sont acceptées (`DISPONIBLE`, `EPUISEE` — contrainte `ck_recoltes_statut`), aucune
+  valeur inventée. Fichiers : `recolte/controller/RecolteController.java`, `recolte/service/RecolteService.java`
+- [x] A4 — `POST /api/prix-marche`, `PUT /api/prix-marche/{id}`, `DELETE /api/prix-marche/{id}` : ADMIN
+  uniquement, **la lecture publique des deux routes `GET` est préservée**. DTO
+  `prixmarche/dto/PrixMarcheRequest.java` borné colonne par colonne (`produit` 150, `unite` 30,
+  `prixMoyen` `0.01` à `99999999.99`, `marcheReference` 150 facultatif) ; `dateMiseAJour` reste alimenté par
+  l'entité (`@PrePersist` / `@PreUpdate`), jamais saisi. Aucune nouvelle catégorie ni concept métier
+- [x] A5 — `PATCH /api/commandes/{id}/statut` : l'ADMIN **ne contourne aucune transition métier**. Aucun
+  embranchement « si ADMIN » n'a été ajouté dans `CommandeService.changerStatut` : la cible est confrontée à
+  `TRANSITIONS_AUTORISEES` comme pour un acheteur ou un producteur, un statut déjà atteint répond 400, et
+  l'annulation passe toujours par la restauration du stock et l'annulation du paiement en attente
+- [x] A6 — Validation backend : `./mvnw -o test` → **207 tests, 0 échec, 0 erreur, BUILD SUCCESS** (163 avant
+  cette sous-phase, **+44**). Tests d'intégration PostgreSQL réels, aucun mock :
+  `api/UtilisateurApiTest.java` (**nouveau**, 13 méthodes : 401/403 par rôle, liste sans mot de passe, filtre de
+  rôle, rôle inconnu en filtre → 400, désactivation/réactivation, auto-désactivation refusée, 404, `actif` manquant
+  → 400 avec détail du champ), `api/PrixMarcheApiTest.java` (19), `api/RecolteApiTest.java` (29),
+  `api/CommandeApiTest.java` (18), `api/SecuriteApiTest.java` (20)
+
+**Frontend (B)**
+
+- [x] B1 — `/admin` est une **vraie page** (`features/admin/espace-admin.*`), plus le simple titre remplacé :
+  trois cartes d'entrée (Utilisateurs, Récoltes, Prix indicatifs) et un lien discret vers `/notifications`.
+  **Aucun chiffre, aucun graphique, aucune statistique** : le backend n'expose aucun endpoint de comptage (§17 de
+  `FRONTEND_DESIGN.md`)
+- [x] B2 — `/admin/utilisateurs` (`features/admin/utilisateurs/`, spec de 28 tests) : nom complet, email,
+  téléphone, rôle, date de création et état par compte ; action unique « Désactiver » / « Réactiver » confirmée
+  par une **modale accessible** reprenant les conventions de §31 (`role="dialog"`, `aria-modal`,
+  `aria-labelledby`, focus sur « Annuler » à l'ouverture, Tab et Shift+Tab piégés, Escape écouté sur le `document`,
+  focus rendu au déclencheur) ; un seul `PATCH` en vol, boutons `disabled`, `aria-busy`, libellé « … » ;
+  la ligne est remplacée par la réponse du serveur ; 400 / 403 / 404 affichent le message du backend **dans la
+  modale restée ouverte**, sans déconnexion ni purge
+- [x] B3 — `/admin/recoltes` (`features/admin/recoltes-admin/`, spec de 22 tests) : liste complète de
+  `GET /api/recoltes` (récoltes épuisées comprises) et modération de statut par
+  `PATCH /api/recoltes/{id}/statut`, aller-retour `DISPONIBLE ⇄ EPUISEE`. Six états (§11) dont chargement
+  `aria-busy`, vide, erreur avec « Réessayer » ; un `PATCH` à la fois ; focus conservé sur le bouton de la carte
+  traitée. **Pas de modale ici** : la bascule est immédiatement réversible depuis la même carte, et §31 ne demande
+  une confirmation que pour ce qui ne peut pas être annulé à l'écran. Ni création, ni modification, ni suppression
+  de récolte : le contenu reste la propriété du producteur
+- [x] B4 — `/admin/prix-marche` (`features/admin/prix-marche/`, spec de 38 tests) : un seul écran pour les quatre
+  opérations du contrat (liste `GET`, formulaire unique création « Ajouter le prix » / modification
+  « Enregistrer les modifications », suppression « Retirer le prix » confirmée par modale de §31). Bornes locales
+  reprises du DTO et vérifiées avant envoi, `erreurs` par champ du serveur reprenant la main ; conversion
+  numérique explicite (`type="number"` livre une chaîne) ; `dateMiseAJour` en lecture seule
+- [x] B5 — Les quatre routes sont en `data.roles: ['ADMIN']`, `authGuard` puis `roleGuard`, chargement paresseux.
+  **Aucune** route personnelle n'est utilisée pour l'administration (`/api/producteurs/moi`, `/api/acheteurs/moi`,
+  `/api/recoltes/mes-recoltes` sont des endpoints de titulaire où un ADMIN reçoit 403). Vérification portée par
+  `src/app/routes-admin.spec.ts` (7 tests), fichier qui **n'importe et ne monte aucun composant** : la coexistence
+  d'un `import { routes }` et d'un `TestBed.createComponent` dans une même spec rendait le worker Vitest partagé
+  instable et cassait le rendu `@for` d'autres fichiers (68 échecs ; bisect réel : 27 échecs avec
+  `espace-admin.spec.ts` + `profil-producteur.spec.ts` côte à côte, chacun seul vert). Les assertions de routes ont
+  donc été extraites de `espace-admin.spec.ts` (6 tests restants)
+
+**Tests et validation (C)**
+
+- [x] Suite ADMIN : **101 tests dans 5 fichiers** (`routes-admin` 7, `espace-admin` 6, `recoltes-admin` 22,
+  `utilisateurs` 28, `prix-marche` 38), 0 échec
+- [x] Services créés : `core/services/utilisateur.service.ts` (lister + changerActif, spec de 10 tests) et
+  `core/services/prix-marche.service.ts` (les quatre opérations, spec de 11 tests) ;
+  `core/services/recolte.service.ts` étendu de `changerStatut` ; types `PrixMarcheRequest` et
+  `UtilisateurResponse` alignés sur les DTO Java dans `core/modeles/domaine.modeles.ts`
+- [x] Suite complète : `npx ng test --watch=false` → **36 fichiers, 672 tests, 0 échec**
+- [x] Types : `npx tsc -p tsconfig.spec.json --noEmit` → **aucune erreur** (exit 0)
+- [x] Build : `npm run build` → **réussi**, initial total **324,19 kB**, **aucun avertissement** de budget
+- [ ] QA navigateur réelle de `/admin`, `/admin/utilisateurs`, `/admin/recoltes` et `/admin/prix-marche` :
+  **non faite au moment de cette écriture** — à exécuter contre l'API locale avec un compte ADMIN amorcé
+  (`APP_ADMIN_EMAIL` / `APP_ADMIN_PASSWORD`, procédure README §4 ; le mot de passe est saisi par l'auteur dans le
+  navigateur, jamais recopié dans un outil, un fichier ou un journal). À couvrir avant de cocher.
+
+### 5.9-bis — Corrections d'intégration (après Admin)
+
+- [x] **`PanierService.quantiteTotale` supprimé** : aucun consommateur d'interface (grep réel — l'en-tête et les
+  pages panier et commande utilisent `lignes().length`, `totalIndicatif` est consommé par `panier.html` et
+  `commande.html`). Le calcul n'était lu que par sa propre spec : dead code, **suppression plutôt que
+  fonctionnalité artificielle**. Une assertion et le test « additionne les quantités de toutes les lignes »
+  retirés de `panier.service.spec.ts` (32 → **31 tests**)
+- [x] **Double `GET /api/notifications` réduit à un appel, cause identifiée** : au rechargement du navigateur,
+  l'`effect` du composant `EnTete` et le constructeur de la page `Notifications` se montent l'un et l'autre et
+  demandent la liste à la même milliseconde — deux consommateurs, deux souscriptions, deux requêtes.
+  `NotificationService.mesNotifications()` partage désormais la **lecture en vol** (`shareReplay` +
+  `refCount`, champ `lectureEnVol` remis à `null` en `finalize` avec garde d'identité). **Aucun cache** : la
+  lecture qui suit une réponse repart au serveur, donc « Actualiser » et « Réessayer » restent des requêtes
+  réelles. Preuve par `http.expectOne` (et non `match`, qui retire les requêtes trouvées) :
+  `notification.service.spec.ts` 14 → **16 tests**
+- [x] **Validation email alignée sur le backend, dans le sens strict** : `Validators.email` comme `@Email`
+  (Jakarta) acceptent un domaine sans point — constat de QA 5.8-bis, `mariama@exemple` est passé jusqu'en base
+  (HTTP 200). Nouvel utilitaire `core/utilitaires/validation-email.ts` (`domaineEmailComplet`, message unique
+  « Il manque l'extension du domaine, par exemple prenom@exemple.sn. »), branché sur les trois formulaires qui
+  saisissent une adresse (connexion, inscription, profil producteur). Le contrat backend est **inchangé** : le
+  frontend est plus strict que lui, jamais plus permissif. 13 tests unitaires + 1 test d'écran ajouté dans
+  chacune des trois specs (connexion 8, inscription 9, profil 30), chaque refus client s'accompagnant d'aucune
+  requête
+- [x] **Budget de styles de `commande.scss` respecté** : dépassement de **192 octets** réduit par étapes
+  (192 → 116 → 25 octets → **plus aucun avertissement**), par des suppressions sans effet visuel et non par un
+  changement de configuration — une règle `margin-top` avalée par le
+  `margin-bottom` de `.champ` (`styles/_composants.scss`), deux membres `grid-column: auto` et deux jeux de
+  déclarations typographiques strictement identiques fusionnés. `angular.json` (4 ko / 8 ko) n'a **pas** été
+  touché ; le build ne publie plus aucun avertissement. Les fusions restent à re-vérifier visuellement lors de la
+  QA navigateur. Règle pérenne écrite en §18 de `FRONTEND_DESIGN.md`
+
 ### État d'intégration (2026-09-29)
 - [x] 5.2, 5.3, 5.4 et 5.5 (5.5.1 → 5.5.9) sont **implémentées et validées par les tests automatisés,
   le build et une QA navigateur réelle** (aux limites de viewport signalées en clôture de 5.5.7, 5.5.8 et
   5.5.9)
-- [x] Le travail est **commité au fur et à mesure** : les commits Git locaux sont les checkpoints des
-  phases 5.2 à 5.6. Le dépôt distant peut rester en retard tant qu'aucun push n'est demandé.
-  **5.7 est en cours et non commitée** (le brief de la sous-phase l'interdit)
-- [ ] Le projet n'est **pas terminé** : l'espace admin reste à faire, la QA navigateur de 5.6 et celle de 5.7
-  n'ont pas été faites, et l'intégration de bout en bout reste à couvrir (Phase 9 puis Phases 10 et 11). Deux
-  points un temps listés ici sont livrés : la mise à jour des statuts de commande par le producteur (**5.6**) et
-  les notifications de paiement côté backend (**5.7**)
+- [x] 5.6 (statuts de commande côté producteur), 5.7 (notification de paiement, backend), 5.8 et 5.8-bis
+  (profil producteur, sept champs) sont **implémentées et testées** ; la QA navigateur réelle de **5.6 n'a pas
+  été faite**, celle de **5.8-bis l'a été** (largeurs 375/768/1024/1366 non émules)
+- [x] 5.9 (espace administrateur, backend puis frontend) et 5.9-bis (quatre corrections d'intégration) sont
+  **implémentées et testées** : backend **207/207**, frontend **672/672**, types **0 erreur**, build **sans
+  avertissement**. Leur **QA navigateur reste à faire** (voir la case ouverte en clôture de 5.9)
+- [x] Correction de navigation sortie de la QA : les **points d'entrée « Notifications »** manquants ont été ajoutés
+  dans les espaces principaux — `/producteur/recoltes`, `/acheteur/commandes`, `/admin` et ses trois sous-écrans
+  (5 gabarits + 5 specs) — en plus de celui du Tableau de bord. L'en-tête global, la route `/notifications`, les
+  gardes et le backend n'ont **pas** été touchés ; le badge de non-lues de l'en-tête reste **non cliquable** (§29,
+  §10.5, §10.7). Frontend **677/677** sur 36 fichiers, types **0 erreur**, build **sans avertissement** ; travail
+  **non commité**
+- [x] Le travail est **commité au fur et à mesure** jusqu'à 5.8 : chaque sous-phase achevée a son checkpoint Git,
+  et le dépôt distant est à jour de ces checkpoints. **5.9 et 5.9-bis ne sont pas commitées** — le brief de cette
+  sous-phase l'interdit (ni commit automatique, ni push)
+- [ ] Le projet n'est **pas terminé** : la QA navigateur de l'espace administrateur (5.9) et celle de 5.6 restent
+  à faire, l'intégration de bout en bout (Phase 10) et la finalisation (Phase 11) sont devant. L'espace admin,
+  dernier bloc fonctionnel du périmètre approuvé, est **livré et testé** ; il reste la phase de *redesign premium*
 - [x] « Phase 5.5 » des consignes de travail (commandes acheteur) : panier, tunnel de commande,
   consultation, annulation et **paiement simulé** **faits** ; les notifications, d'abord **volontairement
   hors périmètre**, ont été livrées ensuite en **5.5.9** (écran transversal et compteur d'en-tête)
@@ -659,7 +812,8 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [ ] Flux Acheteur → Panier → Commande
 - [ ] Commande → Paiement
 - [ ] Paiement → Notification
-- [ ] Tests Admin
+- [ ] Tests Admin — les **tests automatisés existent** depuis 5.9 (intégration backend PostgreSQL 207/207,
+  unitaires frontend 101 tests ADMIN sur 672) ; ce qui manque est la **QA navigateur** de l'espace admin
 
 ## Phase 11 — Finalisation
 - [ ] Tests complets

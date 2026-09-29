@@ -9,6 +9,10 @@ import { FILIERES, LIBELLES_FILIERE, type Filiere } from '../../../core/modeles/
 import { AuthService } from '../../../core/services/auth.service';
 import { ProducteurService } from '../../../core/services/producteur.service';
 import { erreursParChamp, messageErreurApi } from '../../../core/utilitaires/erreurs-api';
+import {
+  MESSAGE_DOMAINE_INCOMPLET,
+  domaineEmailComplet,
+} from '../../../core/utilitaires/validation-email';
 
 type ChampProfil =
   | 'prenom'
@@ -64,7 +68,15 @@ export class ProfilProducteur {
   protected readonly formulaire = this.fb.group({
     prenom: ['', [Validators.required, Validators.maxLength(LONGUEUR_PRENOM)]],
     nom: ['', [Validators.required, Validators.maxLength(LONGUEUR_NOM)]],
-    email: ['', [Validators.required, Validators.email, Validators.maxLength(LONGUEUR_EMAIL)]],
+    email: [
+      '',
+      [
+        Validators.required,
+        Validators.email,
+        domaineEmailComplet,
+        Validators.maxLength(LONGUEUR_EMAIL),
+      ],
+    ],
     telephone: ['', [Validators.required, Validators.maxLength(LONGUEUR_TELEPHONE)]],
     localisationExploitation: ['', [Validators.maxLength(LONGUEUR_LOCALISATION)]],
     filiere: this.fb.control<Filiere | null>(null, [Validators.required]),
@@ -123,6 +135,9 @@ export class ProfilProducteur {
     }
     if (controle.hasError('email')) {
       return "Format d'adresse email invalide.";
+    }
+    if (controle.hasError('domaineIncomplete')) {
+      return MESSAGE_DOMAINE_INCOMPLET;
     }
     if (controle.hasError('maxlength')) {
       return `Ce champ ne peut pas dépasser ${LONGUEURS[nom]} caractères.`;

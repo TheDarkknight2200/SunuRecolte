@@ -5,6 +5,7 @@ import com.sunurecolte.exception.BusinessException;
 import com.sunurecolte.exception.ResourceNotFoundException;
 import com.sunurecolte.recolte.dto.RecolteRequest;
 import com.sunurecolte.recolte.dto.RecolteResponse;
+import com.sunurecolte.recolte.dto.StatutRecolteRequest;
 import com.sunurecolte.recolte.entity.Recolte;
 import com.sunurecolte.recolte.entity.StatutRecolte;
 import com.sunurecolte.recolte.repository.RecolteRepository;
@@ -101,6 +102,22 @@ public class RecolteService {
                 && recolte.getQuantiteDisponible().compareTo(BigDecimal.ZERO) > 0) {
             recolte.setStatut(StatutRecolte.DISPONIBLE);
         }
+        return versResponse(recolteRepository.save(recolte));
+    }
+
+    /**
+     * Modération du statut d'une récolte par l'administrateur : 403 pour tout autre rôle,
+     * y compris le producteur propriétaire (le producteur agît par PUT /api/recoltes/{id},
+     * jamais par ce chemin). Seules les valeurs réelles de `StatutRecolte` sont acceptées,
+     * et le champ `statut` n'existe pas dans `RecolteRequest` : la modération reste séparée
+     * de la saisie. Aucun statut de retrait n'existe dans le domaine approuvé.
+     */
+    @Transactional
+    public RecolteResponse changerStatut(Long id, StatutRecolteRequest request,
+                                         UtilisateurPrincipal principal) {
+        ControleAcces.exigerAdmin(principal);
+        Recolte recolte = trouver(id);
+        recolte.setStatut(request.statut());
         return versResponse(recolteRepository.save(recolte));
     }
 
