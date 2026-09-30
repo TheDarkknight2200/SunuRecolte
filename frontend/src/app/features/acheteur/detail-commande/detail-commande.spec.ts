@@ -416,7 +416,7 @@ describe('DetailCommande — annulation', () => {
     ouvrir();
     ouvrirModale();
 
-    const modale = element(racine, '.detail-commande__modale');
+    const modale = element(racine, '.modale');
     expect(modale.getAttribute('role')).toBe('dialog');
     expect(modale.getAttribute('aria-modal')).toBe('true');
     expect(modale.getAttribute('aria-labelledby')).toBe('annulation-titre');
@@ -450,7 +450,7 @@ describe('DetailCommande — annulation', () => {
     presserTab(true);
     expect(document.activeElement?.getAttribute('id')).toBe('annulation-confirmer');
 
-    expect(element(racine, '.detail-commande__modale').contains(document.activeElement)).toBe(true);
+    expect(element(racine, '.modale').contains(document.activeElement)).toBe(true);
     expect(http.match((requete) => requete.method === 'PATCH')).toHaveLength(0);
   });
 
@@ -458,11 +458,11 @@ describe('DetailCommande — annulation', () => {
     ouvrir();
     ouvrirModale();
     element<HTMLAnchorElement>(racine, '#lien-retour').focus();
-    expect(element(racine, '.detail-commande__modale').contains(document.activeElement)).toBe(false);
+    expect(element(racine, '.modale').contains(document.activeElement)).toBe(false);
 
     escape();
 
-    expect(racine.querySelector('.detail-commande__modale')).toBeNull();
+    expect(racine.querySelector('.modale')).toBeNull();
     expect(document.activeElement?.getAttribute('id')).toBe('commande-annuler');
     expect(http.match((requete) => requete.method === 'PATCH')).toHaveLength(0);
   });
@@ -472,7 +472,7 @@ describe('DetailCommande — annulation', () => {
     ouvrirModale();
     cliquer('#annulation-annuler');
 
-    expect(racine.querySelector('.detail-commande__modale')).toBeNull();
+    expect(racine.querySelector('.modale')).toBeNull();
     expect(document.activeElement?.getAttribute('id')).toBe('commande-annuler');
   });
 
@@ -480,10 +480,10 @@ describe('DetailCommande — annulation', () => {
     ouvrir();
     ouvrirModale();
 
-    element(racine, '.detail-commande__fond').click();
+    element(racine, '.voile').click();
     fixture.detectChanges();
 
-    expect(racine.querySelector('.detail-commande__modale')).toBeNull();
+    expect(racine.querySelector('.modale')).toBeNull();
   });
 
   it('confirmer envoie exactement un PATCH /api/commandes/{id}/statut, corps réduit à statut', () => {
@@ -536,7 +536,7 @@ describe('DetailCommande — annulation', () => {
     const badge = element(racine, '.badge');
     expect(texteDe(badge)).toBe('Annulée');
     expect(badge.classList.contains('badge--erreur')).toBe(true);
-    expect(racine.querySelector('.detail-commande__modale')).toBeNull();
+    expect(racine.querySelector('.modale')).toBeNull();
     expect(racine.querySelector('#commande-annuler')).toBeNull();
     expect(elements(racine, '.detail-commande__ligne')).toHaveLength(1);
   });
@@ -575,9 +575,9 @@ describe('DetailCommande — annulation', () => {
     );
     fixture.detectChanges();
 
-    const modale = element(racine, '.detail-commande__modale');
+    const modale = element(racine, '.modale');
     expect(modale.getAttribute('aria-modal')).toBe('true');
-    expect(texteDe(element(racine, '.detail-commande__modale .message--erreur'))).toBe(
+    expect(texteDe(element(racine, '.modale .message--erreur'))).toBe(
       'Transition de statut interdite : LIVREE vers ANNULEE.',
     );
     expect(element(racine, '.message--erreur').getAttribute('role')).toBe('alert');
@@ -597,7 +597,7 @@ describe('DetailCommande — annulation', () => {
     );
     fixture.detectChanges();
 
-    expect(texteDe(element(racine, '.detail-commande__modale .message--erreur'))).toContain(
+    expect(texteDe(element(racine, '.modale .message--erreur'))).toContain(
       'Accès refusé',
     );
     expect(texteDe(element(racine, '.badge'))).toBe('En attente');
@@ -616,7 +616,7 @@ describe('DetailCommande — annulation', () => {
     });
     fixture.detectChanges();
 
-    expect(texteDe(element(racine, '.detail-commande__modale .message--erreur'))).toContain(
+    expect(texteDe(element(racine, '.modale .message--erreur'))).toContain(
       'serveur est injoignable',
     );
     expect(texteDe(element(racine, '.badge'))).toBe('Confirmée');
@@ -626,7 +626,7 @@ describe('DetailCommande — annulation', () => {
   it('l’annulation ne mentionne jamais un paiement', () => {
     ouvrir();
     ouvrirModale();
-    const texteModale = texteDe(element(racine, '.detail-commande__modale')).toLowerCase();
+    const texteModale = texteDe(element(racine, '.modale')).toLowerCase();
     expect(texteModale).not.toContain('paiement');
     expect(texteModale).not.toContain('payé');
 

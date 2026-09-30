@@ -79,16 +79,31 @@ Palette agricole sobre : vert profond (végétal), ocre (terre), neutres chauds.
 | Fond avertissement | `--couleur-avertissement-clair` | `#F7F0E2` | fond des messages d'avertissement |
 | Fond erreur | `--couleur-erreur-clair` | `#FBEAE9` | fond des messages et badges d'erreur |
 | Fond info | `--couleur-info-clair` | `#E9EFF5` | fond des messages et badges d'information |
+| Encre (action) | `--couleur-encre` | `#1E2420` | action principale et filet fort des trois écrans maîtres (§38) |
+| Encre sombre | `--couleur-encre-sombre` | `#121610` | survol / actif d'une action encre |
+| Filet neutre | `--couleur-filet` | `#E3E3E0` | séparateurs de lignes sur fond blanc (§38) |
+| Voile | `--voile` | `rgba(30, 36, 32, 0.55)` | fond de la modale de confirmation (§31) |
 
-Les cinq dernières lignes sont des dérivés des couleurs de statut, utilisés uniquement comme fonds très
-clairs (§10.3) ou comme couleur de survol (§10.1) ; aucune autre couleur n'est autorisée.
+Les quatre lignes de fonds très clairs (`-clair`) sont des dérivés des couleurs de statut, utilisés uniquement
+comme fonds de message ou de badge (§10.3) ou comme couleur de survol (§10.1) ; aucune autre couleur n'est
+autorisée.
+
+**`--couleur-encre` n'est pas une teinte nouvelle** : c'est la valeur même de `--couleur-texte`, portée par un
+rôle sémantique distinct pour que les écrans maîtres puissent rendre une action noire sans toucher à la couleur
+du texte (§38). `--couleur-encre-sombre` en est la version assombrie d'environ un tiers, utilisée au survol et à
+l'état actif, exactement comme `--couleur-primaire-sombre` l'est pour `--couleur-primaire`.
 
 Règles :
 
 - les couleurs de la palette sont les seules autorisées ; aucune couleur « au jugé » dans un composant ;
 - le vert primaire ne porte jamais de texte sur fond vert clair sans vérification de contraste ;
 - l'accent terre ne sert pas à signaler une action destructive (réservé à `--couleur-erreur`) ;
-- les états de survol/focus modifient la couleur du token voisin, jamais une couleur inventée.
+- les états de survol/focus modifient la couleur du token voisin, jamais une couleur inventée ;
+- **le vert reste disponible** : couleur de marque (logo, liens, `badge--primaire`, état de succès) et couleur
+  d'action de tous les écrans qui ne sont pas encore alignés sur les références visuelles. Il cesse d'être la
+  couleur des actions principales sur les trois écrans maîtres, où l'encre la remplace (§38) ;
+- de même, `--couleur-fond` (crème) reste le fond de l'application ; les seuls écrans maîtres rendent leur page
+  sur `--couleur-surface` par le modificateur `.page--surface` (§10.4, règle d'arbitrage en §38.1).
 
 ## 6. Typographie
 
@@ -121,7 +136,13 @@ Règles :
 - **Ombres** : une seule ombre autorisée, très discrète, pour les surfaces superposées :
   `--ombre-surface: 0 1px 2px rgba(30, 36, 32, 0.08)`. Pas d'ombre au repos sur les cartes posées
   dans le flux (une bordure suffit).
-- **Bordures** : `1px solid var(--couleur-bordure)` par défaut ; `2px` uniquement pour l'anneau de focus.
+- **Bordures** : `1px solid var(--couleur-bordure)` par défaut ; `2px` pour l'anneau de focus et pour le filet
+  fort qui termine une ligne d'en-tête de tableau (§10.6), jamais pour autre chose.
+- **Filets composites** : `--filet-fort: 2px solid var(--couleur-encre)` (sous l'en-tête d'un tableau dense,
+  au-dessus d'un bloc de totaux) et `--filet-ligne: 1px solid var(--couleur-filet)` (entre deux lignes). Ces deux
+  tokens portent à la fois l'épaisseur et la couleur pour qu'aucun écran n'ait à les recomposer.
+- **Empilement** : `--z-voile: 20`, seule valeur d'élévation du projet, portée par le fond de modale (§31).
+  Aucun autre `z-index` n'est autorisé dans un style de composant.
 
 ## 8. Design tokens
 
@@ -141,6 +162,12 @@ ajouté ici avant usage.
                            /* --couleur-erreur #b3261e, --couleur-erreur-sombre #8f1e17,           */
                            /* --couleur-info #29527a, plus les quatre fonds clairs de statut.      */
 
+  /* Encre et filets des écrans maîtres (§5, §7, §38) */
+  --couleur-encre: #1e2420;   --couleur-encre-sombre: #121610;   --couleur-filet: #e3e3e0;
+  --filet-fort: 2px solid var(--couleur-encre);
+  --filet-ligne: 1px solid var(--couleur-filet);
+  --voile: rgba(30, 36, 32, 0.55);
+
   /* Typographie */
   --police-texte: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   --taille-xs: 0.75rem;  --taille-sm: 0.875rem; --taille-md: 1rem;   --taille-lg: 1.125rem;
@@ -155,6 +182,7 @@ ajouté ici avant usage.
   /* Mise en page */
   --largeur-contenu: 1140px;
   --duree-transition: 150ms;
+  --z-voile: 20;
 }
 ```
 
@@ -238,7 +266,8 @@ Angular ne redéfinit pas un bouton ou un champ, il réutilise ces classes.
   rayon `--rayon-md`, `font-size: --taille-md`, graisse 600, transition `--duree-transition`.
 - Variantes : `.bouton--primaire` (fond vert, texte blanc), `.bouton--secondaire` (fond surface,
   bordure, texte primaire), `.bouton--discret` (sans fond ni bordure, texte primaire),
-  `.bouton--danger` (fond erreur, texte blanc).
+  `.bouton--danger` (fond erreur, texte blanc), `.bouton--encre` (fond `--couleur-encre`, texte blanc,
+  survol `--couleur-encre-sombre`) — variante d'action principale des trois écrans maîtres (§38).
 - États : survol (couleur sombre), `:focus-visible` (anneau 2 px `--couleur-primaire`, offset 2 px),
   `:disabled` (opacité 0.55, `cursor: not-allowed`, aucune transformation).
 - Un bouton pleine largeur (`.bouton--large`) est réservé aux formulaires d'authentification.
@@ -269,12 +298,21 @@ Angular ne redéfinit pas un bouton ou un champ, il réutilise ces classes.
 - Les messages d'erreur affichés à l'utilisateur sont compréhensibles et en français :
   jamais de trace technique, de nom d'exception, de requête SQL, de jeton ni de détail Spring.
 
-### 10.4 Cartes (`.carte`)
+### 10.4 Cartes (`.carte`) et surface de page (`.page--surface`)
 
 - Fond surface, bordure 1 px, rayon `--rayon-lg`, padding `--espace-5`.
 - Pas d'ombre au repos ; l'ombre `--ombre-surface` est réservée aux surfaces réellement superposées.
 - Une carte contient un titre (`--taille-lg`, 600) et un contenu ; elle n'est pas un simple
   conteneur décoratif.
+- **`page--surface`** : modificateur posé sur la racine de page d'un écran maître (Catalogue, Détail
+  commande, Administration) pour rendre **toute la page** sur `--couleur-surface` (blanc) là où la référence
+  visuelle est monochrome. C'est un modificateur de page, pas une carte : aucun bordure, aucun rayon, aucune
+  ombre, et **il ne remplace ni `--couleur-fond` ni le fond de `body`** (§5, §6) — les autres pages restent sur
+  le fond crème. Mécanisme : une règle globale transforme la zone de contenu qui *contient* cette page
+  (`main:has(.page--surface)`), ce qui évite de repeindre `body` pour trois écrans et évite surtout une surface
+  blanche en carton découpée par les gouttières de la mise en page. Un navigateur sans `:has()` garde le fond
+  crème : l'écart est de nuance, aucune information ne disparaît. Son seul effet recherché est de faire lire
+  les filets `--filet-ligne` sur blanc (§10.6).
 
 ### 10.5 Navigation
 
@@ -302,13 +340,39 @@ Angular ne redéfinit pas un bouton ou un champ, il réutilise ces classes.
   Tableau de bord, Administration — le « Panier » n'étant pas son domaine (§37).
 - **Pied de page** : une seule ligne sobre (mention du projet, année, lien GitHub du dépôt),
   sans colonnes marketing.
+- **Onglets d'espace (`.onglets`)** : bandeau de navigation **entre routes sœurs d'un même espace**, réservé à
+  l'administration (§38.3). Un `<nav class="onglets" aria-label="Sections de l'administration">` contenant trois
+  liens `.onglets__lien`, chacun en `routerLink`, `routerLinkActive="onglets__lien--actif"` **et**
+  `ariaCurrentWhenActive="page"`. L'onglet actif se lit par un filet bas de 2 px en encre et un texte en encre ;
+  l'onglet inactif reste en texte secondaire, sans fond ni boîte. Ce n'est pas un composant à état : aucune
+  sélection locale, aucun contenu masqué, aucune route fusionnée — chaque onglet est un lien, et le bouton du
+  navigateur reste le seul arbitre de la page affichée.
+- **Action secondaire en lien (`.lien-action`)** : là où une action d'accompagnement n'a pas besoin d'être une
+  surface cliquable pleine (voir la fiche, ouvrir un détail), elle est rendue par un lien souligné en encre,
+  et non par un `.bouton--discret`. Le lien garde la hauteur tactile de 40 px (44 px sous 768 px, §12) pour
+  rester atteignable au doigt.
 
 ### 10.6 Tableaux
 
-- En-têtes en `--taille-xs`, 600, couleur secondaire, séparateur 1 px sous l'en-tête.
-- Lignes séparées par un filet 1 px ; pas de zébrage.
+- En-têtes en `--taille-xs`, 600, couleur secondaire, séparateur 1 px sous l'en-tête ; sur les écrans maîtres,
+  le séparateur devient le filet fort `--filet-fort` (2 px encre, §7).
+- Lignes séparées par un filet 1 px ; pas de zébrage. Sur les écrans maîtres, `--filet-ligne` (gris neutre).
+- **`.tableau--maitre`** : modificateur qui porte ces deux filets d'écran maître (`--filet-fort` sous l'en-tête,
+  `--filet-ligne` entre les lignes) sans toucher au `.tableau` générique, dont les écrans non alignés restent
+  séparés par `--couleur-bordure`. Une classe explicite plutôt qu'un sélecteur hérité de `.page--surface` : la
+  densité d'un tableau se décide ligne à ligne, pas en fonction du fond de la page.
 - Nombres alignés à droite, textes à gauche ; sur mobile, un tableau peut devenir une liste
   de cartes-lignes si la largeur ne suffit pas (la transformation est documentée sur le composant).
+- **Cellule double (`.cellule-double`)** : une ligne dense porte souvent un libellé fort et une micro-précision
+  (produit + producteur/localité, nom + courriel). Structure : `.cellule-double` contenant
+  `.cellule-double__titre` (`--taille-md`, 600, encre) et `.cellule-double__detail` (`--taille-sm`, secondaire).
+  C'est le motif de cellule des trois écrans maîtres ; il remplace l'association titre de carte + paragraphe
+  secondaire.
+- **Pile d'actions (`.tableau__actions`)** : dernière colonne, liens `.lien-action` alignés à droite et
+  séparés par un point médian rendu en `--couleur-texte-secondaire` ; jamais de bouton plein dans cette colonne,
+  sauf l'action principale explicite d'une ligne (§38.3).
+- `.tableau` est un style **global** : une conversion cartes → tableau déplace du CSS du fichier de composant
+  vers `styles/_composants.scss`, donc hors du budget `anyComponentStyle` (§18).
 
 ### 10.7 Badges (`.badge`)
 
@@ -342,6 +406,14 @@ vide sans explication.
 - Aucun défilement horizontal : les débordements sont traités (liste, tableau transformé, texte tronqué
   avec `title`).
 - Le texte reste lisible sans zoom (jamais de `font-size` inférieur à 12 px).
+- **Tableau dense sous `$point-tablette`** : une table de référence n'est jamais réduite à un défilement
+  horizontal global. La variante `.tableau--empile` transforme chaque ligne en bloc : l'en-tête de colonne est
+  masqué visuellement, chaque cellule reprend son libellé en micro-libellé au-dessus de sa valeur (libellé fourni
+  par l'attribut `data-libelle` de la cellule, jamais par un contenu inventé en CSS), et la colonne d'actions
+  passe en dernière position du bloc. Le tableau reste un `<table>` et garde sa sémantique de ligne.
+- Une référence visuelle produite à 1440 px n'est pas une preuve pour 375 px : chaque écran converti en
+  composition dense est revu aux quatre largeurs de référence (375, 768, 1024, 1366) avant d'être considéré
+  comme aligné.
 
 ## 13. Accessibilité
 
@@ -650,6 +722,10 @@ Mapping statut → couleurs (§5 ; §10.7 applique la couleur au texte et son fo
 - Ces fonctions recomposent la chaîne renvoyée par le backend **sans instancier `Date`** : le frontend
   n'introduit aucun décalage de fuseau.
 - **Valeur absente** : `—` ; jamais `null`, `undefined` ou une case vide.
+- **Format assumé contre la maquette** : les références visuelles (§38) écrivent les dates sur un mode
+  éditorial (« 14 septembre 2024 », « 03 jan. 2024 »). `formaterDate` et `formaterDateHeure` **ne changent pas** :
+  le projet conserve `JJ/MM/AAAA` et `JJ/MM/AAAA à HH:MM` partout, y compris sur les trois écrans maîtres. La
+  différence est un écart visuel voulu, documenté ici, et non une correction à faire.
 
 ## 31. Modales de confirmation (Phase 5.5)
 
@@ -665,6 +741,18 @@ Patron validé en Phase 5.4, à réutiliser tel quel :
   le focus est posé sur un élément explicitement désigné et encore présent ;
 - bouton destructif en `.bouton--danger`, avec un libellé qui nomme l'effet réel
   (« Annuler la commande », pas « OK »).
+
+**Motif visuel globalisé (Phase 5.10).** La voile et la boîte de la modale ne sont plus redessinées par chaque
+page : `frontend/src/styles/_composants.scss` fournit `.voile` (fond `--voile`, `z-index: var(--z-voile)`,
+couvrant tout l'écran, centrage de la boîte), `.modale` (fond surface, bordure 1 px, rayon `--rayon-lg`,
+padding `--espace-5`, largeur bornée à 26 rem, ombre `--ombre-surface` parce que la boîte est réellement
+superposée — seul cas autorisé par §7) et `.modale__actions` (boutons groupés à droite, `flex-wrap`,
+`gap: --espace-3`). Les règles ci-dessus — rôle, `aria-modal`, Escape global, piège de focus dans les
+deux sens, focus initial non destructif, retour du focus — sont **comportementales** et restent portées par chaque
+composant : aucune de ces pages n'est refactorée pour le seul plaisir de centraliser, et une modale dont le
+comportement a été validé en QA ne change pas de logique d'un coup. Le branchement des cinq modales existantes
+sur `.voile` / `.modale` se fait écran par écran, aux étapes 2 à 4, et chaque branchement est une raison de
+revérifier le focus (§31) plutôt qu'une simple suppression de CSS local.
 
 ## 32. Listes de lignes (Phase 5.5)
 
@@ -1032,7 +1120,7 @@ données ne sont chargées que sur l'écran qui les administre.
   résulte du cycle de vie du stock). Le domaine ne connaît que deux statuts, contrainte `ck_recoltes_statut` en
   base : la modération est donc un **aller-retour** `DISPONIBLE ⇄ EPUISEE`, libellés « Marquer comme épuisée » et
   « Marquer comme disponible ». Aucun statut de retrait, de validation ou de blocage n'a été inventé.
-- **Pas de modale ici.** Le changement est immédiatement réversible depuis la même carte — le bouton qui vient
+- **Pas de modale ici.** Le changement est immédiatement réversible depuis la même ligne — le bouton qui vient
   d'agir reste présent avec l'autre destination — et §31 demande une confirmation pour ce qui ne peut pas être
   annulé à l'écran. Une confirmation pour un geste réversible en un clic serait du bruit.
 - **Ni création, ni modification, ni suppression** : le contenu d'une récolte reste la propriété de son
@@ -1080,3 +1168,98 @@ de changement de mot de passe ou de rôle, pas de livraison ni de transporteur, 
 journal d'audit. Les guards `authGuard`/`roleGuard` sont du confort de navigation : seule l'API autorise, et un
 rôle non ADMIN qui appelle l'une de ces routes reçoit 401 sans jeton, 403 avec un jeton d'un autre rôle —
 vérifié par les tests backend, pas par l'interface (§19).
+
+## 38. Alignement sur les références visuelles validées (Phase 5.10)
+
+Trois maquettes MagicPath sont **validées comme références visuelles officielles** et servent de point de
+comparaison pour toute décision de mise en page : **Catalogue des récoltes**, **Détail commande** et
+**Administration** (aperçu `https://designs.magicpath.ai/v1/eager-space-1210`). Elles sont une référence
+**visuelle** : elles ne décrivent ni le contrat de l'API, ni les fonctionnalités existantes, ni un scénario de
+données. Cette section fixe les arbitrages pris entre elles et l'interface réellement livrée.
+
+### 38.1 Palette : une hiérarchie d'encre, pas une nouvelle palette
+
+Les trois références se lisent presque en monochrome : **fond blanc pur, action principale en encre, filets
+forts en encre ou gris foncé, filets secondaires en gris neutre, textes noir et gris, aucune ombre
+décorative**. Cet alignement est adopté comme **hiérarchie d'action**, et non comme remplacement de la palette.
+
+- `--couleur-encre` (§5) porte l'action principale des trois écrans maîtres, via `.bouton--encre` (§10.1). Ce
+  n'est pas une couleur ajoutée au système : c'est `--couleur-texte`, nommé pour un rôle.
+- **Le vert `--couleur-primaire` n'est supprimé ni repeint.** Il reste la couleur de la marque (lien,
+  navigation, en-tête) et l'action principale de **tout écran non encore aligné** — accueil, authentification,
+  tableau de bord, espaces producteur et acheteur hors des trois périmètres, profil, notifications, erreurs.
+  De même `--couleur-accent`, `--couleur-succès` et les couleurs d'état gardent leurs usages (§5, §27) : un
+  statut n'est jamais repeint en encre pour ressembler à une maquette.
+- **Le crème `--couleur-fond` reste le fond global** (`body`, §6). Les trois écrans maîtres posent leur surface
+  blanche avec le modificateur `.page--surface` (§10.4) : changer `--couleur-fond` ou `body` aurait aligné les
+  maquettes en décalant, sans raison, les vingt autres pages.
+- Les ombres restent interdites hors des deux usages de §7 ; les références ne contiennent aucune ombre, ce qui
+  confirme la règle plutôt qu'il ne la change.
+
+### 38.2 Dates : le format livré garde son format
+
+Les références affichent des dates dans une autre graphie. **Le format de `core/utilitaires/formatage.ts` ne
+change pas** : `14/09/2024 à 14:30` (§30). Un alignement typographique des dates toucherait dix écrans et les
+tests de formatage pour un gain purement décoratif ; l'écart est **voulu et documenté ici**, pas une omission.
+
+### 38.3 Administration : une navigation partagée, pas des routes fusionnées
+
+La référence « Administration » montre **un** écran avec trois sections. L'API et le routeur en expose trois :
+`/admin/utilisateurs`, `/admin/recoltes`, `/admin/prix-marche`, chacune sous `roleGuard` ADMIN avec son propre
+contrat. La maquette est donc suivie **au niveau de la navigation**, pas au niveau du routage :
+
+- un composant partagé `partage/admin-navigation` présente les trois entrées en `.onglets` (§10.5), avec
+  `routerLink`, `routerLinkActive` et `ariaCurrentWhenActive="page"` ;
+- **les routes ne sont pas fusionnées** : `app.routes.ts` ne change que si le nouveau composant l'exige
+  techniquement, et une telle exception est expliquée avant d'être écrite ;
+- le composant est **purement présentation et navigation** : il n'appelle aucun service, ne connaît aucun DTO,
+  ne porte aucune logique d'autorisation (§19 — le frontend n'est pas l'autorité).
+
+### 38.4 Donnée réelle : règle absolue
+
+**Une maquette n'autorise ni à inventer une donnée, ni à en supprimer une.** Chaque élément d'une composition
+alignée doit correspondre à un champ réellement renvoyé par l'API ; chaque élément présent à l'écran et absent
+de la maquette est une fonctionnalité conservée, pas un défaut à corriger.
+
+Concrètement, sont **conservés** parce que réels et fonctionnels :
+
+- **Catalogue** : les filtres du service `RecolteService`, les états chargement / erreur / vide, la quantité
+  disponible avec son minimum et son maximum, le statut, la date, la localisation, l'ajout au panier et le lien
+  vers le détail (§11, §25, §27).
+- **Détail commande** : le statut et son badge (§27), la date, la réception, les lignes, le total, le paiement,
+  l'annulation, la modale de confirmation et tout le volet accessibilité — piège de focus, Escape, retour du
+  focus (§31, §33, §34).
+- **Administration** : **toutes** les colonnes réellement retournées par chaque endpoint, le bouton
+  d'actualisation, l'accès aux notifications, la modération de statut, le CRUD des prix indicatifs et le
+  changement d'activité des comptes (§37).
+
+Et trois éléments de la référence **ne sont pas implémentés**, parce qu'aucun DTO ne les porte :
+
+| Élément de la maquette | Preuve d'absence |
+| --- | --- |
+| Frais de livraison (détail commande) | `CommandeResponse` n'expose que `total` ; aucun champ de livraison n'existe dans le modèle approuvé |
+| Sous-total de marchandises séparé | `CommandeResponse` n'a pas de second montant ; les `sousTotal` sont par ligne (`LigneCommandeResponse`) |
+| Producteur affiché par ligne de commande | `LigneCommandeResponse` = `{ id, recolteId, produit, unite, quantite, prixUnitaire, sousTotal }`, sans producteur ni localité |
+
+Y ajouter une valeur aurait voulu dire l'inventer à l'écran ou la demander au client (§19 : les montants ne
+sont jamais acceptés depuis le client). Une image de produit est dans le même cas : `RecolteResponse.imageUrl`
+n'est **jamais** servi, faute d'upload et de fichiers dans `public/` — le catalogue n'ajoute donc pas
+d'illustration, et ses listes restent typographiques (§10.6).
+
+### 38.5 Responsive : une table dense n'est pas une table transportée
+
+Les références sont produites en large desktop. **Une largeur de maquette n'est pas une preuve pour 375 px**,
+et `overflow-x` global est exclu : faire défiler horizontalement une page entière pour préserver un tableau de
+cinq colonnes est une régression d'usage, pas une solution. Sous `$point-tablette`, une table dense passe en
+`.tableau--empile` (§12) : un bloc par ligne, en-tête masqué, libellé de colonne porté par
+`data-libelle` et affiché en pseudo-élément, actions en dernier. Le `<table>` et les en-têtes logique restent
+dans le DOM, donc un lecteur d'écran garde l'association cellule / en-tête. Les quatre largeurs de contrôle
+sont **375 / 768 / 1024 / 1366 px** (§12).
+
+### 38.6 Périmètre et ordre
+
+L'alignement est conduit en quatre étapes, chacune validée avant la suivante : socle documentaire et
+design system (§38.1 à §38.5, tokens et classes de `_composants.scss`), puis Catalogue, puis Détail commande,
+puis Administration. Une étape ne convertit pas les écrans des suivantes, ne touche ni aux DTO, ni aux
+services, ni aux guards, ni au panier, et n'ajoute aucune dépendance. Les tests sont adaptés **seulement** là
+où la structure HTML change réellement ; aucun test n'est supprimé ni désactivé pour faire passer un style.

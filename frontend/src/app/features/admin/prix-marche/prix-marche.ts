@@ -15,6 +15,7 @@ import { PrixMarcheRequest, PrixMarcheResponse } from '../../../core/modeles/dom
 import { PrixMarcheService } from '../../../core/services/prix-marche.service';
 import { erreursParChamp, messageErreurApi } from '../../../core/utilitaires/erreurs-api';
 import { formaterDateHeure, formaterMontant } from '../../../core/utilitaires/formatage';
+import { AdminNavigation } from '../../../partage/admin-navigation/admin-navigation';
 
 type ChampPrix = 'produit' | 'unite' | 'prixMoyen' | 'marcheReference';
 
@@ -51,7 +52,7 @@ function nombre(valeur: unknown): number | null {
  */
 @Component({
   selector: 'app-admin-prix-marche',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, AdminNavigation],
   templateUrl: './prix-marche.html',
   styleUrl: './prix-marche.scss',
 })

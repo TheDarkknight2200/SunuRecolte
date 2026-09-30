@@ -1,5 +1,12 @@
 @use "points-rupture" as pr;
 
+/*
+ * Écran maître « Utilisateurs » — FRONTEND_DESIGN.md §37.1 et §38.
+ * Le socle global fournit .tableau--maitre, .cellule-double, .tableau__actions, .page--surface,
+ * la modale .voile / .modale / .modale__actions et l'empilement .tableau--empile : ce fichier
+ * ne règle que la densité de cette page et les deux contraintes propres à cette liste.
+ */
+
 /* Racine : un seul rythme vertical (§20), aucune marge enfantine à annuler. */
 .utilisateurs {
   display: flex;
@@ -31,49 +38,6 @@
   color: var(--couleur-texte-secondaire);
 }
 
-.utilisateurs__liste {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.utilisateurs__carte {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-3);
-}
-
-.utilisateurs__entete-carte {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--espace-3);
-}
-
-/* Une adresse email ne doit jamais faire déborder la carte (§12). */
-.utilisateurs__carte .carte__titre,
-.utilisateurs__champs dd {
-  overflow-wrap: anywhere;
-}
-
-.utilisateurs__champs {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: var(--espace-3);
-  margin: 0;
-}
-
-.utilisateurs__champs dt {
-  color: var(--couleur-texte-secondaire);
-  font-size: var(--taille-xs);
-  font-weight: 600;
-}
-
-.utilisateurs__champs dd {
-  margin: var(--espace-1) 0 0;
-}
-
 .utilisateurs__actions {
   display: flex;
   flex-wrap: wrap;
@@ -81,41 +45,22 @@
   margin: 0;
 }
 
-/* === Modale de confirmation (§31) === */
-
-.utilisateurs__fond {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
-  padding: var(--espace-4);
-  background-color: rgba(30, 36, 32, 0.55);
+/* Un courriel long ne doit jamais faire déborder sa cellule (§12). */
+.utilisateurs__liste .cellule-double__titre,
+.utilisateurs__liste .cellule-double__detail {
+  overflow-wrap: anywhere;
 }
 
-.utilisateurs__modale {
-  width: 100%;
-  max-width: 28rem;
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-4);
-  box-shadow: var(--ombre-surface);
-}
-
-.utilisateurs__modale .message {
-  margin: 0;
+/*
+ * Le libellé du bouton porte le nom du compte visé (§37.1) : il est plus long qu'une colonne
+ * d'actions habituelle et doit pouvoir passer à la ligne plutôt que d'élargir la table.
+ */
+.utilisateurs__cellule-action {
+  white-space: normal;
 }
 
 .utilisateurs__modale-titre {
-  margin: 0;
   font-size: var(--taille-lg);
-  font-weight: 600;
-}
-
-.utilisateurs__modale-texte {
-  margin: 0;
-  color: var(--couleur-texte-secondaire);
-  overflow-wrap: anywhere;
 }
 
 @media (min-width: pr.$point-tablette) {
@@ -123,5 +68,37 @@
     flex-direction: row;
     align-items: flex-end;
     justify-content: space-between;
+  }
+
+  /* Respiration des lignes denses, seulement quand la table garde ses colonnes. */
+  .utilisateurs__liste th,
+  .utilisateurs__liste td {
+    padding: var(--espace-5) var(--espace-3);
+  }
+
+  .utilisateurs__liste th:first-child,
+  .utilisateurs__liste td:first-child {
+    padding-left: 0;
+  }
+
+  .utilisateurs__liste th:last-child,
+  .utilisateurs__liste td:last-child {
+    padding-right: 0;
+  }
+
+  /* Colonnes guidées : le compte respire, les badges et la date restent secondaires. */
+  .utilisateurs__liste th:nth-child(1),
+  .utilisateurs__liste td:nth-child(1) {
+    width: 26%;
+  }
+
+  .utilisateurs__liste th:nth-child(5),
+  .utilisateurs__liste td:nth-child(5) {
+    width: 18%;
+  }
+
+  .utilisateurs__liste th:nth-child(6),
+  .utilisateurs__liste td:nth-child(6) {
+    width: 20%;
   }
 }

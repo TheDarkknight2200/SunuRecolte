@@ -97,7 +97,7 @@ describe('Utilisateurs (administration)', () => {
 
   /** Ouvre la modale du premier compte de la liste. */
   function ouvrirModale(): void {
-    element<HTMLButtonElement>(racine, '.utilisateurs__carte button').click();
+    element<HTMLButtonElement>(racine, '.utilisateurs__ligne button').click();
     fixture.detectChanges();
   }
 
@@ -142,13 +142,14 @@ describe('Utilisateurs (administration)', () => {
     ouvrir();
     charger([compte(9, { role: 'ACHETEUR', telephone: '780004455' })]);
 
-    const carte = element<HTMLElement>(racine, '.utilisateurs__carte');
+    const carte = element<HTMLElement>(racine, '.utilisateurs__ligne');
     expect(texteDe(element(racine, 'h1'))).toBe('Utilisateurs');
-    expect(texteDe(element(racine, '.carte__titre'))).toBe('Moussa Fall');
+    expect(texteDe(element(racine, '.cellule-double__titre'))).toBe('Moussa Fall');
     expect(texteDe(carte)).toContain('moussa.fall9@example.sn');
     expect(texteDe(carte)).toContain('780004455');
     expect(texteDe(carte)).toContain('Acheteur');
-    expect(texteDe(carte)).toContain('Compte créé le');
+    // En tableau dense, le libellé de la date est porté par l'en-tête de colonne (§10.6).
+    expect(texteDe(element(racine, '.utilisateurs__liste thead'))).toContain('Compte créé le');
     expect(texteDe(carte)).toContain('12/05/2026 à 08:30');
     expect(texteDe(carte)).toContain('Actif');
     expect(texteDe(carte)).not.toContain('null');
@@ -178,7 +179,7 @@ describe('Utilisateurs (administration)', () => {
     ouvrir();
     charger([compte(9), compte(4, { actif: false })]);
 
-    const [actif, inactif] = elements<HTMLElement>(racine, '.utilisateurs__carte');
+    const [actif, inactif] = elements<HTMLElement>(racine, '.utilisateurs__ligne');
     const badgeActif = elements<HTMLElement>(actif, '.badge')[0];
     const badgeInactif = elements<HTMLElement>(inactif, '.badge')[0];
 
@@ -193,7 +194,7 @@ describe('Utilisateurs (administration)', () => {
     charger([compte(9), compte(4)]);
 
     expect(racine.querySelector('input, textarea, select, form')).toBeNull();
-    expect(elements(racine, '.utilisateurs__carte button')).toHaveLength(2);
+    expect(elements(racine, '.utilisateurs__ligne button')).toHaveLength(2);
   });
 
   it('invite à attendre une inscription quand la liste est vide', () => {
@@ -230,7 +231,7 @@ describe('Utilisateurs (administration)', () => {
     expect(texteDe(element(racine, '.etat'))).toContain('Chargement des comptes…');
     charger([compte(9)]);
 
-    expect(elements(racine, '.utilisateurs__carte')).toHaveLength(1);
+    expect(elements(racine, '.utilisateurs__ligne')).toHaveLength(1);
     expect(racine.querySelector('.message--erreur')).toBeNull();
   });
 
@@ -264,7 +265,7 @@ describe('Utilisateurs (administration)', () => {
     it('ne modifie jamais sans confirmation : la modale s’ouvre, aucune requête PATCH', () => {
       ouvrirModale();
 
-      const modale = element(racine, '.utilisateurs__modale');
+      const modale = element(racine, '.modale');
       expect(modale.getAttribute('role')).toBe('dialog');
       expect(modale.getAttribute('aria-modal')).toBe('true');
       expect(modale.getAttribute('aria-labelledby')).toBe('changement-titre');
@@ -276,7 +277,7 @@ describe('Utilisateurs (administration)', () => {
     });
 
     it('propose le chemin inverse sur un compte déjà inactif', () => {
-      const boutons = elements<HTMLButtonElement>(racine, '.utilisateurs__carte button');
+      const boutons = elements<HTMLButtonElement>(racine, '.utilisateurs__ligne button');
       expect(texteDe(boutons[0])).toBe('Désactiver Moussa Fall');
       expect(texteDe(boutons[1])).toBe('Réactiver Awa Fall');
 
@@ -284,7 +285,7 @@ describe('Utilisateurs (administration)', () => {
       fixture.detectChanges();
 
       expect(texteDe(element(racine, '#changement-titre'))).toBe('Réactiver ce compte ?');
-      expect(texteDe(element(racine, '.utilisateurs__modale'))).toContain(
+      expect(texteDe(element(racine, '.modale'))).toContain(
         'Il redeviendra utilisable immédiatement',
       );
     });
@@ -294,24 +295,24 @@ describe('Utilisateurs (administration)', () => {
 
       const actif = document.activeElement as HTMLElement;
       expect(actif.getAttribute('id')).toBe('changement-annuler');
-      expect(element(racine, '.utilisateurs__modale').contains(actif)).toBe(true);
+      expect(element(racine, '.modale').contains(actif)).toBe(true);
     });
 
     it('Annuler ferme la modale et rend le focus au bouton déclencheur', () => {
       ouvrirModale();
       cliquer('#changement-annuler');
 
-      expect(racine.querySelector('.utilisateurs__modale')).toBeNull();
+      expect(racine.querySelector('.modale')).toBeNull();
       expect(document.activeElement?.getAttribute('id')).toBe('changer-actif-9');
       expect(http.match((requete) => requete.method === 'PATCH')).toHaveLength(0);
-      expect(elements(racine, '.utilisateurs__carte')).toHaveLength(2);
+      expect(elements(racine, '.utilisateurs__ligne')).toHaveLength(2);
     });
 
     it('Escape ferme la modale sans rien modifier', () => {
       ouvrirModale();
       escape();
 
-      expect(racine.querySelector('.utilisateurs__modale')).toBeNull();
+      expect(racine.querySelector('.modale')).toBeNull();
       expect(http.match((requete) => requete.method === 'PATCH')).toHaveLength(0);
       expect(document.activeElement?.getAttribute('id')).toBe('changer-actif-9');
     });
@@ -319,11 +320,11 @@ describe('Utilisateurs (administration)', () => {
     it('Escape ferme la modale même quand le focus est sorti dans l’arrière-plan', () => {
       ouvrirModale();
       element<HTMLButtonElement>(racine, '#bouton-actualiser').focus();
-      expect(element(racine, '.utilisateurs__modale').contains(document.activeElement)).toBe(false);
+      expect(element(racine, '.modale').contains(document.activeElement)).toBe(false);
 
       escape();
 
-      expect(racine.querySelector('.utilisateurs__modale')).toBeNull();
+      expect(racine.querySelector('.modale')).toBeNull();
       expect(document.activeElement?.getAttribute('id')).toBe('changer-actif-9');
     });
 
@@ -340,7 +341,7 @@ describe('Utilisateurs (administration)', () => {
       presserTab(true);
       expect(document.activeElement?.getAttribute('id')).toBe('changement-confirmer');
 
-      expect(element(racine, '.utilisateurs__modale').contains(document.activeElement)).toBe(true);
+      expect(element(racine, '.modale').contains(document.activeElement)).toBe(true);
       expect(http.match((requete) => requete.method === 'PATCH')).toHaveLength(0);
     });
 
@@ -356,8 +357,8 @@ describe('Utilisateurs (administration)', () => {
       requete.flush(compte(9, { actif: false }));
       fixture.detectChanges();
 
-      expect(texteDe(elements<HTMLElement>(racine, '.utilisateurs__carte')[0])).toContain('Inactif');
-      expect(racine.querySelector('.utilisateurs__modale')).toBeNull();
+      expect(texteDe(elements<HTMLElement>(racine, '.utilisateurs__ligne')[0])).toContain('Inactif');
+      expect(racine.querySelector('.modale')).toBeNull();
     });
 
     it('la ligne affichée vient de la réponse du serveur, pas d’un état écrit ici', () => {
@@ -370,8 +371,8 @@ describe('Utilisateurs (administration)', () => {
         .flush(compte(9, { actif: false, nom: 'Ndiaye', email: 'change@example.sn' }));
       fixture.detectChanges();
 
-      const carte = elements<HTMLElement>(racine, '.utilisateurs__carte')[0];
-      expect(texteDe(element(carte, '.carte__titre'))).toBe('Moussa Ndiaye');
+      const carte = elements<HTMLElement>(racine, '.utilisateurs__ligne')[0];
+      expect(texteDe(element(carte, '.cellule-double__titre'))).toBe('Moussa Ndiaye');
       expect(texteDe(carte)).toContain('change@example.sn');
     });
 
@@ -399,7 +400,7 @@ describe('Utilisateurs (administration)', () => {
       expect(actif.getAttribute('id')).toBe('changer-actif-9');
       // Un contrôle désactivé refuse le focus : la cible doit être de nouveau utilisable.
       expect(actif.disabled).toBe(false);
-      expect(racine.querySelector('.utilisateurs__modale')).toBeNull();
+      expect(racine.querySelector('.modale')).toBeNull();
     });
 
     it('rend le focus au bouton déclencheur même sans rafraîchissement du test', () => {
@@ -439,7 +440,7 @@ describe('Utilisateurs (administration)', () => {
       http.match((requete) => requete.method === 'PATCH');
 
       expect(
-        elements<HTMLButtonElement>(racine, '.utilisateurs__carte button').map((b) => b.disabled),
+        elements<HTMLButtonElement>(racine, '.utilisateurs__ligne button').map((b) => b.disabled),
       ).toEqual([true, true]);
     });
 
@@ -456,12 +457,12 @@ describe('Utilisateurs (administration)', () => {
       );
       fixture.detectChanges();
 
-      expect(texteDe(element(racine, '.utilisateurs__modale .message--erreur'))).toContain(
+      expect(texteDe(element(racine, '.modale .message--erreur'))).toContain(
         "Vous ne pouvez pas modifier l'état de votre propre compte.",
       );
-      expect(element(racine, '.utilisateurs__modale').getAttribute('aria-modal')).toBe('true');
+      expect(element(racine, '.modale').getAttribute('aria-modal')).toBe('true');
       expect(document.activeElement?.getAttribute('id')).toBe('changement-annuler');
-      expect(texteDe(elements<HTMLElement>(racine, '.utilisateurs__carte')[0])).toContain('Actif');
+      expect(texteDe(elements<HTMLElement>(racine, '.utilisateurs__ligne')[0])).toContain('Actif');
       expect(racine.querySelector('.message--succes')).toBeNull();
     });
 
@@ -478,12 +479,12 @@ describe('Utilisateurs (administration)', () => {
       );
       fixture.detectChanges();
 
-      expect(texteDe(element(racine, '.utilisateurs__modale .message--erreur'))).toContain(
+      expect(texteDe(element(racine, '.modale .message--erreur'))).toContain(
         'Accès refusé',
       );
       expect(localStorage.getItem(CLE_JETON)).toBe(jeton);
       expect(localStorage.getItem(CLE_UTILISATEUR)).not.toBeNull();
-      expect(texteDe(elements<HTMLElement>(racine, '.utilisateurs__carte')[0])).toContain('Actif');
+      expect(texteDe(elements<HTMLElement>(racine, '.utilisateurs__ligne')[0])).toContain('Actif');
     });
 
     it('404 sur un compte retiré entre-temps : le message du backend est repris', () => {
@@ -495,10 +496,10 @@ describe('Utilisateurs (administration)', () => {
       );
       fixture.detectChanges();
 
-      expect(texteDe(element(racine, '.utilisateurs__modale .message--erreur'))).toContain(
+      expect(texteDe(element(racine, '.modale .message--erreur'))).toContain(
         "Utilisateur introuvable avec l'id : 9",
       );
-      expect(elements(racine, '.utilisateurs__carte')).toHaveLength(2);
+      expect(elements(racine, '.utilisateurs__ligne')).toHaveLength(2);
     });
 
     it('Actualiser pendant une modale ouverte est bloqué, la liste est laissée telle quelle', () => {

@@ -1,6 +1,14 @@
 @use "points-rupture" as pr;
 
-/* Racine : un seul rythme vertical, aucune marge enfantine à annuler. */
+/*
+ * Écran maître « Prix indicatifs » — FRONTEND_DESIGN.md §37.3 et §38.
+ * Le socle global fournit .tableau--maitre, .tableau__actions, .lien-action, .champ,
+ * .page--surface, la modale .voile / .modale / .modale__actions et l'empilement
+ * .tableau--empile : ce fichier règle la densité de la liste, le bandeau de saisie qui la
+ * précède et le renfort de la ligne chargée dans ce formulaire.
+ */
+
+/* Racine : un seul rythme vertical (§20), aucune marge enfantine à annuler. */
 .prix-marche {
   display: flex;
   flex-direction: column;
@@ -31,18 +39,6 @@
   color: var(--couleur-texte-secondaire);
 }
 
-.prix-marche__liste-titre {
-  margin: 0;
-  font-size: var(--taille-lg);
-  font-weight: 600;
-}
-
-.prix-marche__liste {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 .prix-marche__actions {
   display: flex;
   flex-wrap: wrap;
@@ -50,12 +46,19 @@
   margin: 0;
 }
 
-/* === Formulaire (création et modification) === */
+/* === Bandeau de saisie : un bloc de la page, pas une carte posée sur la page === */
 
 .prix-marche__formulaire {
   display: flex;
   flex-direction: column;
   gap: var(--espace-4);
+  padding-bottom: var(--espace-5);
+  border-bottom: var(--filet-ligne);
+}
+
+/* .champ et .message portent un margin-bottom global : annulés ici, le flex gère l'écart. */
+.prix-marche__formulaire :is(.champ, .message) {
+  margin-bottom: 0;
 }
 
 .prix-marche__formulaire-entete {
@@ -64,9 +67,10 @@
   gap: var(--espace-2);
 }
 
-/* .carte__titre porte un margin-bottom : annulé ici, le flex gère l'écart. */
-.prix-marche__formulaire-entete .carte__titre {
+.prix-marche__formulaire-titre {
   margin: 0;
+  font-size: var(--taille-lg);
+  font-weight: 600;
 }
 
 .prix-marche__aide {
@@ -75,93 +79,65 @@
   font-size: var(--taille-sm);
 }
 
-.prix-marche__formulaire .champ {
-  margin-bottom: 0;
-}
-
-.prix-marche__formulaire .message {
-  margin: 0;
-}
-
 .prix-marche__rangee {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--espace-4);
 }
 
-/* === Liste des lignes === */
+/* === Liste dense === */
 
-.prix-marche__carte {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-3);
-}
-
-.prix-marche__produit {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-/* Renfort de la ligne chargée dans le formulaire : le sens reste dit par le titre,
-   la couleur seule ne suffit jamais (§27). */
-.prix-marche__carte--en-cours {
-  border-color: var(--couleur-primaire);
-  box-shadow: var(--ombre-surface);
-}
-
-.prix-marche__champs {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: var(--espace-3);
-  margin: 0;
-}
-
-.prix-marche__champs dt {
-  color: var(--couleur-texte-secondaire);
-  font-size: var(--taille-xs);
-  font-weight: 600;
-}
-
-.prix-marche__champs dd {
-  margin: var(--espace-1) 0 0;
-  overflow-wrap: anywhere;
-}
-
-/* === Modale de confirmation === */
-
-.prix-marche__fond {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
-  padding: var(--espace-4);
-  background-color: rgba(30, 36, 32, 0.55);
-}
-
-.prix-marche__modale {
-  width: 100%;
-  max-width: 28rem;
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-4);
-  box-shadow: var(--ombre-surface);
-}
-
-.prix-marche__modale .message {
-  margin: 0;
-}
-
-.prix-marche__modale-titre {
+.prix-marche__liste-titre {
   margin: 0;
   font-size: var(--taille-lg);
   font-weight: 600;
 }
 
-.prix-marche__modale-texte {
-  margin: 0;
-  color: var(--couleur-texte-secondaire);
+.prix-marche__produit {
+  color: var(--couleur-encre);
+  font-size: var(--taille-md);
+  font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+/* Le montant ne se casse jamais : « 12 500 FCFA » tient sur une ligne. */
+.prix-marche__prix {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.prix-marche__cellule-action {
+  white-space: normal;
+}
+
+.prix-marche__ligne-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--espace-2);
+}
+
+.prix-marche__ligne-note {
+  margin: 0 0 var(--espace-2);
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/*
+ * Renfort de la ligne chargée dans le formulaire : le sens reste dit par la note de la colonne
+ * d'actions, la teinte n'étant qu'un renfort (§27).
+ */
+.prix-marche__ligne--en-cours td {
+  background-color: var(--couleur-primaire-clair);
+}
+
+/* === Modale de confirmation (§31, socle global .voile / .modale) === */
+
+.prix-marche__modale-titre {
+  font-size: var(--taille-lg);
 }
 
 @media (min-width: pr.$point-tablette) {
@@ -173,5 +149,27 @@
 
   .prix-marche__rangee {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Respiration et colonnes guidées, seulement quand la table garde ses colonnes : le produit
+     respire, le marché reste une précision. */
+  .prix-marche__liste :is(th, td) {
+    padding: var(--espace-5) var(--espace-3);
+  }
+
+  .prix-marche__liste :is(th, td):first-child {
+    padding-left: 0;
+  }
+
+  .prix-marche__liste :is(th, td):last-child {
+    padding-right: 0;
+  }
+
+  .prix-marche__liste :is(th, td):nth-child(1) {
+    width: 26%;
+  }
+
+  .prix-marche__liste :is(th, td):nth-child(4) {
+    width: 20%;
   }
 }

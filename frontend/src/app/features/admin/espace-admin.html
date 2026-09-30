@@ -1,53 +1,64 @@
 <section class="espace-admin">
-  <div class="espace-admin__entete">
-    <p class="espace-admin__surtitre">Espace administrateur</p>
-    <h1>Administration</h1>
-    <p class="espace-admin__intro">
-      Trois domaines sont administrés ici : les comptes, les récoltes publiées et les prix
-      indicatifs de marché. Chaque écran applique les règles vérifiées par l’API ; aucun n’ouvre
-      de droit qu’un compte connecté ne possède pas déjà.
+  <!-- §37 : le contenu d'un écran d'administration est contraint à --largeur-contenu. -->
+  <div class="conteneur">
+    <div class="espace-admin__entete">
+      <p class="espace-admin__surtitre">Espace administrateur</p>
+      <h1>Administration</h1>
+      <p class="espace-admin__intro">
+        Trois domaines sont administrés ici : les comptes, les récoltes publiées et les prix
+        indicatifs de marché. Chaque écran applique les règles vérifiées par l’API ; aucun n’ouvre
+        de droit qu’un compte connecté ne possède pas déjà.
+      </p>
+    </div>
+
+    <ul class="espace-admin__liste grille-2">
+      <li class="carte espace-admin__carte">
+        <h2 class="carte__titre">Utilisateurs</h2>
+        <p class="espace-admin__texte">
+          Consultez les comptes producteurs, acheteurs et administrateurs, désactivez un compte ou
+          réactivez-le. Un compte désactivé voit son jeton refusé à la requête suivante.
+        </p>
+        <a
+          class="bouton bouton--secondaire"
+          id="lien-admin-utilisateurs"
+          routerLink="/admin/utilisateurs"
+        >
+          Gérer les utilisateurs
+        </a>
+      </li>
+
+      <li class="carte espace-admin__carte">
+        <h2 class="carte__titre">Récoltes</h2>
+        <p class="espace-admin__texte">
+          Modérez le statut des récoltes publiées : « Disponible » ou « Épuisée ». Le producteur
+          reste seul à saisir le contenu de sa récolte.
+        </p>
+        <a class="bouton bouton--secondaire" id="lien-admin-recoltes" routerLink="/admin/recoltes">
+          Modérer les récoltes
+        </a>
+      </li>
+
+      <li class="carte espace-admin__carte">
+        <h2 class="carte__titre">Prix indicatifs</h2>
+        <p class="espace-admin__texte">
+          Tenez à jour les prix moyens observés sur les marchés de la région. Ils sont consultables
+          par tous, modifiables par vous seul.
+        </p>
+        <a class="bouton bouton--secondaire" id="lien-admin-prix" routerLink="/admin/prix-marche">
+          Gérer les prix indicatifs
+        </a>
+      </li>
+    </ul>
+
+    <p class="espace-admin__actions">
+      <!-- Les notifications sont transversales (§29) : l'administrateur les lit depuis son espace. -->
+      <a
+        class="bouton bouton--discret bouton--compact"
+        id="lien-admin-notifications"
+        routerLink="/notifications"
+      >
+        Notifications
+      </a>
     </p>
   </div>
-
-  <ul class="espace-admin__liste grille-2">
-    <li class="carte espace-admin__carte">
-      <h2 class="carte__titre">Utilisateurs</h2>
-      <p class="espace-admin__texte">
-        Consultez les comptes producteurs, acheteurs et administrateurs, désactivez un compte ou
-        réactivez-le. Un compte désactivé voit son jeton refusé à la requête suivante.
-      </p>
-      <a class="bouton bouton--secondaire" id="lien-admin-utilisateurs" routerLink="/admin/utilisateurs">
-        Gérer les utilisateurs
-      </a>
-    </li>
-
-    <li class="carte espace-admin__carte">
-      <h2 class="carte__titre">Récoltes</h2>
-      <p class="espace-admin__texte">
-        Modérez le statut des récoltes publiées : « Disponible » ou « Épuisée ». Le producteur
-        reste seul à saisir le contenu de sa récolte.
-      </p>
-      <a class="bouton bouton--secondaire" id="lien-admin-recoltes" routerLink="/admin/recoltes">
-        Modérer les récoltes
-      </a>
-    </li>
-
-    <li class="carte espace-admin__carte">
-      <h2 class="carte__titre">Prix indicatifs</h2>
-      <p class="espace-admin__texte">
-        Tenez à jour les prix moyens observés sur les marchés de la région. Ils sont consultables
-        par tous, modifiables par vous seul.
-      </p>
-      <a class="bouton bouton--secondaire" id="lien-admin-prix" routerLink="/admin/prix-marche">
-        Gérer les prix indicatifs
-      </a>
-    </li>
-  </ul>
-
-  <p class="espace-admin__actions">
-    <!-- Les notifications sont transversales (§29) : l'administrateur les lit depuis son espace. -->
-    <a class="bouton bouton--discret bouton--compact" id="lien-admin-notifications" routerLink="/notifications">
-      Notifications
-    </a>
-  </p>
 </section>

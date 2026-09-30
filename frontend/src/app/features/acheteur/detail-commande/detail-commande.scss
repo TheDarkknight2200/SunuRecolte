@@ -1,13 +1,21 @@
 @use "points-rupture" as pr;
 
-.detail-commande {
+/* Écran maître « Détail de la commande » — FRONTEND_DESIGN.md §33 et §38.
+   Le socle global fournit .tableau--maitre, l'empilement .tableau--empile, .page--surface,
+   .bouton--encre, .lien-action et la modale .voile / .modale : ce fichier ne règle que la
+   composition de cette page (en-tête, résumé, densité du tableau de lignes). */
+
+.detail-commande .conteneur {
   display: flex;
   flex-direction: column;
   gap: var(--espace-4);
 }
 
-.detail-commande__titre h1 {
+/* === Titre de page === */
+
+.detail-commande__titre {
   margin: 0;
+  font-size: var(--taille-3xl);
 }
 
 .detail-commande__surtitre {
@@ -25,7 +33,20 @@
   font-weight: 600;
 }
 
+/* === Résumé : champs à gauche, total à droite, séparé du reste par un filet === */
+
+.detail-commande__resume {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--espace-4) var(--espace-6);
+  padding-bottom: var(--espace-5);
+  border-bottom: var(--filet-ligne);
+}
+
 .detail-commande__champs {
+  flex: 1 1 18rem;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   gap: var(--espace-3);
@@ -49,64 +70,36 @@
   font-size: var(--taille-sm);
 }
 
-/* === Lignes (§32) === */
-
-.detail-commande__lignes {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.detail-commande__ligne {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--espace-1) var(--espace-3);
-  padding: var(--espace-3);
-  border: 1px solid var(--couleur-bordure);
-  border-radius: var(--rayon-md);
-}
-
-/* §10.6 : textes à gauche, chiffres à droite, jamais de défilement horizontal. */
-.detail-commande__produit,
-.detail-commande__sous-total {
-  grid-column: 1 / -1;
-  margin: 0;
-  font-weight: 600;
-}
-
-.detail-commande__quantite,
-.detail-commande__prix {
-  margin: 0;
-  color: var(--couleur-texte-secondaire);
-  font-size: var(--taille-sm);
-}
-
-.detail-commande__sous-total {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
 .detail-commande__total {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--espace-4);
-  margin: var(--espace-4) 0 0;
-  padding-top: var(--espace-3);
-  border-top: 1px solid var(--couleur-bordure);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--espace-1);
+  margin: 0;
 }
 
-.detail-commande__total-libelle,
+.detail-commande__total-libelle {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .detail-commande__total-valeur {
+  font-size: var(--taille-2xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* === Tableau des lignes (§32) : le socle porte filets, alignements et empilement === */
+
+.detail-commande__tableau td:first-child {
+  color: var(--couleur-encre);
   font-weight: 600;
 }
 
-.detail-commande__total-valeur {
-  font-variant-numeric: tabular-nums;
-}
+/* === Actions (§33) === */
 
 .detail-commande__actions {
   display: flex;
@@ -115,84 +108,36 @@
   margin: 0;
 }
 
-.detail-commande__modale .detail-commande__actions {
-  justify-content: flex-end;
-}
-
-/* Zone tactile : 44 px sur mobile, la hauteur compacte revient dès la tablette. */
-.detail-commande__actions .bouton {
-  min-height: 44px;
-}
-
-/* === Modale de confirmation (patron §31) === */
-
-.detail-commande__fond {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
-  padding: var(--espace-4);
-  background-color: rgba(30, 36, 32, 0.55);
-}
-
-.detail-commande__modale {
-  width: 100%;
-  max-width: 28rem;
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-4);
-  box-shadow: var(--ombre-surface);
-}
-
-.detail-commande__modale .message {
-  margin: 0;
-}
-
 .detail-commande__modale-titre {
-  margin: 0;
   font-size: var(--taille-lg);
-  font-weight: 600;
-}
-
-.detail-commande__modale-texte {
-  margin: 0;
-  color: var(--couleur-texte-secondaire);
 }
 
 @media (min-width: pr.$point-tablette) {
+  /* Respiration des lignes denses, seulement quand la table garde ses colonnes. */
+  .detail-commande__tableau th,
+  .detail-commande__tableau td {
+    padding: var(--espace-5) var(--espace-3);
+  }
+
+  .detail-commande__tableau th:first-child,
+  .detail-commande__tableau td:first-child {
+    padding-left: 0;
+  }
+
+  .detail-commande__tableau th:last-child,
+  .detail-commande__tableau td:last-child {
+    padding-right: 0;
+  }
+
+  /* §10.6 : un montant ne se casse pas au milieu. */
+  .detail-commande__tableau .nombre {
+    white-space: nowrap;
+  }
+}
+
+/* Zone tactile : 44 px sur mobile, la hauteur compacte (36 px) revient dès la tablette. */
+@media (max-width: pr.$point-tablette - 1px) {
   .detail-commande__actions .bouton {
-    min-height: 36px;
-  }
-
-  .detail-commande__lignes {
-    gap: 0;
-  }
-
-  .detail-commande__ligne {
-    grid-template-columns: minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr);
-    align-items: baseline;
-    gap: var(--espace-4);
-    padding: var(--espace-3) 0;
-    border: 0;
-    border-radius: 0;
-    border-bottom: 1px solid var(--couleur-bordure);
-  }
-
-  .detail-commande__ligne:last-child {
-    border-bottom: 0;
-    padding-bottom: 0;
-  }
-
-  .detail-commande__produit,
-  .detail-commande__sous-total {
-    grid-column: auto;
-  }
-
-  /* §10.6 : quantités et prix alignés à droite à partir de la tablette. */
-  .detail-commande__quantite,
-  .detail-commande__prix,
-  .detail-commande__sous-total {
-    text-align: right;
+    min-height: 44px;
   }
 }

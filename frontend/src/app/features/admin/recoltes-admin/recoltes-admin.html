@@ -1,128 +1,152 @@
-<section class="recoltes-admin">
-  <div class="recoltes-admin__entete">
-    <div class="recoltes-admin__titre">
-      <p class="recoltes-admin__surtitre">Espace administrateur</p>
-      <h1>Récoltes</h1>
-      @if (!chargement() && erreur() === null) {
-        <p class="recoltes-admin__intro">
-          {{ denombrement() }} sur la plateforme. Vous modérez ici le statut visible par les
-          acheteurs ; la saisie du produit, des quantités et du prix reste la main du producteur.
-        </p>
-      }
-    </div>
-    <div class="recoltes-admin__actions">
-      <button
-        type="button"
-        class="bouton bouton--secondaire bouton--compact"
-        id="recoltes-actualiser"
-        [disabled]="chargement() || enCours() !== null"
-        (click)="reessayer()"
-      >
-        Actualiser
-      </button>
-      <a class="bouton bouton--discret bouton--compact" routerLink="/admin">
-        Retour à l’administration
-      </a>
-      <!-- Les notifications sont transversales (§29, §37) : l'accès reste proposé sur chaque écran admin. -->
-      <a
-        class="bouton bouton--discret bouton--compact"
-        id="lien-notifications-recoltes-admin"
-        routerLink="/notifications"
-      >
-        Notifications
-      </a>
-    </div>
-  </div>
-
-  @if (chargement()) {
-    <div class="etat" aria-busy="true">
-      <p class="etat__texte">Chargement des récoltes…</p>
-    </div>
-  } @else if (erreur(); as message) {
-    <div class="message message--erreur" role="alert">
-      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
-      <div>
-        <p>{{ message }}</p>
-        <p class="recoltes-admin__actions">
-          <button
-            type="button"
-            class="bouton bouton--secondaire bouton--compact"
-            id="erreur-reessayer"
-            (click)="reessayer()"
-          >
-            Réessayer
-          </button>
-        </p>
+<section class="recoltes-admin page--surface">
+  <div class="conteneur">
+    <div class="recoltes-admin__entete">
+      <div class="recoltes-admin__titre">
+        <p class="recoltes-admin__surtitre">Espace administrateur</p>
+        <h1 id="recoltes-titre">Récoltes</h1>
+        @if (!chargement() && erreur() === null) {
+          <p class="recoltes-admin__intro">
+            {{ denombrement() }} sur la plateforme. Vous modérez ici le statut visible par les
+            acheteurs ; la saisie du produit, des quantités et du prix reste la main du producteur.
+          </p>
+        }
+      </div>
+      <div class="recoltes-admin__actions">
+        <button
+          type="button"
+          class="bouton bouton--secondaire bouton--compact"
+          id="recoltes-actualiser"
+          [disabled]="chargement() || enCours() !== null"
+          (click)="reessayer()"
+        >
+          Actualiser
+        </button>
+        <a class="bouton bouton--discret bouton--compact" routerLink="/admin">
+          Retour à l’administration
+        </a>
+        <!-- Les notifications sont transversales (§29, §37) : l'accès reste proposé sur chaque écran admin. -->
+        <a
+          class="bouton bouton--discret bouton--compact"
+          id="lien-notifications-recoltes-admin"
+          routerLink="/notifications"
+        >
+          Notifications
+        </a>
       </div>
     </div>
-  } @else if (liste().length === 0) {
-    <div class="etat">
-      <p class="etat__titre">Aucune récolte publiée.</p>
-      <p class="etat__texte">
-        Personne n’a encore publié de récolte. La publication appartient à l’espace producteur ;
-        une fois en ligne, une récolte apparaît ici et dans le catalogue.
-      </p>
-    </div>
-  } @else {
-    <ul class="recoltes-admin__liste grille-2">
-      @for (recolte of liste(); track recolte.id) {
-        <li class="carte recoltes-admin__carte">
-          <div class="recoltes-admin__entete-carte">
-            <h2 class="carte__titre">{{ recolte.produit }}</h2>
-            <span [class]="classesStatut(recolte.statut)">
-              {{ libelleStatut(recolte.statut) }}
-            </span>
-          </div>
 
-          <dl class="recoltes-admin__champs">
-            <div>
-              <dt>Producteur</dt>
-              <dd>{{ recolte.nomProducteur }}</dd>
-            </div>
-            <div>
-              <dt>Disponible</dt>
-              <dd>{{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }}</dd>
-            </div>
-            <div>
-              <dt>Prix unitaire</dt>
-              <dd>{{ formaterMontant(recolte.prixUnitaire) }} / {{ recolte.unite }}</dd>
-            </div>
-            <div>
-              <dt>Publiée le</dt>
-              <dd>{{ formaterDateHeure(recolte.dateCreation) }}</dd>
-            </div>
-          </dl>
+    <app-admin-navigation />
 
-          @if (meta(recolte); as details) {
-            <p class="recoltes-admin__meta">{{ details }}</p>
-          }
-
-          @if (succesPour(recolte); as message) {
-            <p class="message message--succes" role="status">{{ message }}</p>
-          }
-
-          @if (refusPour(recolte); as message) {
-            <p class="message message--erreur" role="alert">{{ message }}</p>
-          }
-
-          <div class="recoltes-admin__actions">
+    @if (chargement()) {
+      <div class="etat" aria-busy="true">
+        <p class="etat__texte">Chargement des récoltes…</p>
+      </div>
+    } @else if (erreur(); as message) {
+      <div class="message message--erreur" role="alert">
+        <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+        <div>
+          <p>{{ message }}</p>
+          <p class="recoltes-admin__actions">
             <button
               type="button"
               class="bouton bouton--secondaire bouton--compact"
-              [id]="'statut-' + recolte.id"
-              [attr.aria-label]="actionDe(recolte).libelle + ' — ' + recolte.produit"
-              [disabled]="enCours() !== null"
-              [attr.aria-busy]="enCoursPour(recolte)"
-              (click)="modifierStatut(recolte)"
+              id="erreur-reessayer"
+              (click)="reessayer()"
             >
-              {{ enCoursPour(recolte) ? '…' : actionDe(recolte).libelle }}
+              Réessayer
             </button>
-            <a class="bouton bouton--discret bouton--compact" [routerLink]="lienFiche(recolte)">
-              Voir la fiche publique
-            </a>
-          </div>
-        </li>
-      }
-    </ul>
-  }
+          </p>
+        </div>
+      </div>
+    } @else if (liste().length === 0) {
+      <div class="etat">
+        <p class="etat__titre">Aucune récolte publiée.</p>
+        <p class="etat__texte">
+          Personne n’a encore publié de récolte. La publication appartient à l’espace producteur ;
+          une fois en ligne, une récolte apparaît ici et dans le catalogue.
+        </p>
+      </div>
+    } @else {
+      <!--
+        Écran maître (§10.6, §37.2) : une ligne par récolte, une colonne par champ réellement
+        renvoyé par `RecolteResponse`. La liste est celle du catalogue public, récoltes épuisées
+        comprises ; le contenu d'une récolte ne se modifie pas ici.
+      -->
+      <table
+        class="tableau tableau--maitre tableau--empile recoltes-admin__liste"
+        aria-labelledby="recoltes-titre"
+      >
+        <thead>
+          <tr>
+            <th scope="col">Récolte</th>
+            <th scope="col">Statut</th>
+            <th scope="col" class="nombre">Disponible</th>
+            <th scope="col" class="nombre">Prix unitaire</th>
+            <th scope="col">Publiée le</th>
+            <th scope="col">Date et lieu</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (recolte of liste(); track recolte.id) {
+            <tr class="recoltes-admin__ligne">
+              <td data-libelle="Récolte">
+                <div class="cellule-double">
+                  <span class="cellule-double__titre">{{ recolte.produit }}</span>
+                  <span class="cellule-double__detail">{{ recolte.nomProducteur }}</span>
+                </div>
+              </td>
+
+              <td data-libelle="Statut">
+                <span [class]="classesStatut(recolte.statut)">
+                  {{ libelleStatut(recolte.statut) }}
+                </span>
+              </td>
+
+              <td class="nombre" data-libelle="Disponible">
+                {{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }}
+              </td>
+
+              <td class="nombre recoltes-admin__prix" data-libelle="Prix unitaire">
+                {{ formaterMontant(recolte.prixUnitaire) }} / {{ recolte.unite }}
+              </td>
+
+              <td data-libelle="Publiée le">{{ formaterDateHeure(recolte.dateCreation) }}</td>
+
+              <td data-libelle="Date et lieu">
+                @if (meta(recolte); as details) {
+                  <span class="recoltes-admin__meta">{{ details }}</span>
+                } @else {
+                  <span class="texte-secondaire">—</span>
+                }
+              </td>
+
+              <td class="tableau__actions recoltes-admin__cellule-action" data-libelle="Action">
+                <button
+                  type="button"
+                  class="bouton bouton--encre bouton--compact"
+                  [id]="'statut-' + recolte.id"
+                  [attr.aria-label]="actionDe(recolte).libelle + ' — ' + recolte.produit"
+                  [disabled]="enCours() !== null"
+                  [attr.aria-busy]="enCoursPour(recolte)"
+                  (click)="modifierStatut(recolte)"
+                >
+                  {{ enCoursPour(recolte) ? '…' : actionDe(recolte).libelle }}
+                </button>
+                <a class="lien-action" [routerLink]="lienFiche(recolte)">Voir la fiche publique</a>
+
+                @if (succesPour(recolte); as message) {
+                  <p class="message message--succes" role="status">{{ message }}</p>
+                }
+
+                @if (refusPour(recolte); as message) {
+                  <p class="message message--erreur" role="alert">{{ message }}</p>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
 </section>

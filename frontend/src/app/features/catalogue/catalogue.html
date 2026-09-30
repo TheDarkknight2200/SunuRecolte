@@ -1,193 +1,215 @@
-<section class="catalogue">
-  <h1>Catalogue des récoltes</h1>
-  <p class="catalogue__intro">
-    Récoltes publiées par les producteurs inscrits, consultables sans compte.
-  </p>
+<section class="catalogue page--surface">
+  <div class="conteneur">
+    <h1 class="catalogue__titre" id="catalogue-titre">Catalogue des récoltes</h1>
+    <p class="catalogue__intro">
+      Récoltes publiées par les producteurs inscrits, consultables sans compte.
+    </p>
 
-  <form class="catalogue__filtres" [formGroup]="formulaire" (ngSubmit)="charger()">
-    <div class="champ catalogue__champ catalogue__champ--recherche">
-      <label class="champ__libelle" for="recherche">Recherche</label>
-      <input
-        class="champ__saisie"
-        id="recherche"
-        type="search"
-        formControlName="recherche"
-        placeholder="Nom du produit"
-      />
-    </div>
+    <form class="catalogue__filtres" [formGroup]="formulaire" (ngSubmit)="charger()">
+      <div class="champ catalogue__champ catalogue__champ--recherche">
+        <label class="champ__libelle" for="recherche">Recherche</label>
+        <input
+          class="champ__saisie"
+          id="recherche"
+          type="search"
+          formControlName="recherche"
+          placeholder="Nom du produit"
+        />
+      </div>
 
-    <div class="champ catalogue__champ">
-      <label class="champ__libelle" for="statut">Statut</label>
-      <select class="champ__saisie" id="statut" formControlName="statut">
-        <option value="">Tous</option>
-        @for (statut of statuts; track statut) {
-          <option [value]="statut">{{ libelleStatut(statut) }}</option>
-        }
-      </select>
-    </div>
+      <div class="champ catalogue__champ">
+        <label class="champ__libelle" for="statut">Statut</label>
+        <select class="champ__saisie" id="statut" formControlName="statut">
+          <option value="">Tous</option>
+          @for (statut of statuts; track statut) {
+            <option [value]="statut">{{ libelleStatut(statut) }}</option>
+          }
+        </select>
+      </div>
 
-    <div class="champ catalogue__champ">
-      <label class="champ__libelle" for="filiere">Filière</label>
-      <select class="champ__saisie" id="filiere" formControlName="filiere">
-        <option value="">Toutes</option>
-        @for (filiere of filieres; track filiere) {
-          <option [value]="filiere">{{ libelleFiliere(filiere) }}</option>
-        }
-      </select>
-    </div>
+      <div class="champ catalogue__champ">
+        <label class="champ__libelle" for="filiere">Filière</label>
+        <select class="champ__saisie" id="filiere" formControlName="filiere">
+          <option value="">Toutes</option>
+          @for (filiere of filieres; track filiere) {
+            <option [value]="filiere">{{ libelleFiliere(filiere) }}</option>
+          }
+        </select>
+      </div>
 
-    <div class="catalogue__actions">
-      <button class="bouton bouton--primaire" type="submit">Rechercher</button>
-      <button
-        class="bouton bouton--discret"
-        type="button"
-        id="filtres-reinitialiser"
-        (click)="reinitialiser()"
-        [disabled]="!criteresActifs()"
-      >
-        Réinitialiser
-      </button>
-    </div>
-  </form>
+      <div class="catalogue__actions">
+        <button class="bouton bouton--encre" type="submit">Rechercher</button>
+        <button
+          class="bouton bouton--discret"
+          type="button"
+          id="filtres-reinitialiser"
+          (click)="reinitialiser()"
+          [disabled]="!criteresActifs()"
+        >
+          Réinitialiser
+        </button>
+      </div>
+    </form>
 
-  @if (succesPanier(); as message) {
-    <div class="message message--succes" role="status">
-      <span class="materiel-icone message__icone" aria-hidden="true">&#xf0be;</span>
-      <p>{{ message }}</p>
-    </div>
-  } @else if (refusPanier(); as message) {
-    <div class="message message--erreur" role="alert">
-      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
-      <p>{{ message }}</p>
-    </div>
-  }
-
-  @if (chargement()) {
-    <div class="etat catalogue__etat" aria-busy="true">
-      <p class="etat__texte">Chargement des récoltes…</p>
-    </div>
-  } @else if (erreur(); as message) {
-    <div class="message message--erreur" role="alert">
-      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
-      <div>
+    @if (succesPanier(); as message) {
+      <div class="message message--succes" role="status">
+        <span class="materiel-icone message__icone" aria-hidden="true">&#xf0be;</span>
         <p>{{ message }}</p>
-        <p>
+      </div>
+    } @else if (refusPanier(); as message) {
+      <div class="message message--erreur" role="alert">
+        <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+        <p>{{ message }}</p>
+      </div>
+    }
+
+    @if (chargement()) {
+      <div class="etat catalogue__etat" aria-busy="true">
+        <p class="etat__texte">Chargement des récoltes…</p>
+      </div>
+    } @else if (erreur(); as message) {
+      <div class="message message--erreur" role="alert">
+        <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+        <div>
+          <p>{{ message }}</p>
+          <p>
+            <button
+              type="button"
+              id="erreur-reessayer"
+              class="bouton bouton--secondaire bouton--compact"
+              (click)="reessayer()"
+            >
+              Réessayer
+            </button>
+          </p>
+        </div>
+      </div>
+    } @else if (liste().length === 0) {
+      <div class="etat catalogue__etat">
+        @if (criteresActifs()) {
+          <p class="etat__titre">Aucune récolte ne correspond à vos critères.</p>
+          <p class="etat__texte">Élargissez la recherche ou revenez à l’ensemble du catalogue.</p>
           <button
             type="button"
-            id="erreur-reessayer"
+            id="vide-reinitialiser"
             class="bouton bouton--secondaire bouton--compact"
-            (click)="reessayer()"
+            (click)="reinitialiser()"
           >
-            Réessayer
+            Réinitialiser les filtres
           </button>
-        </p>
+        } @else {
+          <p class="etat__titre">Aucune récolte disponible pour le moment.</p>
+          <p class="etat__texte">
+            Les producteurs publient ici les récoltes qu’ils mettent en vente.
+          </p>
+        }
       </div>
-    </div>
-  } @else if (liste().length === 0) {
-    <div class="etat catalogue__etat">
-      @if (criteresActifs()) {
-        <p class="etat__titre">Aucune récolte ne correspond à vos critères.</p>
-        <p class="etat__texte">Élargissez la recherche ou revenez à l’ensemble du catalogue.</p>
-        <button
-          type="button"
-          id="vide-reinitialiser"
-          class="bouton bouton--secondaire bouton--compact"
-          (click)="reinitialiser()"
-        >
-          Réinitialiser les filtres
-        </button>
-      } @else {
-        <p class="etat__titre">Aucune récolte disponible pour le moment.</p>
-        <p class="etat__texte">
-          Les producteurs publient ici les récoltes qu’ils mettent en vente.
-        </p>
-      }
-    </div>
-  } @else {
-    <p class="catalogue__denombrement">{{ denombrement() }}</p>
+    } @else {
+      <p class="catalogue__denombrement">{{ denombrement() }}</p>
 
-    <ul class="catalogue__liste grille-2">
-      @for (recolte of liste(); track recolte.id) {
-        <li class="carte catalogue__carte">
-          <div class="catalogue__entete">
-            <h2 class="carte__titre">
-              <a class="catalogue__lien" [routerLink]="lien(recolte)">{{ recolte.produit }}</a>
-            </h2>
-            <span class="badge" [class.badge--succes]="recolte.statut === 'DISPONIBLE'">
-              {{ libelleStatut(recolte.statut) }}
-            </span>
-          </div>
+      <table class="tableau tableau--maitre tableau--empile catalogue__liste" aria-labelledby="catalogue-titre">
+        <thead>
+          <tr>
+            <th scope="col">Récolte</th>
+            <th scope="col">Statut</th>
+            <th scope="col">Disponibilité</th>
+            <th scope="col">Commande</th>
+            <th scope="col" class="nombre">Prix unitaire</th>
+            <th scope="col">Date et lieu</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (recolte of liste(); track recolte.id) {
+            <tr class="catalogue__ligne">
+              <td data-libelle="Récolte">
+                <div class="cellule-double">
+                  <span class="cellule-double__titre">
+                    <a class="catalogue__lien" [routerLink]="lien(recolte)">{{ recolte.produit }}</a>
+                  </span>
+                  <span class="cellule-double__detail">{{ producteur(recolte) }}</span>
+                </div>
+                @if (recolte.description) {
+                  <p class="catalogue__description">{{ recolte.description }}</p>
+                }
+              </td>
 
-          <p class="catalogue__producteur">{{ producteur(recolte) }}</p>
+              <td data-libelle="Statut">
+                <span class="catalogue__statut">{{ libelleStatut(recolte.statut) }}</span>
+              </td>
 
-          @if (recolte.description) {
-            <p class="catalogue__description">{{ recolte.description }}</p>
+              <td class="nombre" data-libelle="Disponibilité">
+                {{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }}
+              </td>
+
+              <td data-libelle="Commande">
+                @if (recolte.quantiteMin !== null || recolte.quantiteMax !== null) {
+                  <div class="catalogue__bornes">
+                    @if (recolte.quantiteMin !== null) {
+                      <span class="catalogue__borne">
+                        <span class="catalogue__borne-libelle">Commande minimale</span>
+                        {{ formaterQuantite(recolte.quantiteMin, recolte.unite) }}
+                      </span>
+                    }
+                    @if (recolte.quantiteMax !== null) {
+                      <span class="catalogue__borne">
+                        <span class="catalogue__borne-libelle">Commande maximale</span>
+                        {{ formaterQuantite(recolte.quantiteMax, recolte.unite) }}
+                      </span>
+                    }
+                  </div>
+                } @else {
+                  <span class="catalogue__absent">—</span>
+                }
+              </td>
+
+              <td class="nombre catalogue__prix" data-libelle="Prix unitaire">
+                {{ formaterMontant(recolte.prixUnitaire) }} / {{ recolte.unite }}
+              </td>
+
+              <td data-libelle="Date et lieu">
+                @if (meta(recolte); as details) {
+                  <span class="catalogue__meta">{{ details }}</span>
+                } @else {
+                  <span class="catalogue__absent">—</span>
+                }
+              </td>
+
+              <td class="tableau__actions" data-libelle="Action">
+                @if (acheteur()) {
+                  <div class="catalogue__achat">
+                    @if (estAjoutPossible(recolte)) {
+                      <button
+                        type="button"
+                        class="bouton bouton--encre bouton--compact"
+                        [id]="'ajouter-' + recolte.id"
+                        (click)="ajouterAuPanier(recolte)"
+                      >
+                        Ajouter au panier
+                      </button>
+                      <p class="catalogue__quantite">Quantité ajoutée : {{ quantiteAjoutee(recolte) }}</p>
+                    } @else {
+                      <button
+                        type="button"
+                        class="bouton bouton--secondaire bouton--compact"
+                        [id]="'ajouter-' + recolte.id"
+                        [attr.aria-describedby]="'motif-' + recolte.id"
+                        disabled
+                      >
+                        Ajouter au panier
+                      </button>
+                      <p class="catalogue__motif" [id]="'motif-' + recolte.id">
+                        {{ messageRefusAjout(recolte) }}
+                      </p>
+                    }
+                  </div>
+                }
+                <a class="lien-action catalogue__action" [routerLink]="lien(recolte)">Voir la récolte</a>
+              </td>
+            </tr>
           }
-
-          <dl class="catalogue__mesures">
-            <div>
-              <dt>Disponible</dt>
-              <dd>{{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }}</dd>
-            </div>
-            <div>
-              <dt>Prix unitaire</dt>
-              <dd>{{ formaterMontant(recolte.prixUnitaire) }} / {{ recolte.unite }}</dd>
-            </div>
-            @if (recolte.quantiteMin !== null) {
-              <div>
-                <dt>Commande minimale</dt>
-                <dd>{{ formaterQuantite(recolte.quantiteMin, recolte.unite) }}</dd>
-              </div>
-            }
-            @if (recolte.quantiteMax !== null) {
-              <div>
-                <dt>Commande maximale</dt>
-                <dd>{{ formaterQuantite(recolte.quantiteMax, recolte.unite) }}</dd>
-              </div>
-            }
-          </dl>
-
-          @if (meta(recolte); as details) {
-            <p class="catalogue__meta">{{ details }}</p>
-          }
-
-          <a
-            class="bouton bouton--discret bouton--compact catalogue__action"
-            [routerLink]="lien(recolte)"
-          >
-            Voir la récolte
-          </a>
-
-          @if (acheteur()) {
-            <div class="catalogue__achat">
-              @if (estAjoutPossible(recolte)) {
-                <p class="catalogue__quantite">Quantité ajoutée : {{ quantiteAjoutee(recolte) }}</p>
-                <button
-                  type="button"
-                  class="bouton bouton--primaire bouton--compact"
-                  [id]="'ajouter-' + recolte.id"
-                  (click)="ajouterAuPanier(recolte)"
-                >
-                  Ajouter au panier
-                </button>
-              } @else {
-                <p class="catalogue__motif" [id]="'motif-' + recolte.id">
-                  {{ messageRefusAjout(recolte) }}
-                </p>
-                <button
-                  type="button"
-                  class="bouton bouton--secondaire bouton--compact"
-                  [id]="'ajouter-' + recolte.id"
-                  [attr.aria-describedby]="'motif-' + recolte.id"
-                  disabled
-                >
-                  Ajouter au panier
-                </button>
-              }
-            </div>
-          }
-        </li>
-      }
-    </ul>
-  }
+        </tbody>
+      </table>
+    }
+  </div>
 </section>

@@ -1,5 +1,12 @@
 @use "points-rupture" as pr;
 
+/*
+ * Écran maître « Récoltes » (modération) — FRONTEND_DESIGN.md §37.2 et §38.
+ * Le socle global fournit .tableau--maitre, .cellule-double, .tableau__actions, .lien-action,
+ * .page--surface et l'empilement .tableau--empile : ce fichier ne règle que la densité de
+ * cette page et le sort de la colonne d'actions, où le message de résultat est rendu.
+ */
+
 /* Racine : un seul rythme vertical (§20), aucune marge enfantine à annuler. */
 .recoltes-admin {
   display: flex;
@@ -31,59 +38,6 @@
   color: var(--couleur-texte-secondaire);
 }
 
-.recoltes-admin__liste {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.recoltes-admin__carte {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-3);
-}
-
-.recoltes-admin__entete-carte {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--espace-3);
-}
-
-/* Un nom de produit ou de producteur ne doit jamais faire déborder la carte (§12). */
-.recoltes-admin__carte .carte__titre,
-.recoltes-admin__champs dd {
-  overflow-wrap: anywhere;
-}
-
-.recoltes-admin__champs {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: var(--espace-3);
-  margin: 0;
-}
-
-.recoltes-admin__champs dt {
-  color: var(--couleur-texte-secondaire);
-  font-size: var(--taille-xs);
-  font-weight: 600;
-}
-
-.recoltes-admin__champs dd {
-  margin: var(--espace-1) 0 0;
-}
-
-.recoltes-admin__meta {
-  margin: 0;
-  color: var(--couleur-texte-secondaire);
-  font-size: var(--taille-sm);
-}
-
-.recoltes-admin__carte .message {
-  margin: 0;
-}
-
 .recoltes-admin__actions {
   display: flex;
   flex-wrap: wrap;
@@ -91,10 +45,85 @@
   margin: 0;
 }
 
+/* Un nom de produit ou de producteur ne doit jamais faire déborder sa cellule (§12). */
+.recoltes-admin__liste .cellule-double__titre,
+.recoltes-admin__liste .cellule-double__detail {
+  overflow-wrap: anywhere;
+}
+
+/* Le montant ne se casse jamais : « 450 FCFA / kg » tient sur une ligne. */
+.recoltes-admin__prix {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.recoltes-admin__meta {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}
+
+/*
+ * Le geste de modération est l'action principale explicite de la ligne (§38.1) ; la fiche
+ * publique est une action secondaire en lien (§10.6), et le message de résultat se lit sous
+ * les deux, dans la même cellule.
+ */
+.recoltes-admin__cellule-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--espace-2);
+  white-space: normal;
+}
+
+.recoltes-admin__cellule-action .message {
+  margin: 0;
+  max-width: 18rem;
+  text-align: right;
+}
+
 @media (min-width: pr.$point-tablette) {
   .recoltes-admin__entete {
     flex-direction: row;
     align-items: flex-end;
     justify-content: space-between;
+  }
+
+  /* Respiration des lignes denses, seulement quand la table garde ses colonnes. */
+  .recoltes-admin__liste th,
+  .recoltes-admin__liste td {
+    padding: var(--espace-5) var(--espace-3);
+  }
+
+  .recoltes-admin__liste th:first-child,
+  .recoltes-admin__liste td:first-child {
+    padding-left: 0;
+  }
+
+  .recoltes-admin__liste th:last-child,
+  .recoltes-admin__liste td:last-child {
+    padding-right: 0;
+  }
+
+  /* Colonnes guidées : la récolte respire, la méta et l'action restent secondaires. */
+  .recoltes-admin__liste th:nth-child(1),
+  .recoltes-admin__liste td:nth-child(1) {
+    width: 22%;
+  }
+
+  .recoltes-admin__liste th:nth-child(6),
+  .recoltes-admin__liste td:nth-child(6) {
+    width: 18%;
+  }
+
+  .recoltes-admin__liste th:nth-child(7),
+  .recoltes-admin__liste td:nth-child(7) {
+    width: 20%;
+  }
+}
+
+/* Sous $point-tablette, la cellule s'empile en bloc : le lien reste sous le bouton. */
+@media (max-width: pr.$point-tablette - 1px) {
+  .recoltes-admin__liste .tableau__actions {
+    align-items: flex-end;
   }
 }

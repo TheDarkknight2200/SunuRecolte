@@ -15,6 +15,7 @@ import { LIBELLES_ROLE, Role } from '../../../core/modeles/referentiels';
 import { UtilisateurService } from '../../../core/services/utilisateur.service';
 import { messageErreurApi } from '../../../core/utilitaires/erreurs-api';
 import { formaterDateHeure } from '../../../core/utilitaires/formatage';
+import { AdminNavigation } from '../../../partage/admin-navigation/admin-navigation';
 
 /**
  * Comptes utilisateurs vus de l'administration (GET /api/utilisateurs).
@@ -30,7 +31,7 @@ import { formaterDateHeure } from '../../../core/utilitaires/formatage';
  */
 @Component({
   selector: 'app-admin-utilisateurs',
-  imports: [RouterLink],
+  imports: [RouterLink, AdminNavigation],
   templateUrl: './utilisateurs.html',
   styleUrl: './utilisateurs.scss',
 })
@@ -216,6 +217,9 @@ export class Utilisateurs {
    */
   private placerLeFocusSurAnnuler(): void {
     this.declencheur = null;
+    // Les deux boutons de la modale sont `disabled` pendant le vol : sans rafraîchissement,
+    // « Annuler » refuse encore le focus au moment où le `PATCH` est refusé.
+    this.rendu.detectChanges();
     this.boutonAnnuler()?.nativeElement.focus();
   }
 

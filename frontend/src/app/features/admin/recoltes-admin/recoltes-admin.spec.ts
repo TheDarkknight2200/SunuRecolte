@@ -144,9 +144,9 @@ describe('RecoltesAdmin (modération)', () => {
     ouvrir();
     charger([recolte(12)]);
 
-    const carte = element<HTMLElement>(racine, '.recoltes-admin__carte');
+    const carte = element<HTMLElement>(racine, '.recoltes-admin__ligne');
     expect(texteDe(element(racine, 'h1'))).toBe('Récoltes');
-    expect(texteDe(element(racine, '.carte__titre'))).toBe('Tomate');
+    expect(texteDe(element(racine, '.cellule-double__titre'))).toBe('Tomate');
     expect(texteDe(carte)).toContain('Moussa Fall');
     expect(texteDe(carte)).toContain('350 kg');
     expect(texteDe(carte)).toContain('450 FCFA / kg');
@@ -172,7 +172,7 @@ describe('RecoltesAdmin (modération)', () => {
     ouvrir();
     charger([recolte(12), recolte(13, { produit: 'Oignon', statut: 'EPUISEE' })]);
 
-    const [disponible, epuisee] = elements<HTMLElement>(racine, '.recoltes-admin__carte');
+    const [disponible, epuisee] = elements<HTMLElement>(racine, '.recoltes-admin__ligne');
     const boutonDisponible = element<HTMLButtonElement>(disponible, '#statut-12');
     const boutonEpuisee = element<HTMLButtonElement>(epuisee, '#statut-13');
 
@@ -197,14 +197,14 @@ describe('RecoltesAdmin (modération)', () => {
 
     expect(racine.querySelector('input, textarea, select, form')).toBeNull();
     expect(texteDe(racine)).not.toMatch(/Supprimer|Créer une récolte|Nouvelle récolte/);
-    expect(elements(racine, '.recoltes-admin__carte button')).toHaveLength(1);
+    expect(elements(racine, '.recoltes-admin__ligne button')).toHaveLength(1);
   });
 
   it('relie chaque carte à sa fiche publique, sans jamais passer par un endpoint personnel', () => {
     ouvrir();
     charger([recolte(12)]);
 
-    const lien = element<HTMLAnchorElement>(racine, '.recoltes-admin__carte .recoltes-admin__actions a');
+    const lien = element<HTMLAnchorElement>(racine, '.recoltes-admin__ligne .tableau__actions a');
     expect(lien.getAttribute('href')).toBe('/recoltes/12');
     expect(texteDe(lien)).toBe('Voir la fiche publique');
   });
@@ -260,7 +260,7 @@ describe('RecoltesAdmin (modération)', () => {
     expect(texteDe(element(racine, '.etat'))).toContain('Chargement des récoltes…');
     charger([recolte(12)]);
 
-    expect(elements(racine, '.recoltes-admin__carte')).toHaveLength(1);
+    expect(elements(racine, '.recoltes-admin__ligne')).toHaveLength(1);
     expect(racine.querySelector('.message--erreur')).toBeNull();
   });
 
@@ -304,6 +304,18 @@ describe('RecoltesAdmin (modération)', () => {
       fixture.detectChanges();
     });
 
+    it('rend le focus au bouton de la ligne traitée après la réponse', () => {
+      // Le bouton est `disabled` pendant le vol : sans restauration le navigateur retombe sur le
+      // <body> et la navigation clavier repart du haut de page (défaut constaté en QA navigateur).
+      cliquer('#statut-12');
+      http.expectOne(`${RECOLTES}/12/statut`).flush(recolte(12, { statut: 'EPUISEE' }));
+      fixture.detectChanges();
+
+      const actif = document.activeElement as HTMLButtonElement;
+      expect(actif.getAttribute('id')).toBe('statut-12');
+      expect(actif.disabled).toBe(false);
+    });
+
     it('propose le chemin inverse sur une récolte épuisée', () => {
       cliquer('#statut-13');
 
@@ -321,8 +333,8 @@ describe('RecoltesAdmin (modération)', () => {
       );
       fixture.detectChanges();
 
-      const carte = element<HTMLElement>(racine, '.recoltes-admin__carte');
-      expect(texteDe(element(carte, '.carte__titre'))).toBe('Tomate de Thiès');
+      const carte = element<HTMLElement>(racine, '.recoltes-admin__ligne');
+      expect(texteDe(element(carte, '.cellule-double__titre'))).toBe('Tomate de Thiès');
       expect(texteDe(elements<HTMLElement>(carte, '.badge')[0])).toBe('Épuisée');
       expect(texteDe(element(carte, '.message--succes'))).toBe(
         '« Tomate de Thiès » est désormais épuisée.',
@@ -353,14 +365,14 @@ describe('RecoltesAdmin (modération)', () => {
       const requete = http.expectOne(`${RECOLTES}/12/statut`);
 
       expect(
-        elements<HTMLButtonElement>(racine, '.recoltes-admin__carte button').map((b) => b.disabled),
+        elements<HTMLButtonElement>(racine, '.recoltes-admin__ligne button').map((b) => b.disabled),
       ).toEqual([true, true]);
       expect(element<HTMLButtonElement>(racine, '#recoltes-actualiser').disabled).toBe(true);
 
       requete.flush(recolte(12, { statut: 'EPUISEE' }));
       fixture.detectChanges();
       expect(element<HTMLButtonElement>(racine, '#recoltes-actualiser').disabled).toBe(false);
-      expect(elements<HTMLButtonElement>(racine, '.recoltes-admin__carte button').every((b) => !b.disabled)).toBe(true);
+      expect(elements<HTMLButtonElement>(racine, '.recoltes-admin__ligne button').every((b) => !b.disabled)).toBe(true);
     });
 
     it('un 403 sur le PATCH conserve le statut affiché et la session', () => {
@@ -379,7 +391,7 @@ describe('RecoltesAdmin (modération)', () => {
       );
       fixture.detectChanges();
 
-      const carte = element<HTMLElement>(racine, '.recoltes-admin__carte');
+      const carte = element<HTMLElement>(racine, '.recoltes-admin__ligne');
       expect(texteDe(element(carte, '.message--erreur'))).toContain('Accès refusé');
       expect(element(carte, '.message--erreur').getAttribute('role')).toBe('alert');
       expect(texteDe(elements<HTMLElement>(carte, '.badge')[0])).toBe('Disponible');
@@ -395,17 +407,17 @@ describe('RecoltesAdmin (modération)', () => {
       );
       fixture.detectChanges();
 
-      expect(texteDe(element(racine, '.recoltes-admin__carte .message--erreur'))).toContain(
+      expect(texteDe(element(racine, '.recoltes-admin__ligne .message--erreur'))).toContain(
         "Recolte introuvable avec l'id : 12",
       );
-      expect(elements(racine, '.recoltes-admin__carte')).toHaveLength(2);
+      expect(elements(racine, '.recoltes-admin__ligne')).toHaveLength(2);
     });
 
     it('un échec efface le message du succès précédent, et inversement', () => {
       cliquer('#statut-12');
       http.expectOne(`${RECOLTES}/12/statut`).flush(recolte(12, { statut: 'EPUISEE' }));
       fixture.detectChanges();
-      expect(element(racine, '.recoltes-admin__carte .message--succes')).toBeTruthy();
+      expect(element(racine, '.recoltes-admin__ligne .message--succes')).toBeTruthy();
 
       cliquer('#statut-13');
       http.expectOne(`${RECOLTES}/13/statut`).flush(
@@ -414,7 +426,7 @@ describe('RecoltesAdmin (modération)', () => {
       );
       fixture.detectChanges();
 
-      const cartes = elements<HTMLElement>(racine, '.recoltes-admin__carte');
+      const cartes = elements<HTMLElement>(racine, '.recoltes-admin__ligne');
       expect(cartes[0].querySelector('.message--succes')).toBeNull();
       expect(texteDe(element(cartes[1], '.message--erreur'))).toContain('Accès refusé');
     });
@@ -429,7 +441,7 @@ describe('RecoltesAdmin (modération)', () => {
       charger([recolte(12)]);
 
       expect(racine.querySelector('.message--succes')).toBeNull();
-      expect(elements(racine, '.recoltes-admin__carte')).toHaveLength(1);
+      expect(elements(racine, '.recoltes-admin__ligne')).toHaveLength(1);
     });
   });
 });

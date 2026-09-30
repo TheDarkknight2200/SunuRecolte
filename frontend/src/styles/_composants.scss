@@ -1,6 +1,8 @@
 // Composants transverses — voir FRONTEND_DESIGN.md §10 et §11.
 // Un composant Angular réutilise ces classes ; il ne les redéfinit pas.
 
+@use "points-rupture" as pr;
+
 /* --- Boutons --- */
 .bouton {
   display: inline-flex;
@@ -72,6 +74,18 @@
   border-color: var(--couleur-erreur-sombre);
 }
 
+/* Variante d'action principale des trois écrans maîtres (§10.1, §38.1). */
+.bouton--encre {
+  background-color: var(--couleur-encre);
+  border-color: var(--couleur-encre);
+  color: var(--couleur-texte-inverse);
+}
+
+.bouton--encre:hover:not(:disabled) {
+  background-color: var(--couleur-encre-sombre);
+  border-color: var(--couleur-encre-sombre);
+}
+
 .bouton--large {
   width: 100%;
 }
@@ -80,6 +94,28 @@
   min-height: 36px;
   padding: 0 var(--espace-3);
   font-size: var(--taille-sm);
+}
+
+/* --- Action secondaire en lien (§10.5) --- */
+.lien-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  color: var(--couleur-encre);
+  font-size: var(--taille-sm);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.lien-action:hover {
+  color: var(--couleur-encre-sombre);
+}
+
+@media (max-width: pr.$point-tablette - 1px) {
+  .lien-action {
+    min-height: 44px;
+  }
 }
 
 /* --- Formulaires --- */
@@ -232,11 +268,105 @@ textarea.champ__saisie {
 .tableau td {
   padding: var(--espace-3);
   border-bottom: 1px solid var(--couleur-bordure);
+  vertical-align: top;
 }
 
 .tableau .nombre {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* Filets des écrans maîtres (§10.6) : le .tableau générique garde --couleur-bordure. */
+.tableau--maitre th {
+  border-bottom: var(--filet-fort);
+}
+
+.tableau--maitre td {
+  border-bottom: var(--filet-ligne);
+}
+
+/* Cellule double : libellé fort + micro-précision (§10.6). */
+.cellule-double {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-1);
+}
+
+.cellule-double__titre {
+  color: var(--couleur-encre);
+  font-size: var(--taille-md);
+  font-weight: 600;
+}
+
+.cellule-double__detail {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}
+
+/* Pile d'actions : dernière colonne d'un tableau dense (§10.6). */
+.tableau__actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tableau__actions .lien-action + .lien-action::before {
+  content: "·";
+  margin: 0 var(--espace-2);
+  color: var(--couleur-texte-secondaire);
+  text-decoration: none;
+}
+
+/* Empilement sous $point-tablette (§12) : un bloc par ligne, le <table> garde sa sémantique.
+   Max-width et non min-width : la table dense est la base, l'empilement l'exception, et aucune
+   règle `min-width: $point-tablette` déjà écrite dans un composant ne doit entrer en conflit. */
+@media (max-width: pr.$point-tablette - 1px) {
+  .tableau--empile thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .tableau--empile tr {
+    display: block;
+    border-bottom: var(--filet-fort);
+    padding: var(--espace-2) 0;
+  }
+
+  .tableau--empile td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--espace-4);
+    padding: var(--espace-1) 0;
+    border-bottom: 0;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .tableau--empile td::before {
+    content: attr(data-libelle);
+    flex: none;
+    color: var(--couleur-texte-secondaire);
+    font-size: var(--taille-xs);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .tableau--empile .nombre {
+    text-align: right;
+  }
+
+  .tableau--empile .tableau__actions {
+    padding-top: var(--espace-2);
+  }
+
+  .tableau--empile .cellule-double {
+    text-align: right;
+  }
 }
 
 /* --- Badges --- */
@@ -324,4 +454,90 @@ textarea.champ__saisie {
   display: flex;
   flex-wrap: wrap;
   gap: var(--espace-3);
+}
+
+/* --- Surface de page d'un écran maître (§10.4) ---
+   Le modificateur est posé sur la racine de page ; c'est la zone de contenu qui la porte qui devient
+   blanche, pour éviter une surface découpée par les gouttières de la mise en page. Sans `:has()`, le fond
+   crème subsiste : écart de nuance, aucune information perdue. */
+.contenu-principal:has(.page--surface) {
+  background-color: var(--couleur-surface);
+}
+
+/* --- Onglets d'espace (§10.5) --- */
+.onglets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-5);
+  border-bottom: var(--filet-ligne);
+}
+
+.onglets__lien {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  margin-bottom: -1px;
+  padding: 0 var(--espace-1);
+  border-bottom: 2px solid transparent;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-md);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.onglets__lien:hover {
+  color: var(--couleur-encre);
+}
+
+.onglets__lien--actif {
+  border-bottom-color: var(--couleur-encre);
+  color: var(--couleur-encre);
+}
+
+@media (max-width: pr.$point-tablette - 1px) {
+  .onglets {
+    gap: var(--espace-3);
+  }
+
+  .onglets__lien {
+    min-height: 44px;
+  }
+}
+
+/* --- Modale de confirmation (§31) ---
+   Le motif visuel est global ; le comportement (rôle, Escape, piège et retour de focus) reste porté par
+   chaque composant, qui seul connaît son déclencheur. */
+.voile {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-voile);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--espace-4);
+  background-color: var(--voile);
+}
+
+.modale {
+  width: 100%;
+  max-width: 26rem;
+  padding: var(--espace-5);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-lg);
+  background-color: var(--couleur-surface);
+  box-shadow: var(--ombre-surface);
+}
+
+.modale__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--espace-3);
+}
+
+@media (max-width: pr.$point-tablette - 1px) {
+  .modale__actions .bouton {
+    flex: 1 1 auto;
+    min-height: 44px;
+  }
 }

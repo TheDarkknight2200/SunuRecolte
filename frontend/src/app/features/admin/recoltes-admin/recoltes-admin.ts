@@ -1,4 +1,5 @@
-import { Component, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { RecolteResponse } from '../../../core/modeles/domaine.modeles';
 import { LIBELLES_STATUT_RECOLTE, StatutRecolte } from '../../../core/modeles/referentiels';
@@ -10,6 +11,7 @@ import {
   formaterMontant,
   formaterQuantite,
 } from '../../../core/utilitaires/formatage';
+import { AdminNavigation } from '../../../partage/admin-navigation/admin-navigation';
 
 /**
  * Le domaine ne connaît que deux statuts de récolte (`ck_recoltes_statut` en base) : la
@@ -29,17 +31,19 @@ const AUTRE_STATUT: Record<StatutRecolte, { statut: StatutRecolte; libelle: stri
  * n'offre que la modération de statut (PATCH /api/recoltes/{id}/statut), réservée à l'ADMIN.
  * Le contenu d'une récolte reste la propriété du producteur : ni création, ni modification, ni
  * suppression ici. Le statut rendu après un `PATCH` est celui renvoyé par le serveur, et le
- * bouton de la carte traitée garde le focus : il ne disparaît jamais, les deux statuts restant
+ * bouton de la ligne traitée garde le focus : il ne disparaît jamais, les deux statuts restant
  * accessibles l'un depuis l'autre.
  */
 @Component({
   selector: 'app-admin-recoltes',
-  imports: [RouterLink],
+  imports: [RouterLink, AdminNavigation],
   templateUrl: './recoltes-admin.html',
   styleUrl: './recoltes-admin.scss',
 })
 export class RecoltesAdmin {
   private readonly recoltes = inject(RecolteService);
+  private readonly document = inject(DOCUMENT);
+  private readonly rendu = inject(ChangeDetectorRef);
 
   protected readonly liste = signal<RecolteResponse[]>([]);
   protected readonly chargement = signal(true);
@@ -115,9 +119,10 @@ export class RecoltesAdmin {
           id: reponse.id,
           message: `« ${reponse.produit} » est désormais ${this.libelleStatut(reponse.statut).toLowerCase()}.`,
         });
+        this.rendreLeFocusAuBouton(reponse.id);
       },
       error: (erreur: unknown) => {
-        // Échec : la carte garde le statut affiché, c'est le serveur qui a le dernier mot.
+        // Échec : la ligne garde le statut affiché, c'est le serveur qui a le dernier mot.
         this.enCours.set(null);
         this.refus.set({
           id: recolte.id,
@@ -126,8 +131,22 @@ export class RecoltesAdmin {
             `Le statut de « ${recolte.produit} » n’a pas pu être mis à jour.`,
           ),
         });
+        this.rendreLeFocusAuBouton(recolte.id);
       },
     });
+  }
+
+  /**
+   * Le bouton traité est `disabled` pendant le vol et le navigateur rend alors le focus au
+   * `body`. Le bouton de cette ligne revivant après la réponse, le focus lui est rendu : la
+   * navigation clavier reprend à la ligne traitée au lieu de repartir du haut de page (§37.1).
+   */
+  private rendreLeFocusAuBouton(id: number): void {
+    this.rendu.detectChanges();
+    if (this.document.activeElement !== this.document.body) {
+      return;
+    }
+    this.document.getElementById(`statut-${id}`)?.focus();
   }
 
   protected succesPour(recolte: RecolteResponse): string | null {

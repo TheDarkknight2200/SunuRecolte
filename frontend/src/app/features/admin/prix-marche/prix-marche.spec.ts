@@ -171,7 +171,7 @@ describe('PrixMarche (administration)', () => {
     ouvrir();
     charger([prix(5)]);
 
-    const carte = element<HTMLElement>(racine, '.prix-marche__carte');
+    const carte = element<HTMLElement>(racine, '.prix-marche__ligne');
     expect(texteDe(element(racine, 'h1'))).toBe('Prix indicatifs');
     expect(texteDe(element(racine, '.prix-marche__liste-titre'))).toBe('1 prix indicatif');
     expect(texteDe(carte)).toContain('Mande de 1er choix');
@@ -187,7 +187,7 @@ describe('PrixMarche (administration)', () => {
     ouvrir();
     charger([prix(5, { marcheReference: null })]);
 
-    expect(texteDe(element(racine, '.prix-marche__carte'))).toContain('—');
+    expect(texteDe(element(racine, '.prix-marche__ligne'))).toContain('—');
   });
 
   it('propose de déposer une ligne dès la liste vide, sans état vide concurrent', () => {
@@ -235,7 +235,7 @@ describe('PrixMarche (administration)', () => {
     expect(texteDe(element(racine, '.etat'))).toContain('Chargement des prix indicatifs…');
     charger([prix(5)]);
 
-    expect(elements(racine, '.prix-marche__carte')).toHaveLength(1);
+    expect(elements(racine, '.prix-marche__ligne')).toHaveLength(1);
     expect(element(racine, 'form').querySelector('.message--erreur')).toBeNull();
   });
 
@@ -347,7 +347,7 @@ describe('PrixMarche (administration)', () => {
       expect(texteDe(element(racine, '.message--succes p'))).toBe(
         '« Tomate locale » a été ajouté aux prix indicatifs.',
       );
-      expect(elements(racine, '.prix-marche__carte')).toHaveLength(2);
+      expect(elements(racine, '.prix-marche__ligne')).toHaveLength(2);
       expect(texteDe(elements<HTMLElement>(racine, '.prix-marche__produit')[1])).toBe(
         'Tomate locale',
       );
@@ -394,7 +394,7 @@ describe('PrixMarche (administration)', () => {
       );
       expect(element<HTMLInputElement>(racine, '#produit').value).toBe('Tomate locale');
       expect(racine.querySelector('.message--succes')).toBeNull();
-      expect(elements(racine, '.prix-marche__carte')).toHaveLength(1);
+      expect(elements(racine, '.prix-marche__ligne')).toHaveLength(1);
     });
 
     it('un 403 sur le dépôt reste un refus : message, session et saisie conservés', () => {
@@ -420,7 +420,7 @@ describe('PrixMarche (administration)', () => {
       expect(localStorage.getItem(CLE_JETON)).toBe(jeton);
       expect(localStorage.getItem(CLE_UTILISATEUR)).not.toBeNull();
       expect(element<HTMLInputElement>(racine, '#produit').value).toBe('Tomate locale');
-      expect(elements(racine, '.prix-marche__carte')).toHaveLength(1);
+      expect(elements(racine, '.prix-marche__ligne')).toHaveLength(1);
     });
   });
 
@@ -445,7 +445,7 @@ describe('PrixMarche (administration)', () => {
         'Enregistrer les modifications',
       );
       expect(
-        element(racine, '.prix-marche__carte').classList.contains('prix-marche__carte--en-cours'),
+        element(racine, '.prix-marche__ligne').classList.contains('prix-marche__ligne--en-cours'),
       ).toBe(true);
       expect(document.activeElement?.getAttribute('id')).toBe('produit');
       expect(http.match(() => true)).toHaveLength(0);
@@ -501,7 +501,7 @@ describe('PrixMarche (administration)', () => {
         '« Mande première qualité » a été mis à jour.',
       );
       expect(racine.querySelector('#formulaire-annuler')).toBeNull();
-      expect(racine.querySelector('.prix-marche__carte--en-cours')).toBeNull();
+      expect(racine.querySelector('.prix-marche__ligne--en-cours')).toBeNull();
       expect(document.activeElement?.getAttribute('id')).toBe('bouton-actualiser');
     });
 
@@ -513,7 +513,7 @@ describe('PrixMarche (administration)', () => {
       expect(http.match(() => true)).toHaveLength(0);
       expect(texteDe(element(racine, '#formulaire-titre'))).toBe('Nouveau prix indicatif');
       expect(element<HTMLInputElement>(racine, '#produit').value).toBe('');
-      expect(racine.querySelector('.prix-marche__carte--en-cours')).toBeNull();
+      expect(racine.querySelector('.prix-marche__ligne--en-cours')).toBeNull();
       expect(texteDe(elements<HTMLElement>(racine, '.prix-marche__produit')[0])).toBe(
         'Mande de 1er choix',
       );
@@ -545,7 +545,7 @@ describe('PrixMarche (administration)', () => {
     it('ne retire jamais sans confirmation : la modale s’ouvre, aucun DELETE', () => {
       ouvrirModale();
 
-      const modale = element(racine, '.prix-marche__modale');
+      const modale = element(racine, '.modale');
       expect(modale.getAttribute('role')).toBe('dialog');
       expect(modale.getAttribute('aria-modal')).toBe('true');
       expect(modale.getAttribute('aria-labelledby')).toBe('suppression-titre');
@@ -563,38 +563,38 @@ describe('PrixMarche (administration)', () => {
 
       const actif = document.activeElement as HTMLElement;
       expect(actif.getAttribute('id')).toBe('suppression-annuler');
-      expect(element(racine, '.prix-marche__modale').contains(actif)).toBe(true);
+      expect(element(racine, '.modale').contains(actif)).toBe(true);
     });
 
     it('Annuler ferme la modale et rend le focus au bouton déclencheur', () => {
       ouvrirModale();
       cliquer('#suppression-annuler');
 
-      expect(racine.querySelector('.prix-marche__modale')).toBeNull();
+      expect(racine.querySelector('.modale')).toBeNull();
       expect(document.activeElement?.getAttribute('id')).toBe('supprimer-5');
       expect(http.match((requete) => requete.method === 'DELETE')).toHaveLength(0);
-      expect(elements(racine, '.prix-marche__carte')).toHaveLength(2);
+      expect(elements(racine, '.prix-marche__ligne')).toHaveLength(2);
     });
 
     it('Escape et un clic sur le fond ferment la modale sans rien retirer', () => {
       ouvrirModale();
       escape();
-      expect(racine.querySelector('.prix-marche__modale')).toBeNull();
+      expect(racine.querySelector('.modale')).toBeNull();
 
       ouvrirModale();
-      element(racine, '.prix-marche__fond').click();
+      element(racine, '.voile').click();
       fixture.detectChanges();
 
-      expect(racine.querySelector('.prix-marche__modale')).toBeNull();
+      expect(racine.querySelector('.modale')).toBeNull();
       expect(http.match((requete) => requete.method === 'DELETE')).toHaveLength(0);
     });
 
     it('un clic dans la modale ne la ferme pas', () => {
       ouvrirModale();
-      element(racine, '.prix-marche__modale').click();
+      element(racine, '.modale').click();
       fixture.detectChanges();
 
-      expect(element(racine, '.prix-marche__modale')).toBeTruthy();
+      expect(element(racine, '.modale')).toBeTruthy();
       expect(http.match((requete) => requete.method === 'DELETE')).toHaveLength(0);
     });
 
@@ -611,7 +611,7 @@ describe('PrixMarche (administration)', () => {
       presserTab(true);
       expect(document.activeElement?.getAttribute('id')).toBe('suppression-confirmer');
 
-      expect(element(racine, '.prix-marche__modale').contains(document.activeElement)).toBe(true);
+      expect(element(racine, '.modale').contains(document.activeElement)).toBe(true);
     });
 
     it('confirmer envoie DELETE /{id}, sans corps ni paramètre', () => {
@@ -638,7 +638,7 @@ describe('PrixMarche (administration)', () => {
       expect(texteDe(element(racine, '.message--succes p'))).toBe(
         '« Mande de 1er choix » a été retiré des prix indicatifs.',
       );
-      expect(racine.querySelector('.prix-marche__modale')).toBeNull();
+      expect(racine.querySelector('.modale')).toBeNull();
       // Le bouton déclencheur a disparu avec sa carte : le focus reprend une cible stable.
       expect(document.activeElement?.getAttribute('id')).toBe('bouton-actualiser');
     });
@@ -672,9 +672,9 @@ describe('PrixMarche (administration)', () => {
       fixture.detectChanges();
 
       expect(racine.querySelector('#formulaire-annuler')).toBeNull();
-      expect(racine.querySelector('.prix-marche__carte--en-cours')).toBeNull();
+      expect(racine.querySelector('.prix-marche__ligne--en-cours')).toBeNull();
       expect(element<HTMLInputElement>(racine, '#produit').value).toBe('');
-      expect(elements(racine, '.prix-marche__carte')).toHaveLength(1);
+      expect(elements(racine, '.prix-marche__ligne')).toHaveLength(1);
     });
 
     it('un 404 dans la modale : message du serveur, modale ouverte, ligne conservée', () => {
@@ -686,11 +686,11 @@ describe('PrixMarche (administration)', () => {
       );
       fixture.detectChanges();
 
-      expect(texteDe(element(racine, '.prix-marche__modale .message--erreur'))).toContain(
+      expect(texteDe(element(racine, '.modale .message--erreur'))).toContain(
         "PrixMarche introuvable avec l'id : 5",
       );
-      expect(element(racine, '.prix-marche__modale').getAttribute('aria-modal')).toBe('true');
-      expect(elements(racine, '.prix-marche__carte')).toHaveLength(2);
+      expect(element(racine, '.modale').getAttribute('aria-modal')).toBe('true');
+      expect(elements(racine, '.prix-marche__ligne')).toHaveLength(2);
       expect(racine.querySelector('.message--succes')).toBeNull();
     });
 
@@ -711,12 +711,12 @@ describe('PrixMarche (administration)', () => {
       );
       fixture.detectChanges();
 
-      expect(texteDe(element(racine, '.prix-marche__modale .message--erreur'))).toContain(
+      expect(texteDe(element(racine, '.modale .message--erreur'))).toContain(
         'Accès refusé',
       );
       expect(localStorage.getItem(CLE_JETON)).toBe(jeton);
       expect(localStorage.getItem(CLE_UTILISATEUR)).not.toBeNull();
-      expect(elements(racine, '.prix-marche__carte')).toHaveLength(2);
+      expect(elements(racine, '.prix-marche__ligne')).toHaveLength(2);
     });
 
     it('Actualiser reste bloqué pendant une modale ouverte puis un retrait', () => {

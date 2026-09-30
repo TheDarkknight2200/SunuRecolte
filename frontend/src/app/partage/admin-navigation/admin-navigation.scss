@@ -1,0 +1,7 @@
+/*
+ * Le bandeau est entièrement rendu par `.onglets` et `.onglets__lien` (styles globaux, §10.5) :
+ * ce fichier ne fait que donner au composant sa propre ligne dans la colonne de la page.
+ */
+:host {
+  display: block;
+}

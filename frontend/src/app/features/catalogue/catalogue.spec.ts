@@ -213,13 +213,12 @@ describe('Catalogue', () => {
       recolte(1, { produit: 'Mangue', quantiteDisponible: 500, prixUnitaire: 12500 }),
     ]);
 
-    expect(elements<HTMLElement>(racine, '.catalogue__carte .carte__titre').map(texteDe)).toEqual([
-      'Niébe',
-      'Mangue',
-    ]);
+    expect(
+      elements<HTMLElement>(racine, '.catalogue__ligne .cellule-double__titre').map(texteDe),
+    ).toEqual(['Niébe', 'Mangue']);
     expect(texteDe(racine)).toContain('2 récoltes affichées');
 
-    const seconde = elements<HTMLElement>(racine, '.catalogue__carte')[1];
+    const seconde = elements<HTMLElement>(racine, '.catalogue__ligne')[1];
     expect(sansEspace(texteDe(seconde))).toContain('12500FCFA');
     expect(texteDe(seconde)).toContain('500 kg');
     expect(texteDe(seconde)).toContain('Diop — Thiès');
@@ -231,15 +230,15 @@ describe('Catalogue', () => {
 
     repondre([recolte(1)]);
 
-    const carte = element<HTMLElement>(racine, '.catalogue__carte');
-    expect(texteDe(carte)).not.toContain('Commande minimale');
-    expect(texteDe(carte)).not.toContain('Commande maximale');
-    expect(texteDe(carte)).not.toContain('Disponible à partir du');
+    const ligne = element<HTMLElement>(racine, '.catalogue__ligne');
+    expect(texteDe(ligne)).not.toContain('Commande minimale');
+    expect(texteDe(ligne)).not.toContain('Commande maximale');
+    expect(texteDe(ligne)).not.toContain('Disponible à partir du');
     expect(elements(racine, '.catalogue__description')).toHaveLength(0);
     expect(elements(racine, '.catalogue__meta')).toHaveLength(0);
     expect(elements(racine, 'img')).toHaveLength(0);
-    expect(texteDe(carte)).not.toContain('null');
-    expect(texteDe(carte)).not.toContain('undefined');
+    expect(texteDe(ligne)).not.toContain('null');
+    expect(texteDe(ligne)).not.toContain('undefined');
   });
 
   it('ajoute borne basse et borne haute quand l’API les fournit', () => {
@@ -247,22 +246,22 @@ describe('Catalogue', () => {
 
     repondre([recolte(1, { quantiteMin: 5, quantiteMax: 50, description: 'Variety Kent', localisation: 'Thiès', dateDisponibilite: '2026-04-10' })]);
 
-    const carte = element<HTMLElement>(racine, '.catalogue__carte');
-    expect(texteDe(carte)).toContain('Commande minimale');
-    expect(texteDe(carte)).toContain('Commande maximale');
-    expect(texteDe(carte)).toContain('5 kg');
-    expect(texteDe(carte)).toContain('50 kg');
-    expect(texteDe(carte)).toContain('Variety Kent');
+    const ligne = element<HTMLElement>(racine, '.catalogue__ligne');
+    expect(texteDe(ligne)).toContain('Commande minimale');
+    expect(texteDe(ligne)).toContain('Commande maximale');
+    expect(texteDe(ligne)).toContain('5 kg');
+    expect(texteDe(ligne)).toContain('50 kg');
+    expect(texteDe(ligne)).toContain('Variety Kent');
     expect(texteDe(element(racine, '.catalogue__meta'))).toContain('10/04/2026');
     expect(texteDe(element(racine, '.catalogue__meta'))).toContain('Thiès');
   });
 
-  it('relie chaque carte au détail avec l’identifiant renvoyé par l’API', () => {
+  it('relie chaque ligne au détail avec l’identifiant renvoyé par l’API', () => {
     ouvrir();
 
     repondre([recolte(12), recolte(7)]);
 
-    const hrefs = elements<HTMLAnchorElement>(racine, '.catalogue__carte a').map((lien) =>
+    const hrefs = elements<HTMLAnchorElement>(racine, '.catalogue__ligne a').map((lien) =>
       sansEspace(lien.getAttribute('href') ?? ''),
     );
     expect(hrefs).toEqual(['/recoltes/12', '/recoltes/12', '/recoltes/7', '/recoltes/7']);
@@ -400,7 +399,7 @@ describe('Catalogue', () => {
     ouvrir('ACHETEUR');
     repondre([recolte(1, { statut: 'EPUISEE', quantiteDisponible: 0 })]);
 
-    expect(elements(racine, '.catalogue__carte')).toHaveLength(1);
+    expect(elements(racine, '.catalogue__ligne')).toHaveLength(1);
     const bouton = element<HTMLButtonElement>(racine, '#ajouter-1');
     expect(bouton.disabled).toBe(true);
     expect(bouton.getAttribute('aria-describedby')).toBe('motif-1');

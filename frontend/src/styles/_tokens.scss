@@ -26,6 +26,14 @@
   --couleur-erreur-clair: #fbeae9;
   --couleur-info-clair: #e9eff5;
 
+  /* Encre et filets des écrans maîtres (§5, §7, §38) */
+  --couleur-encre: #1e2420;
+  --couleur-encre-sombre: #121610;
+  --couleur-filet: #e3e3e0;
+  --filet-fort: 2px solid var(--couleur-encre);
+  --filet-ligne: 1px solid var(--couleur-filet);
+  --voile: rgba(30, 36, 32, 0.55);
+
   /* Typographie */
   --police-texte: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   --taille-xs: 0.75rem;
@@ -55,4 +63,5 @@
   /* Mise en page */
   --largeur-contenu: 1140px;
   --duree-transition: 150ms;
+  --z-voile: 20;
 }
