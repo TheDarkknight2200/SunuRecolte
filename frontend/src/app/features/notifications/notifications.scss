@@ -1,6 +1,8 @@
 @use "points-rupture" as pr;
 
-.notifications {
+/* Le socle global fournit .conteneur (§20 : largeur --largeur-contenu, centrage, gouttières) :
+   c'est lui qui porte la colonne verticale, comme sur les écrans déjà alignés. */
+.notifications .conteneur {
   display: flex;
   flex-direction: column;
   gap: var(--espace-4);

@@ -1,103 +1,105 @@
 <section class="notifications">
-  <div class="notifications__titre">
-    <p class="notifications__surtitre">Votre compte</p>
-    <h1 #titrePage tabindex="-1">Notifications</h1>
-    <p class="notifications__intro">
-      Messages reçus par votre compte, du plus récent au plus ancien.
-    </p>
-  </div>
-
-  <p class="notifications__barre">
-    <button
-      type="button"
-      class="bouton bouton--secondaire bouton--compact"
-      id="notifications-actualiser"
-      [disabled]="chargement()"
-      [attr.aria-busy]="chargement()"
-      (click)="actualiser()"
-    >
-      Actualiser
-    </button>
-  </p>
-
-  @if (chargement()) {
-    <div class="etat" aria-busy="true">
-      <p class="etat__texte">Chargement des notifications…</p>
-    </div>
-  } @else if (erreur(); as message) {
-    <div class="message message--erreur" role="alert">
-      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
-      <div>
-        <p>{{ message }}</p>
-        <p class="notifications__actions">
-          <button
-            type="button"
-            class="bouton bouton--secondaire bouton--compact"
-            id="notifications-reessayer"
-            (click)="reessayer()"
-          >
-            Réessayer
-          </button>
-        </p>
-      </div>
-    </div>
-  } @else if (vide()) {
-    <div class="etat">
-      <p class="etat__titre">Vous n’avez aucune notification.</p>
-      <p class="etat__texte">
-        Les messages liés à vos commandes apparaîtront ici après une action du serveur.
+  <div class="conteneur">
+    <div class="notifications__titre">
+      <p class="notifications__surtitre">Votre compte</p>
+      <h1 #titrePage tabindex="-1">Notifications</h1>
+      <p class="notifications__intro">
+        Messages reçus par votre compte, du plus récent au plus ancien.
       </p>
-      <a class="bouton bouton--primaire" routerLink="/tableau-de-bord">
-        Aller au tableau de bord
-      </a>
     </div>
-  } @else {
-    @if (erreurMarquage(); as message) {
+
+    <p class="notifications__barre">
+      <button
+        type="button"
+        class="bouton bouton--secondaire bouton--compact"
+        id="notifications-actualiser"
+        [disabled]="chargement()"
+        [attr.aria-busy]="chargement()"
+        (click)="actualiser()"
+      >
+        Actualiser
+      </button>
+    </p>
+
+    @if (chargement()) {
+      <div class="etat" aria-busy="true">
+        <p class="etat__texte">Chargement des notifications…</p>
+      </div>
+    } @else if (erreur(); as message) {
       <div class="message message--erreur" role="alert">
         <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
-        <p>{{ message }}</p>
+        <div>
+          <p>{{ message }}</p>
+          <p class="notifications__actions">
+            <button
+              type="button"
+              class="bouton bouton--secondaire bouton--compact"
+              id="notifications-reessayer"
+              (click)="reessayer()"
+            >
+              Réessayer
+            </button>
+          </p>
+        </div>
       </div>
-    }
-
-    <ul class="notifications__liste">
-      @for (notification of liste(); track notification.id) {
-        <li
-          class="carte notifications__carte"
-          [class.notifications__carte--non-lue]="!notification.lu"
-        >
-          <div class="notifications__entete-carte">
-            <h2 class="carte__titre">{{ notification.titre }}</h2>
-            <span [class]="classesEtat(notification)">{{ libelleEtat(notification) }}</span>
-          </div>
-
-          <p class="notifications__message">{{ notification.message }}</p>
-
-          <dl class="notifications__champs">
-            <div>
-              <dt>Date</dt>
-              <dd>{{ formaterDateHeure(notification.dateCreation) }}</dd>
-            </div>
-          </dl>
-
-          @if (!notification.lu) {
-            <p class="notifications__actions">
-              <button
-                type="button"
-                class="bouton bouton--secondaire bouton--compact"
-                [id]="'notifications-marquer-' + notification.id"
-                [attr.aria-label]="
-                  'Marquer comme lue la notification : ' + notification.titre
-                "
-                [disabled]="marquageEnCours() !== null"
-                [attr.aria-busy]="enMarquage(notification.id)"
-                (click)="marquerLue(notification.id)"
-              >
-                {{ enMarquage(notification.id) ? '…' : 'Marquer comme lue' }}
-              </button>
-            </p>
-          }
-        </li>
+    } @else if (vide()) {
+      <div class="etat">
+        <p class="etat__titre">Vous n’avez aucune notification.</p>
+        <p class="etat__texte">
+          Les messages liés à vos commandes apparaîtront ici après une action du serveur.
+        </p>
+        <a class="bouton bouton--primaire" routerLink="/tableau-de-bord">
+          Aller au tableau de bord
+        </a>
+      </div>
+    } @else {
+      @if (erreurMarquage(); as message) {
+        <div class="message message--erreur" role="alert">
+          <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+          <p>{{ message }}</p>
+        </div>
       }
-    </ul>
-  }
+
+      <ul class="notifications__liste">
+        @for (notification of liste(); track notification.id) {
+          <li
+            class="carte notifications__carte"
+            [class.notifications__carte--non-lue]="!notification.lu"
+          >
+            <div class="notifications__entete-carte">
+              <h2 class="carte__titre">{{ notification.titre }}</h2>
+              <span [class]="classesEtat(notification)">{{ libelleEtat(notification) }}</span>
+            </div>
+
+            <p class="notifications__message">{{ notification.message }}</p>
+
+            <dl class="notifications__champs">
+              <div>
+                <dt>Date</dt>
+                <dd>{{ formaterDateHeure(notification.dateCreation) }}</dd>
+              </div>
+            </dl>
+
+            @if (!notification.lu) {
+              <p class="notifications__actions">
+                <button
+                  type="button"
+                  class="bouton bouton--secondaire bouton--compact"
+                  [id]="'notifications-marquer-' + notification.id"
+                  [attr.aria-label]="
+                    'Marquer comme lue la notification : ' + notification.titre
+                  "
+                  [disabled]="marquageEnCours() !== null"
+                  [attr.aria-busy]="enMarquage(notification.id)"
+                  (click)="marquerLue(notification.id)"
+                >
+                  {{ enMarquage(notification.id) ? '…' : 'Marquer comme lue' }}
+                </button>
+              </p>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </div>
 </section>

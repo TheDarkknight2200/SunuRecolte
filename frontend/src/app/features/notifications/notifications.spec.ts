@@ -388,6 +388,45 @@ describe('Notifications — écran transversal /notifications', () => {
       'Marquer comme lue la notification : Nouvelle commande',
     );
   });
+
+  /**
+   * §20 : le contenu est contraint par `.conteneur` (centré, `--largeur-contenu`), comme sur les
+   * écrans alignés. Vérifié dans les quatre états réellement rendus, pas seulement la liste :
+   * un état posé hors du conteneur se remettrait à étirer la page sur toute la fenêtre.
+   */
+  it('contraint son contenu dans .conteneur dans chacun des quatre états rendus', () => {
+    ouvrir();
+
+    const conteneur = element(racine, '.conteneur');
+    expect(conteneur.parentElement?.tagName).toBe('SECTION');
+    expect(elements(racine, '.conteneur')).toHaveLength(1);
+    expect(conteneur.contains(element(racine, 'h1'))).toBe(true);
+    expect(conteneur.contains(element(racine, '#notifications-actualiser'))).toBe(true);
+
+    // 1. chargement
+    expect(conteneur.contains(element(racine, '.etat'))).toBe(true);
+
+    // 2. vide, avec son lien d'action
+    charger([]);
+    expect(conteneur.contains(element(racine, '.etat__titre'))).toBe(true);
+    expect(conteneur.contains(element(racine, '.etat a'))).toBe(true);
+
+    // 3. liste, avec le bouton de marquage d'une ligne
+    cliquer('#notifications-actualiser');
+    charger([notification(1, false)]);
+    expect(conteneur.contains(element(racine, '.notifications__liste'))).toBe(true);
+    expect(conteneur.contains(element(racine, '#notifications-marquer-1'))).toBe(true);
+
+    // 4. erreur, avec son bouton Réessayer
+    cliquer('#notifications-actualiser');
+    demandeListe().flush(
+      { message: 'Le serveur est injoignable. Réessayez.' },
+      { status: 500, statusText: 'Error' },
+    );
+    fixture.detectChanges();
+    expect(conteneur.contains(element(racine, '.message--erreur'))).toBe(true);
+    expect(conteneur.contains(element(racine, '#notifications-reessayer'))).toBe(true);
+  });
 });
 
 /**
