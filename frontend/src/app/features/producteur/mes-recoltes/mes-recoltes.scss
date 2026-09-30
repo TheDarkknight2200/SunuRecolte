@@ -82,40 +82,12 @@
   margin: 0;
 }
 
-/* === Modale de confirmation === */
-
-.mes-recoltes__fond {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
-  padding: var(--espace-4);
-  background-color: rgba(30, 36, 32, 0.55);
-}
-
-.mes-recoltes__modale {
-  width: 100%;
-  max-width: 28rem;
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-4);
-  box-shadow: var(--ombre-surface);
-}
-
-.mes-recoltes__modale .message {
-  margin: 0;
-}
+/* === Modale de confirmation (§31) : motif global .voile / .modale / .modale__actions ===
+   Le socle global porte la voile, la boîte de 26rem, son ombre et ses boutons groupés ; le rythme
+   vertical vient de _base.scss. Seul le titre garde une taille propre à cette page. */
 
 .mes-recoltes__modale-titre {
-  margin: 0;
   font-size: var(--taille-lg);
-  font-weight: 600;
-}
-
-.mes-recoltes__modale-texte {
-  margin: 0;
-  color: var(--couleur-texte-secondaire);
 }
 
 @media (min-width: pr.$point-tablette) {

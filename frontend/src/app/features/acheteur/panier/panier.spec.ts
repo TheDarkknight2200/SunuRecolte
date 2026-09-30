@@ -327,7 +327,7 @@ describe('Panier', () => {
 
       cliquer('#vider-panier');
 
-      const modale = element(racine, '.panier__modale');
+      const modale = element(racine, '.modale');
       expect(modale.getAttribute('role')).toBe('dialog');
       expect(modale.getAttribute('aria-modal')).toBe('true');
       expect(modale.getAttribute('aria-labelledby')).toBe('vider-titre');
@@ -337,13 +337,29 @@ describe('Panier', () => {
       expect(panier.lignes()).toHaveLength(2);
     });
 
+    it('utilise le motif global de modale et ne redessine rien en local (§31)', () => {
+      ouvrir([ligne()]);
+
+      cliquer('#vider-panier');
+
+      expect(racine.querySelector('.voile')).not.toBeNull();
+      expect(racine.querySelector('.modale')).not.toBeNull();
+      expect(racine.querySelector('.modale__actions')).not.toBeNull();
+      expect(racine.querySelector('.panier__fond')).toBeNull();
+      expect(racine.querySelector('.panier__modale')).toBeNull();
+      expect(racine.querySelector('.panier__actions')).toBeNull();
+      // Le titre référencé par aria-labelledby est bien rendu dans la boîte.
+      const titre = element(racine, '#vider-titre');
+      expect(element(racine, '.modale').contains(titre)).toBe(true);
+    });
+
     it('Annuler ferme la modale, rend le focus au déclencheur et garde les lignes', () => {
       ouvrir([ligne()]);
       cliquer('#vider-panier');
 
       cliquer('#vider-annuler');
 
-      expect(racine.querySelector('.panier__modale')).toBeNull();
+      expect(racine.querySelector('.modale')).toBeNull();
       expect(document.activeElement?.getAttribute('id')).toBe('vider-panier');
       expect(panier.lignes()).toHaveLength(1);
     });
@@ -354,8 +370,31 @@ describe('Panier', () => {
 
       echapper();
 
-      expect(racine.querySelector('.panier__modale')).toBeNull();
+      expect(racine.querySelector('.modale')).toBeNull();
       expect(panier.lignes()).toHaveLength(1);
+    });
+
+    it('un clic sur la voile ferme la modale et garde les lignes', () => {
+      ouvrir([ligne(), ligne({ recolteId: 102 })]);
+      cliquer('#vider-panier');
+
+      element(racine, '.voile').click();
+      fixture.detectChanges();
+
+      expect(racine.querySelector('.modale')).toBeNull();
+      expect(panier.lignes()).toHaveLength(2);
+      expect(document.activeElement?.getAttribute('id')).toBe('vider-panier');
+    });
+
+    it('un clic à l’intérieur de la modale ne la ferme pas', () => {
+      ouvrir([ligne(), ligne({ recolteId: 102 })]);
+      cliquer('#vider-panier');
+
+      element(racine, '.modale').click();
+      fixture.detectChanges();
+
+      expect(racine.querySelector('.modale')).not.toBeNull();
+      expect(panier.lignes()).toHaveLength(2);
     });
 
     it('Tab et Shift+Tab restent piégés dans la modale ouverte', () => {
@@ -371,7 +410,7 @@ describe('Panier', () => {
 
       presserTab(true);
       expect(document.activeElement?.getAttribute('id')).toBe('vider-confirmer');
-      expect(element(racine, '.panier__modale').contains(document.activeElement)).toBe(true);
+      expect(element(racine, '.modale').contains(document.activeElement)).toBe(true);
     });
 
     it('confirmer purge le panier, sa clé de stockage, et pose le focus sur le catalogue', () => {
@@ -384,7 +423,7 @@ describe('Panier', () => {
       expect(localStorage.getItem(CLE_PANIER)).toBeNull();
       expect(texteDe(element(racine, '.etat__titre'))).toBe('Votre panier est vide.');
       expect(document.activeElement?.getAttribute('id')).toBe('lien-catalogue');
-      expect(racine.querySelector('.panier__modale')).toBeNull();
+      expect(racine.querySelector('.modale')).toBeNull();
     });
 
     it('le bouton destructif porte le libellé de son effet réel', () => {

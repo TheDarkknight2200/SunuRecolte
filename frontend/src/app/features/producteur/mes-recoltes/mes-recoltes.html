@@ -136,11 +136,11 @@
 
   @if (recolteASupprimer(); as recolte) {
     <div
-      class="mes-recoltes__fond"
+      class="voile"
       (click)="annulerSuppression()"
     >
       <div
-        class="carte mes-recoltes__modale"
+        class="modale"
         #modale
         role="dialog"
         aria-modal="true"
@@ -150,7 +150,7 @@
         <h2 class="mes-recoltes__modale-titre" id="suppression-titre">
           Voulez-vous vraiment supprimer cette récolte ?
         </h2>
-        <p class="mes-recoltes__modale-texte">
+        <p class="texte-secondaire">
           « {{ recolte.produit }} » ({{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }})
           sera retirée du catalogue. Cette action est définitive.
         </p>
@@ -159,7 +159,7 @@
           <p class="message message--erreur" role="alert">{{ message }}</p>
         }
 
-        <div class="mes-recoltes__actions">
+        <div class="modale__actions">
           <button
             type="button"
             class="bouton bouton--secondaire"

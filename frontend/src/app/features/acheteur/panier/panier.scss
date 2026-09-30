@@ -184,42 +184,12 @@
   margin-top: var(--espace-4);
 }
 
-/* === Modale de confirmation (§31, patron de la Phase 5.4) === */
-
-.panier__fond {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
-  padding: var(--espace-4);
-  background-color: rgba(30, 36, 32, 0.55);
-}
-
-.panier__modale {
-  width: 100%;
-  max-width: 28rem;
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-4);
-  box-shadow: var(--ombre-surface);
-}
+/* === Modale de confirmation (§31) : motif global .voile / .modale / .modale__actions ===
+   Le socle global porte la voile, la boîte, son ombre et ses boutons groupés ; seul le titre
+   garde une taille propre à cette page. */
 
 .panier__modale-titre {
-  margin: 0;
   font-size: var(--taille-lg);
-  font-weight: 600;
-}
-
-.panier__modale-texte {
-  margin: 0;
-  color: var(--couleur-texte-secondaire);
-}
-
-.panier__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--espace-3);
 }
 
 /* === Tablette et desktop : ligne à plat, séparateur 1 px, pas de zébrage (§25) === */

@@ -388,7 +388,7 @@ describe('MesRecoltes', () => {
     it('ne supprime jamais sans confirmation : la modale s’ouvre, aucune requête DELETE', () => {
       ouvrirModale();
 
-      const modale = element(racine, '.mes-recoltes__modale');
+      const modale = element(racine, '.modale');
       expect(modale.getAttribute('role')).toBe('dialog');
       expect(modale.getAttribute('aria-modal')).toBe('true');
       expect(modale.getAttribute('aria-labelledby')).toBe('suppression-titre');
@@ -397,6 +397,40 @@ describe('MesRecoltes', () => {
       );
       expect(texteDe(modale)).toContain('Tomate');
       expect(texteDe(modale)).toContain('Cette action est définitive.');
+      expect(http.match((requete) => requete.method === 'DELETE')).toHaveLength(0);
+    });
+
+    it('utilise le motif global de modale et ne redessine rien en local (§31)', () => {
+      ouvrirModale();
+
+      const voile = element(racine, '.voile');
+      const modale = element(racine, '.modale');
+      expect(voile.contains(modale)).toBe(true);
+      expect(element(racine, '.modale__actions').closest('.modale')).toBe(modale);
+
+      expect(racine.querySelector('.mes-recoltes__fond')).toBeNull();
+      expect(racine.querySelector('.mes-recoltes__modale')).toBeNull();
+      // La classe locale d'actions reste en usage dans l'en-tête, plus dans la modale.
+      expect(modale.querySelector('.mes-recoltes__actions')).toBeNull();
+    });
+
+    it('un clic sur la voile ferme la modale et rend le focus au déclencheur', () => {
+      ouvrirModale();
+      element(racine, '.voile').click();
+      fixture.detectChanges();
+
+      expect(racine.querySelector('.modale')).toBeNull();
+      expect(http.match((requete) => requete.method === 'DELETE')).toHaveLength(0);
+      expect(elements(racine, '.mes-recoltes__carte')).toHaveLength(2);
+      expect(document.activeElement?.getAttribute('aria-label')).toBe('Supprimer la récolte Tomate');
+    });
+
+    it('un clic à l’intérieur de la modale ne la ferme pas', () => {
+      ouvrirModale();
+      element(racine, '.modale').click();
+      fixture.detectChanges();
+
+      expect(racine.querySelector('.modale')).not.toBeNull();
       expect(http.match((requete) => requete.method === 'DELETE')).toHaveLength(0);
     });
 
@@ -411,7 +445,7 @@ describe('MesRecoltes', () => {
       ouvrirModale();
       cliquer('#suppression-annuler');
 
-      expect(racine.querySelector('.mes-recoltes__modale')).toBeNull();
+      expect(racine.querySelector('.modale')).toBeNull();
       expect(document.activeElement?.getAttribute('aria-label')).toBe('Supprimer la récolte Tomate');
       expect(http.match((requete) => requete.method === 'DELETE')).toHaveLength(0);
       expect(elements(racine, '.mes-recoltes__carte')).toHaveLength(2);
@@ -419,12 +453,12 @@ describe('MesRecoltes', () => {
 
     it('Escape ferme la modale sans rien supprimer', () => {
       ouvrirModale();
-      element(racine, '.mes-recoltes__fond').dispatchEvent(
+      element(racine, '.voile').dispatchEvent(
         new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
       );
       fixture.detectChanges();
 
-      expect(racine.querySelector('.mes-recoltes__modale')).toBeNull();
+      expect(racine.querySelector('.modale')).toBeNull();
       expect(http.match((requete) => requete.method === 'DELETE')).toHaveLength(0);
     });
 
@@ -441,18 +475,18 @@ describe('MesRecoltes', () => {
       presserTab(true);
       expect(document.activeElement?.getAttribute('id')).toBe('suppression-confirmer');
 
-      expect(element(racine, '.mes-recoltes__modale').contains(document.activeElement)).toBe(true);
+      expect(element(racine, '.modale').contains(document.activeElement)).toBe(true);
       expect(http.match((requete) => requete.method === 'DELETE')).toHaveLength(0);
     });
 
     it('Escape ferme la modale même quand le focus est sorti dans l’arrière-plan', () => {
       ouvrirModale();
       element<HTMLAnchorElement>(racine, '.mes-recoltes__entete a').focus();
-      expect(element(racine, '.mes-recoltes__modale').contains(document.activeElement)).toBe(false);
+      expect(element(racine, '.modale').contains(document.activeElement)).toBe(false);
 
       escape();
 
-      expect(racine.querySelector('.mes-recoltes__modale')).toBeNull();
+      expect(racine.querySelector('.modale')).toBeNull();
       expect(http.match((requete) => requete.method === 'DELETE')).toHaveLength(0);
       expect(document.activeElement?.getAttribute('aria-label')).toBe('Supprimer la récolte Tomate');
     });
@@ -483,7 +517,7 @@ describe('MesRecoltes', () => {
       expect(
         elements<HTMLElement>(racine, '.mes-recoltes__carte .carte__titre').map(texteDe),
       ).toEqual(['Mangue']);
-      expect(racine.querySelector('.mes-recoltes__modale')).toBeNull();
+      expect(racine.querySelector('.modale')).toBeNull();
     });
 
     it('204 : le message de succès est annoncé après le retrait de la liste', () => {
@@ -533,8 +567,8 @@ describe('MesRecoltes', () => {
       );
       fixture.detectChanges();
 
-      const modale = element(racine, '.mes-recoltes__modale');
-      expect(texteDe(element(racine, '.mes-recoltes__modale .message--erreur'))).toContain(
+      const modale = element(racine, '.modale');
+      expect(texteDe(element(racine, '.modale .message--erreur'))).toContain(
         'Cette récolte est utilisée dans une commande et ne peut pas être supprimée.',
       );
       expect(modale.getAttribute('aria-modal')).toBe('true');
@@ -554,7 +588,7 @@ describe('MesRecoltes', () => {
       );
       fixture.detectChanges();
 
-      expect(texteDe(element(racine, '.mes-recoltes__modale .message--erreur'))).toContain(
+      expect(texteDe(element(racine, '.modale .message--erreur'))).toContain(
         'Accès refusé',
       );
       expect(localStorage.getItem(CLE_JETON)).not.toBeNull();

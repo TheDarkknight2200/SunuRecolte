@@ -157,9 +157,9 @@
   }
 
   @if (confirmationVider()) {
-    <div class="panier__fond" (click)="annulerVider()">
+    <div class="voile" (click)="annulerVider()">
       <div
-        class="carte panier__modale"
+        class="modale"
         #modale
         role="dialog"
         aria-modal="true"
@@ -169,12 +169,12 @@
         <h2 class="panier__modale-titre" id="vider-titre">
           Voulez-vous vraiment vider le panier ?
         </h2>
-        <p class="panier__modale-texte">
+        <p class="texte-secondaire">
           Toutes les récoltes enregistrées ici seront retirées du panier. Les annonces du catalogue
           ne sont pas modifiées.
         </p>
 
-        <div class="panier__actions">
+        <div class="modale__actions">
           <button
             type="button"
             class="bouton bouton--secondaire"
