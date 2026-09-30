@@ -1,93 +1,95 @@
 <section class="commandes">
-  <div class="commandes__titre">
-    <p class="commandes__surtitre">Espace acheteur</p>
-    <h1>Mes commandes</h1>
-    <p class="commandes__intro">
-      Commandes passées depuis votre compte, de la plus récente à la plus ancienne.
-    </p>
-  </div>
-
-  <!-- Les notifications sont transversales (§29) : l'accès se propose dans l'espace, jamais dans l'en-tête. -->
-  <p class="commandes__actions">
-    <a
-      class="bouton bouton--discret bouton--compact"
-      id="lien-notifications-acheteur"
-      routerLink="/notifications"
-    >
-      Notifications
-    </a>
-  </p>
-
-  @if (chargement()) {
-    <div class="etat" aria-busy="true">
-      <p class="etat__texte">Chargement de vos commandes…</p>
-    </div>
-  } @else if (erreur(); as message) {
-    <div class="message message--erreur" role="alert">
-      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
-      <div>
-        <p>{{ message }}</p>
-        <p class="commandes__actions">
-          <button
-            type="button"
-            class="bouton bouton--secondaire bouton--compact"
-            id="commandes-reessayer"
-            (click)="reessayer()"
-          >
-            Réessayer
-          </button>
-        </p>
-      </div>
-    </div>
-  } @else if (liste().length === 0) {
-    <div class="etat">
-      <p class="etat__titre">Vous n’avez pas encore de commande.</p>
-      <p class="etat__texte">
-        Parcourez le catalogue pour préparer un panier et passer votre première commande.
+  <div class="conteneur">
+    <div class="commandes__titre">
+      <p class="commandes__surtitre">Espace acheteur</p>
+      <h1>Mes commandes</h1>
+      <p class="commandes__intro">
+        Commandes passées depuis votre compte, de la plus récente à la plus ancienne.
       </p>
-      <a class="bouton bouton--primaire" routerLink="/recoltes">Parcourir le catalogue</a>
     </div>
-  } @else {
-    <ul class="commandes__liste">
-      @for (commande of liste(); track commande.id) {
-        <li class="carte commandes__carte">
-          <div class="commandes__entete-carte">
-            <h2 class="carte__titre">Commande n° {{ commande.id }}</h2>
-            <span [class]="classesStatut(commande.statut)">{{ libelleStatut(commande.statut) }}</span>
-          </div>
 
-          <dl class="commandes__champs">
-            <div>
-              <dt>Date</dt>
-              <dd>{{ formaterDateHeure(commande.dateCreation) }}</dd>
-            </div>
-            <div>
-              <dt>Réception</dt>
-              <dd>{{ libelleReception(commande.modeReception) }}</dd>
-            </div>
-            <div>
-              <dt>Lignes</dt>
-              <dd>{{ lignesDe(commande) }}</dd>
-            </div>
-            <div>
-              <dt>Total</dt>
-              <dd class="commandes__total">{{ formaterMontant(commande.total) }}</dd>
-            </div>
-          </dl>
+    <!-- Les notifications sont transversales (§29) : l'accès se propose dans l'espace, jamais dans l'en-tête. -->
+    <p class="commandes__actions">
+      <a
+        class="bouton bouton--discret bouton--compact"
+        id="lien-notifications-acheteur"
+        routerLink="/notifications"
+      >
+        Notifications
+      </a>
+    </p>
 
+    @if (chargement()) {
+      <div class="etat" aria-busy="true">
+        <p class="etat__texte">Chargement de vos commandes…</p>
+      </div>
+    } @else if (erreur(); as message) {
+      <div class="message message--erreur" role="alert">
+        <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+        <div>
+          <p>{{ message }}</p>
           <p class="commandes__actions">
-            <a
+            <button
+              type="button"
               class="bouton bouton--secondaire bouton--compact"
-              [routerLink]="lienDetail(commande)"
-              [attr.aria-label]="
-                'Voir le détail de la commande n° ' + commande.id
-              "
+              id="commandes-reessayer"
+              (click)="reessayer()"
             >
-              Voir le détail
-            </a>
+              Réessayer
+            </button>
           </p>
-        </li>
-      }
-    </ul>
-  }
+        </div>
+      </div>
+    } @else if (liste().length === 0) {
+      <div class="etat">
+        <p class="etat__titre">Vous n’avez pas encore de commande.</p>
+        <p class="etat__texte">
+          Parcourez le catalogue pour préparer un panier et passer votre première commande.
+        </p>
+        <a class="bouton bouton--primaire" routerLink="/recoltes">Parcourir le catalogue</a>
+      </div>
+    } @else {
+      <ul class="commandes__liste">
+        @for (commande of liste(); track commande.id) {
+          <li class="carte commandes__carte">
+            <div class="commandes__entete-carte">
+              <h2 class="carte__titre">Commande n° {{ commande.id }}</h2>
+              <span [class]="classesStatut(commande.statut)">{{ libelleStatut(commande.statut) }}</span>
+            </div>
+
+            <dl class="commandes__champs">
+              <div>
+                <dt>Date</dt>
+                <dd>{{ formaterDateHeure(commande.dateCreation) }}</dd>
+              </div>
+              <div>
+                <dt>Réception</dt>
+                <dd>{{ libelleReception(commande.modeReception) }}</dd>
+              </div>
+              <div>
+                <dt>Lignes</dt>
+                <dd>{{ lignesDe(commande) }}</dd>
+              </div>
+              <div>
+                <dt>Total</dt>
+                <dd class="commandes__total">{{ formaterMontant(commande.total) }}</dd>
+              </div>
+            </dl>
+
+            <p class="commandes__actions">
+              <a
+                class="bouton bouton--secondaire bouton--compact"
+                [routerLink]="lienDetail(commande)"
+                [attr.aria-label]="
+                  'Voir le détail de la commande n° ' + commande.id
+                "
+              >
+                Voir le détail
+              </a>
+            </p>
+          </li>
+        }
+      </ul>
+    }
+  </div>
 </section>

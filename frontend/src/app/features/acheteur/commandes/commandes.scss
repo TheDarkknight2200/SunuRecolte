@@ -1,6 +1,8 @@
 @use "points-rupture" as pr;
 
-.commandes {
+/* Le socle global fournit .conteneur (§20 : largeur --largeur-contenu, centrage, gouttières) :
+   c'est lui qui porte la colonne verticale, avec le rythme propre à cet écran (--espace-5). */
+.commandes .conteneur {
   display: flex;
   flex-direction: column;
   gap: var(--espace-5);

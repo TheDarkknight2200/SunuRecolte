@@ -295,6 +295,45 @@ describe('Commandes — liste « Mes commandes »', () => {
       expect(texte).not.toContain(terme);
     }
   });
+
+  /**
+   * §20 : le contenu est contraint par `.conteneur` (centré, `--largeur-contenu`), la racine
+   * `.commandes` restant ce qu'elle était. Les trois états atteignables dans une même monture sont
+   * vérifiés ; l'état vide rend le même nœud `.etat` que celui contrôlé pendant le chargement.
+   */
+  it('contraint son contenu dans un seul .conteneur, sans toucher à la racine', () => {
+    ouvrir();
+
+    const page = element(racine, '.commandes');
+    expect(page.tagName).toBe('SECTION');
+    const conteneur = element(racine, '.conteneur');
+    expect(elements(racine, '.conteneur')).toHaveLength(1);
+    expect(conteneur.parentElement).toBe(page);
+
+    // Le titre et l'accès transversal aux notifications sont déjà à l'intérieur.
+    expect(conteneur.contains(element(racine, 'h1'))).toBe(true);
+    expect(conteneur.contains(element(racine, '#lien-notifications-acheteur'))).toBe(true);
+
+    // 1. chargement
+    expect(conteneur.contains(element(racine, '.etat'))).toBe(true);
+
+    // 2. erreur, avec son bouton de reprise
+    demandeListe().flush(
+      { message: 'Impossible de charger vos commandes.' },
+      { status: 500, statusText: 'error' },
+    );
+    fixture.detectChanges();
+    expect(conteneur.contains(element(racine, '.message--erreur'))).toBe(true);
+    expect(conteneur.contains(element(racine, '#commandes-reessayer'))).toBe(true);
+
+    // 3. liste, avec sa carte et le lien de détail de la commande
+    element<HTMLButtonElement>(racine, '#commandes-reessayer').click();
+    fixture.detectChanges();
+    charger([commande(512)]);
+    expect(conteneur.contains(element(racine, '.commandes__liste'))).toBe(true);
+    expect(conteneur.contains(element(racine, '.commandes__carte'))).toBe(true);
+    expect(conteneur.contains(element(racine, '.commandes__carte .commandes__actions a'))).toBe(true);
+  });
 });
 
 /**
