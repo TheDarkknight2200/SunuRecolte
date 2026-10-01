@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="SunuRecolte">
-  <rect width="32" height="32" rx="7" fill="#2F5D3A"/>
+  <rect width="32" height="32" rx="7" fill="#203D2E"/>
   <path d="M16 5.5C10.6 10.6 10.6 19.4 16 24.5C21.4 19.4 21.4 10.6 16 5.5Z" fill="#F5F3EC"/>
-  <path d="M16 9.5V23.5" stroke="#2F5D3A" stroke-width="1" stroke-linecap="round"/>
+  <path d="M16 9.5V23.5" stroke="#203D2E" stroke-width="1" stroke-linecap="round"/>
   <path d="M16 23.5V28" stroke="#F5F3EC" stroke-width="1.6" stroke-linecap="round"/>
 </svg>

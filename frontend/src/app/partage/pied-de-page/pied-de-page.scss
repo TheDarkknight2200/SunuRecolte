@@ -1,19 +1,48 @@
 .pied {
-  border-top: 1px solid var(--couleur-bordure);
-  background-color: var(--couleur-surface);
+  background-color: var(--couleur-foret-profonde);
+  color: rgba(248, 247, 241, 0.7);
 }
 
 .pied__contenu {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: var(--espace-2) var(--espace-5);
-  padding-top: var(--espace-4);
-  padding-bottom: var(--espace-4);
+  gap: var(--espace-4) var(--espace-5);
+  padding-top: var(--espace-6);
+  padding-bottom: var(--espace-6);
+}
+
+.pied__marque {
+  margin: 0 0 var(--espace-3);
+  color: var(--couleur-fond);
+  font-family: var(--police-titre);
+  font-size: 1.55rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+
+  em {
+    font-style: italic;
+  }
 }
 
 .pied__texte {
   margin: 0;
-  color: var(--couleur-texte-secondaire);
+  max-width: 420px;
   font-size: var(--taille-xs);
+  line-height: 1.7;
+
+  a {
+    color: var(--couleur-fond);
+  }
+}
+
+.pied__colonne {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+
+  @media (min-width: 768px) {
+    align-items: flex-end;
+  }
 }

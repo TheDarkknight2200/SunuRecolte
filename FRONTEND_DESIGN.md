@@ -1263,3 +1263,24 @@ design system (§38.1 à §38.5, tokens et classes de `_composants.scss`), puis 
 puis Administration. Une étape ne convertit pas les écrans des suivantes, ne touche ni aux DTO, ni aux
 services, ni aux guards, ni au panier, et n'ajoute aucune dépendance. Les tests sont adaptés **seulement** là
 où la structure HTML change réellement ; aucun test n'est supprimé ni désactivé pour faire passer un style.
+
+## 39. Refonte visuelle (maquette Figma, octobre 2026)
+
+Cette section **remplace** les règles ci-dessous de §6, §14 et §17 pour l'ensemble de l'interface :
+
+- **Typographie (§6)** : titres en Fraunces (`--police-titre`, italique pour le mot d'accent), texte en DM Sans
+  (`--police-texte`). Les deux polices sont **auto-hébergées** via `@fontsource-variable/*` (aucune requête
+  externe, rendu identique hors connexion).
+- **Palette (§5)** : valeurs des tokens mises à jour dans `_tokens.scss` (vert forêt `#203d2e`, terre cuite
+  `#b66b3b`, crème `#f8f7f1`) ; les noms de tokens sont inchangés, donc tous les écrans suivent.
+  Nouveaux tokens : `--couleur-sable`, `--couleur-foret-profonde`, `--couleur-sable-accent`,
+  `--rayon-pilule`, `--duree-mouvement`, `--police-titre`.
+- **Formes (§17)** : boutons et badges en pilule (`--rayon-pilule`).
+- **Animations (§14)** : survol des cartes de récolte (élévation de 4 px, zoom lent de la photo), glissement de la
+  flèche des boutons, ouverture du panier latéral (`--duree-mouvement`, 300 ms). Toutes sont neutralisées par
+  `prefers-reduced-motion`. Aucune animation permanente ni carrousel automatique.
+- **Panier latéral** : composant `app-panier-tiroir`, ouvert par le lien « Panier » de l'en-tête (le lien garde son
+  adresse `/acheteur/panier`) et par l'ajout depuis l'accueil. Il ne fait que refléter `PanierService` ; la
+  commande reste calculée et validée par le serveur.
+- **Images (§15)** : la photo du hero est une photographie d'illustration ; les cartes de récolte utilisent
+  `imageUrl` de l'API.

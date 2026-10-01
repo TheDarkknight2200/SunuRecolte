@@ -4,6 +4,7 @@ import { LIBELLES_ROLE } from '../../core/modeles/referentiels';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { PanierService } from '../../core/services/panier.service';
+import { TiroirPanierService } from '../../core/services/tiroir-panier.service';
 import { espaceParRole } from '../../core/utilitaires/navigation';
 
 /** En-tête unique de l'application (FRONTEND_DESIGN.md §10.5). */
@@ -18,6 +19,7 @@ export class EnTete {
   private readonly panier = inject(PanierService);
   private readonly notifications = inject(NotificationService);
   private readonly routeur = inject(Router);
+  private readonly tiroir = inject(TiroirPanierService);
 
   protected readonly session = this.auth.session;
 
@@ -100,6 +102,18 @@ export class EnTete {
         error: () => this.compteCharge.set(null),
       });
     });
+  }
+
+  /**
+   * Le lien « Panier » garde son adresse (clic central, ouverture dans un onglet) mais,
+   * au clic simple, ouvre le panier latéral au lieu de quitter la page.
+   */
+  protected ouvrirPanier(evenement: MouseEvent): void {
+    if (evenement.ctrlKey || evenement.metaKey || evenement.shiftKey || evenement.button !== 0) {
+      return;
+    }
+    evenement.preventDefault();
+    this.tiroir.ouvrir();
   }
 
   protected seDeconnecter(): void {

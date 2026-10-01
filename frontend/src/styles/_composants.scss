@@ -9,10 +9,10 @@
   align-items: center;
   justify-content: center;
   gap: var(--espace-2);
-  min-height: 40px;
-  padding: 0 var(--espace-4);
+  min-height: 44px;
+  padding: 0 var(--espace-5);
   border: 1px solid transparent;
-  border-radius: var(--rayon-md);
+  border-radius: var(--rayon-pilule);
   font-family: inherit;
   font-size: var(--taille-md);
   font-weight: 600;
@@ -374,7 +374,7 @@ textarea.champ__saisie {
   display: inline-block;
   padding: 2px var(--espace-2);
   border: 1px solid var(--couleur-bordure);
-  border-radius: var(--rayon-sm);
+  border-radius: var(--rayon-pilule);
   background-color: var(--couleur-surface);
   color: var(--couleur-texte-secondaire);
   font-size: var(--taille-xs);

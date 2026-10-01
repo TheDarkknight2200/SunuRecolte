@@ -1,65 +1,63 @@
-<section class="hero">
-  <div class="conteneur hero__contenu">
-    <div class="hero__gauche">
-      <p class="hero__accroche">Plateforme agricole · Région de Dakar</p>
-      <h1 class="hero__titre">Des récoltes locales, directement des producteurs.</h1>
-      <p class="hero__description">
-        Les producteurs publient leurs récoltes, les acheteurs passent commande directement,
-        sans intermédiaire.
-      </p>
-      <div class="hero__actions">
-        <a class="bouton hero__btn-primaire" routerLink="/inscription">Créer un compte</a>
-        <a class="bouton hero__btn-secondaire" routerLink="/connexion">Se connecter</a>
-      </div>
+<section class="hero" aria-labelledby="hero-titre">
+  <div class="hero__gauche">
+    <p class="hero__accroche"><span class="hero__trait"></span> La terre. Les gens. Le bon.</p>
+    <h1 class="hero__titre" id="hero-titre">Le goût du local, <em>sans détour.</em></h1>
+    <p class="hero__description">
+      Des récoltes de chez nous, proposées directement par celles et ceux qui les cultivent.
+      Plus simple, plus juste, plus proche.
+    </p>
+    <div class="hero__actions">
+      <a class="bouton hero__btn-primaire" routerLink="/recoltes">
+        Découvrir les récoltes
+        <span class="materiel-icone" aria-hidden="true">&#xe5c8;</span>
+      </a>
+      @if (connecte()) {
+        <a class="hero__lien" routerLink="/tableau-de-bord">Mon tableau de bord</a>
+      } @else {
+        <a class="hero__lien" href="#comment-ca-marche">Comment ça marche</a>
+      }
     </div>
+    <p class="hero__lieu">
+      <span class="materiel-icone" aria-hidden="true">&#xf1db;</span>
+      Une plateforme agricole ancrée dans la région de Dakar
+    </p>
+  </div>
 
-    <div class="hero__droite" aria-hidden="true">
-      <svg class="hero__svg" viewBox="0 0 360 240" xmlns="http://www.w3.org/2000/svg">
-        <rect width="360" height="240" rx="4" fill="#24482d"/>
-        <rect y="168" width="360" height="72" fill="#1d3a23"/>
-        <g fill="#3d7549">
-          <ellipse cx="30" cy="162" rx="13" ry="26"/>
-          <ellipse cx="75" cy="160" rx="13" ry="28"/>
-          <ellipse cx="120" cy="162" rx="13" ry="26"/>
-          <ellipse cx="165" cy="160" rx="13" ry="28"/>
-          <ellipse cx="210" cy="162" rx="13" ry="26"/>
-          <ellipse cx="255" cy="160" rx="13" ry="28"/>
-          <ellipse cx="300" cy="162" rx="13" ry="26"/>
-          <ellipse cx="340" cy="160" rx="11" ry="24"/>
-        </g>
-        <g fill="#4a9460">
-          <ellipse cx="10" cy="178" rx="11" ry="22"/>
-          <ellipse cx="52" cy="174" rx="15" ry="34"/>
-          <ellipse cx="98" cy="174" rx="15" ry="34"/>
-          <ellipse cx="144" cy="174" rx="15" ry="34"/>
-          <ellipse cx="190" cy="174" rx="15" ry="34"/>
-          <ellipse cx="236" cy="174" rx="15" ry="34"/>
-          <ellipse cx="282" cy="174" rx="15" ry="34"/>
-          <ellipse cx="328" cy="176" rx="13" ry="30"/>
-          <ellipse cx="356" cy="178" rx="9" ry="22"/>
-        </g>
-        <circle cx="290" cy="62" r="38" fill="#a4652f" opacity="0.12"/>
-        <circle cx="290" cy="62" r="23" fill="#a4652f" opacity="0.22"/>
-        <circle cx="290" cy="62" r="13" fill="#a4652f"/>
-        <circle cx="52" cy="143" r="7" fill="#a4652f" opacity="0.75"/>
-        <circle cx="98" cy="137" r="6" fill="#a4652f" opacity="0.7"/>
-        <circle cx="144" cy="141" r="8" fill="#a4652f" opacity="0.8"/>
-        <circle cx="190" cy="136" r="6" fill="#a4652f" opacity="0.7"/>
-        <circle cx="236" cy="143" r="7" fill="#a4652f" opacity="0.75"/>
-        <circle cx="282" cy="137" r="6" fill="#a4652f" opacity="0.7"/>
-        <circle cx="328" cy="143" r="7" fill="#a4652f" opacity="0.7"/>
-      </svg>
-    </div>
+  <div class="hero__droite">
+    <img
+      class="hero__photo"
+      [src]="photoHero()"
+      (error)="repliPhotoHero()"
+      alt="Deux personnes récoltent des légumes verts dans un champ"
+      fetchpriority="high"
+    />
+    <p class="hero__legende">
+      <span class="hero__numero">01</span>
+      Du champ à votre table, avec moins d'intermédiaires.
+    </p>
+  </div>
+</section>
+
+<section class="engagements" aria-label="Nos engagements">
+  <div class="conteneur engagements__contenu">
+    <p class="engagements__item"><span>01.</span> Directement des producteurs</p>
+    <p class="engagements__item"><span>02.</span> Des prix affichés en toute clarté</p>
+    <p class="engagements__item"><span>03.</span> Une agriculture plus proche de vous</p>
   </div>
 </section>
 
 <section class="accueil__catalogue" aria-labelledby="titre-catalogue">
   <div class="conteneur">
     <div class="accueil__entete-section">
-      <h2 id="titre-catalogue">Récoltes publiées</h2>
-      <a class="bouton bouton--secondaire bouton--compact" routerLink="/recoltes">
-        Voir le catalogue
-      </a>
+      <div>
+        <p class="accueil__surtitre">Le marché, autrement</p>
+        <h2 id="titre-catalogue" class="accueil__titre">Les récoltes du moment<span>.</span></h2>
+        <p class="accueil__intro">
+          Explorez les produits publiés par les producteurs et trouvez ce qu'il vous faut, au juste
+          prix.
+        </p>
+      </div>
+      <a class="bouton bouton--secondaire" routerLink="/recoltes">Voir le catalogue</a>
     </div>
 
     @if (chargement()) {
@@ -84,52 +82,110 @@
         </p>
       </div>
     } @else {
-      <ul class="accueil__liste grille-2">
-        @for (recolte of liste(); track recolte.id) {
-          <li class="carte accueil__carte">
-            <div class="accueil__entete-carte">
-              <h3 class="carte__titre">
-                <a class="accueil__lien" [routerLink]="['/recoltes', recolte.id]">
-                  {{ recolte.produit }}
-                </a>
-              </h3>
-              <span
-                class="badge"
-                [class.badge--succes]="recolte.statut === 'DISPONIBLE'"
-              >
-                {{ libelleStatut(recolte) }}
-              </span>
-            </div>
-
-            <p class="accueil__producteur">{{ producteur(recolte) }}</p>
-
-            @if (recolte.description) {
-              <p class="accueil__description">{{ recolte.description }}</p>
-            }
-
-            <dl class="accueil__mesures">
-              <div>
-                <dt>Disponible</dt>
-                <dd>{{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }}</dd>
-              </div>
-              <div>
-                <dt>Prix unitaire</dt>
-                <dd>{{ formaterMontant(recolte.prixUnitaire) }} / {{ recolte.unite }}</dd>
-              </div>
-              @if (recolte.quantiteMin !== null) {
-                <div>
-                  <dt>Commande minimale</dt>
-                  <dd>{{ formaterQuantite(recolte.quantiteMin, recolte.unite) }}</dd>
-                </div>
+      <ul class="accueil__liste">
+        @for (recolte of aLaUne(); track recolte.id) {
+          <li class="recolte">
+            <a class="recolte__visuel" [routerLink]="['/recoltes', recolte.id]" tabindex="-1" aria-hidden="true">
+              @if (photoDe(recolte); as photo) {
+                <img
+                  class="recolte__image"
+                  [src]="photo"
+                  (error)="photoEnErreur(recolte)"
+                  alt=""
+                  loading="lazy"
+                />
+              } @else {
+                <span class="recolte__sans-image">
+                  <img src="logo-sunu-recolte.svg" alt="" width="44" height="44" />
+                </span>
               }
-            </dl>
-
-            @if (meta(recolte); as details) {
-              <p class="accueil__meta">{{ details }}</p>
-            }
+            </a>
+            <span class="recolte__statut" [class.recolte__statut--epuise]="!estDisponible(recolte)">
+              {{ libelleStatut(recolte) }}
+            </span>
+            <div class="recolte__corps">
+              <h3 class="recolte__nom">
+                <a [routerLink]="['/recoltes', recolte.id]">{{ recolte.produit }}</a>
+              </h3>
+              <p class="recolte__producteur">{{ producteur(recolte) }}</p>
+              <div class="recolte__bas">
+                <div>
+                  <p class="recolte__stock">
+                    {{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }} disponibles
+                  </p>
+                  <p class="recolte__prix">
+                    {{ formaterMontant(recolte.prixUnitaire) }}
+                    <span>/ {{ recolte.unite }}</span>
+                  </p>
+                </div>
+                @if (acheteur() && estDisponible(recolte)) {
+                  <button
+                    type="button"
+                    class="recolte__ajout"
+                    [attr.aria-label]="'Ajouter ' + recolte.produit + ' au panier'"
+                    (click)="ajouter(recolte)"
+                  >
+                    <span class="materiel-icone" aria-hidden="true">&#xe145;</span>
+                  </button>
+                }
+              </div>
+            </div>
           </li>
         }
       </ul>
+    }
+  </div>
+</section>
+
+<section class="etapes" id="comment-ca-marche" aria-labelledby="titre-etapes">
+  <div class="conteneur etapes__contenu">
+    <div>
+      <p class="accueil__surtitre">Simple, comme il se doit</p>
+      <h2 class="accueil__titre" id="titre-etapes">Du producteur <em>jusqu'à vous.</em></h2>
+      <p class="accueil__intro">
+        Une façon plus directe de découvrir les récoltes et de préparer vos achats auprès des
+        producteurs.
+      </p>
+      <a class="etapes__lien" routerLink="/recoltes">
+        Explorer les produits <span class="materiel-icone" aria-hidden="true">&#xe5c8;</span>
+      </a>
+    </div>
+    <ol class="etapes__liste">
+      <li>
+        <span class="etapes__numero">01</span>
+        <div>
+          <h3>Explorez les récoltes</h3>
+          <p>Parcourez les produits disponibles et leurs prix, selon vos envies.</p>
+        </div>
+      </li>
+      <li>
+        <span class="etapes__numero">02</span>
+        <div>
+          <h3>Choisissez vos produits</h3>
+          <p>Consultez les quantités et composez votre sélection en quelques clics.</p>
+        </div>
+      </li>
+      <li>
+        <span class="etapes__numero">03</span>
+        <div>
+          <h3>Rapprochez-vous du producteur</h3>
+          <p>Une expérience pensée pour faciliter le lien direct autour des produits locaux.</p>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="final">
+  <p class="final__surtitre">SunuRecolte</p>
+  <h2 class="final__titre">Bien manger commence par <em>bien se rencontrer.</em></h2>
+  <div class="final__actions">
+    <a class="bouton final__btn" routerLink="/recoltes">
+      Découvrir les récoltes <span class="materiel-icone" aria-hidden="true">&#xe5c8;</span>
+    </a>
+    @if (!connecte()) {
+      <a class="final__lien" routerLink="/inscription">Créer un compte</a>
+      <a class="final__lien" routerLink="/connexion">Se connecter</a>
     }
   </div>
 </section>

@@ -1,0 +1,87 @@
+@if (tiroir.ouvert()) {
+  <div class="tiroir__voile" (click)="fermer()" aria-hidden="true"></div>
+  <aside
+    class="tiroir"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tiroir-titre"
+  >
+    <div class="tiroir__entete">
+      <h2 class="tiroir__titre" id="tiroir-titre">
+        Votre sélection <span class="tiroir__nombre">({{ nombre() }})</span>
+      </h2>
+      <button
+        #boutonFermer
+        type="button"
+        class="tiroir__fermer"
+        aria-label="Fermer le panier"
+        (click)="fermer()"
+      >
+        <span class="tiroir__glyphe" aria-hidden="true">&times;</span>
+      </button>
+    </div>
+
+    @if (nombre() === 0) {
+      <div class="tiroir__vide">
+        <p class="tiroir__vide-titre">Votre panier attend ses récoltes.</p>
+        <p class="tiroir__vide-texte">De belles découvertes vous attendent au catalogue.</p>
+        <a class="bouton bouton--primaire" routerLink="/recoltes" (click)="fermer()">
+          Voir les récoltes
+        </a>
+      </div>
+    } @else {
+      <ul class="tiroir__liste">
+        @for (ligne of lignes(); track ligne.recolteId) {
+          <li class="tiroir__ligne">
+            <div class="tiroir__produit">
+              <p class="tiroir__nom">{{ ligne.produit }}</p>
+              <p class="tiroir__detail">
+                {{ ligne.nomProducteur }} · {{ formaterMontant(ligne.prixUnitaire) }} /
+                {{ ligne.unite }}
+              </p>
+              <div class="tiroir__quantite">
+                <button
+                  type="button"
+                  class="tiroir__pas"
+                  [attr.aria-label]="'Retirer une unité de ' + ligne.produit"
+                  (click)="changer(ligne, -1)"
+                >
+                  <span class="tiroir__glyphe" aria-hidden="true">&minus;</span>
+                </button>
+                <span class="tiroir__valeur">{{ formaterQuantite(ligne.quantite, ligne.unite) }}</span>
+                <button
+                  type="button"
+                  class="tiroir__pas"
+                  [attr.aria-label]="'Ajouter une unité de ' + ligne.produit"
+                  (click)="changer(ligne, 1)"
+                >
+                  <span class="materiel-icone" aria-hidden="true">&#xe145;</span>
+                </button>
+                <button type="button" class="tiroir__retirer" (click)="retirer(ligne)">
+                  Retirer
+                </button>
+              </div>
+            </div>
+            <p class="tiroir__montant">{{ formaterMontant(ligne.quantite * ligne.prixUnitaire) }}</p>
+          </li>
+        }
+      </ul>
+
+      <div class="tiroir__pied">
+        <p class="tiroir__total">
+          <span>Total indicatif</span>
+          <strong>{{ formaterMontant(total()) }}</strong>
+        </p>
+        <p class="tiroir__mention">
+          Total indicatif, confirmé par le serveur à la création de la commande.
+        </p>
+        <a class="bouton bouton--primaire bouton--large" routerLink="/acheteur/commande" (click)="fermer()">
+          Passer la commande
+        </a>
+        <a class="lien-action tiroir__lien" routerLink="/acheteur/panier" (click)="fermer()">
+          Voir le panier complet
+        </a>
+      </div>
+    }
+  </aside>
+}

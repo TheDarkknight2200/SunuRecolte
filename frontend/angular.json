@@ -33,6 +33,9 @@
               }
             ],
             "styles": [
+              "node_modules/@fontsource-variable/dm-sans/wght.css",
+              "node_modules/@fontsource-variable/fraunces/wght-italic.css",
+              "node_modules/@fontsource-variable/fraunces/wght.css",
               "src/styles.scss"
             ],
             "stylePreprocessorOptions": {
@@ -51,8 +54,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "4kB",
-                  "maximumError": "8kB"
+                  "maximumWarning": "10kB",
+                  "maximumError": "14kB"
                 }
               ],
               "outputHashing": "all",

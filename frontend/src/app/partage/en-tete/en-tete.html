@@ -1,4 +1,7 @@
 <header class="entete">
+  <p class="entete__bandeau">
+    Une autre façon de cultiver le lien entre nous <span aria-hidden="true">·</span> Dakar, Sénégal
+  </p>
   <div class="conteneur entete__contenu">
     <a class="entete__marque" routerLink="/">
       <img
@@ -8,7 +11,7 @@
         width="28"
         height="28"
       />
-      <span>SunuRecolte</span>
+      <span class="entete__nom">Sunu<em>Recolte</em></span>
     </a>
 
     <nav class="entete__navigation" aria-label="Navigation principale">
@@ -40,10 +43,8 @@
         @if (acheteur()) {
           <a
             class="entete__lien entete__panier"
-            routerLink="/acheteur/panier"
-            routerLinkActive="entete__lien--actif"
-            [routerLinkActiveOptions]="{ exact: true }"
-            ariaCurrentWhenActive="page"
+            href="/acheteur/panier"
+            (click)="ouvrirPanier($event)"
           >
             <span class="materiel-icone entete__panier-icone" aria-hidden="true">&#xe8cc;</span>
             Panier

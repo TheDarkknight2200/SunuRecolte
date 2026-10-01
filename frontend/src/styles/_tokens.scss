@@ -4,16 +4,16 @@
 
 :root {
   /* Couleurs de la palette */
-  --couleur-primaire: #2f5d3a;
-  --couleur-primaire-sombre: #24482d;
-  --couleur-primaire-clair: #e8efe8;
-  --couleur-accent: #a4652f;
-  --couleur-fond: #f7f6f2;
+  --couleur-primaire: #203d2e;
+  --couleur-primaire-sombre: #173326;
+  --couleur-primaire-clair: #e9e9db;
+  --couleur-accent: #b66b3b;
+  --couleur-fond: #f8f7f1;
   --couleur-surface: #ffffff;
-  --couleur-texte: #1e2420;
-  --couleur-texte-secondaire: #5a6159;
+  --couleur-texte: #203d2e;
+  --couleur-texte-secondaire: #566b5d;
   --couleur-texte-inverse: #ffffff;
-  --couleur-bordure: #ddd9d0;
+  --couleur-bordure: #d9d8cb;
   --couleur-succes: #1f7a46;
   --couleur-avertissement: #8a6512;
   --couleur-erreur: #b3261e;
@@ -27,15 +27,21 @@
   --couleur-info-clair: #e9eff5;
 
   /* Encre et filets des écrans maîtres (§5, §7, §38) */
-  --couleur-encre: #1e2420;
-  --couleur-encre-sombre: #121610;
-  --couleur-filet: #e3e3e0;
+  --couleur-encre: #203d2e;
+  --couleur-encre-sombre: #173326;
+  --couleur-filet: #e1e0d4;
   --filet-fort: 2px solid var(--couleur-encre);
   --filet-ligne: 1px solid var(--couleur-filet);
   --voile: rgba(30, 36, 32, 0.55);
 
+  /* Teintes de la refonte (maquette Figma) */
+  --couleur-sable: #f1f0e7;
+  --couleur-foret-profonde: #173326;
+  --couleur-sable-accent: #d9b78d;
+
   /* Typographie */
-  --police-texte: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --police-texte: "DM Sans Variable", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --police-titre: "Fraunces Variable", Georgia, "Times New Roman", serif;
   --taille-xs: 0.75rem;
   --taille-sm: 0.875rem;
   --taille-md: 1rem;
@@ -58,10 +64,12 @@
   --rayon-sm: 4px;
   --rayon-md: 6px;
   --rayon-lg: 8px;
+  --rayon-pilule: 999px;
   --ombre-surface: 0 1px 2px rgba(30, 36, 32, 0.08);
 
   /* Mise en page */
   --largeur-contenu: 1140px;
   --duree-transition: 150ms;
+  --duree-mouvement: 300ms;
   --z-voile: 20;
 }

@@ -13,6 +13,14 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Défilement fluide vers les ancres (« Comment ça marche »), sauf si l'utilisateur
+   a demandé de réduire les animations (FRONTEND_DESIGN.md §14 et §39). */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 body {
   margin: 0;
   background-color: var(--couleur-fond);
@@ -27,8 +35,17 @@ h2,
 h3,
 h4 {
   margin: 0 0 var(--espace-4);
-  font-weight: 600;
-  line-height: 1.25;
+  font-family: var(--police-titre);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+h1 em,
+h2 em {
+  color: var(--couleur-accent);
+  font-style: italic;
+  font-weight: 400;
 }
 
 h1 {
