@@ -32,12 +32,19 @@
   --couleur-filet: #e1e0d4;
   --filet-fort: 2px solid var(--couleur-encre);
   --filet-ligne: 1px solid var(--couleur-filet);
-  --voile: rgba(30, 36, 32, 0.55);
 
-  /* Teintes de la refonte (maquette Figma) */
+  /* Voiles et leur flou (§39.1) — #10251a à 70 % sous une modale, 60 % sous un tiroir */
+  --voile: rgba(16, 37, 26, 0.7);
+  --voile-tiroir: rgba(16, 37, 26, 0.6);
+  --flou-voile: blur(8px);
+
+  /* Teintes de la refonte (maquette Figma, §39 et §39.1) */
   --couleur-sable: #f1f0e7;
   --couleur-foret-profonde: #173326;
   --couleur-sable-accent: #d9b78d;
+  --couleur-primaire-survol: #365a43;
+  --couleur-sauge: #b5c3a6;
+  --couleur-fond-image: #e9e6db;
 
   /* Typographie */
   --police-texte: "DM Sans Variable", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
@@ -60,12 +67,14 @@
   --espace-7: 48px;
   --espace-8: 64px;
 
-  /* Rayons et ombre */
+  /* Rayons et ombre (§7, §39.1) */
   --rayon-sm: 4px;
   --rayon-md: 6px;
   --rayon-lg: 8px;
   --rayon-pilule: 999px;
+  --rayon-surface: 3px;
   --ombre-surface: 0 1px 2px rgba(30, 36, 32, 0.08);
+  --ombre-elevation: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 
   /* Mise en page */
   --largeur-contenu: 1140px;

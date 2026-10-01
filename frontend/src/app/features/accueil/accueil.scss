@@ -90,7 +90,7 @@
   }
 
   &:hover {
-    background-color: #365a43;
+    background-color: var(--couleur-primaire-survol);
     color: var(--couleur-fond);
 
     .materiel-icone {
@@ -275,7 +275,7 @@
   flex-direction: column;
   overflow: hidden;
   border: 1px solid rgba(32, 61, 46, 0.1);
-  border-radius: 3px;
+  border-radius: var(--rayon-surface);
   background-color: var(--couleur-surface);
   transition:
     transform var(--duree-mouvement) ease-out,
@@ -291,7 +291,7 @@
   display: block;
   overflow: hidden;
   aspect-ratio: 1.13;
-  background-color: var(--couleur-primaire-clair);
+  background-color: var(--couleur-fond-image);
 }
 
 .recolte__image,
@@ -314,7 +314,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--couleur-primaire-clair);
+  background-color: var(--couleur-fond-image);
 
   img {
     width: 44px;

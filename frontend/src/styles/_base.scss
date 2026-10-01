@@ -30,6 +30,12 @@ body {
   line-height: 1.5;
 }
 
+/* Sauge de la maquette (§39.1) : seule couleur de sélection du projet. */
+::selection {
+  background-color: var(--couleur-sauge);
+  color: var(--couleur-texte);
+}
+
 h1,
 h2,
 h3,

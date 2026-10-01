@@ -4,7 +4,7 @@
   position: fixed;
   inset: 0;
   z-index: 50;
-  background-color: rgba(16, 37, 26, 0.55);
+  background-color: var(--voile-tiroir);
   animation: tiroir-voile var(--duree-mouvement) ease-out;
 }
 
@@ -18,7 +18,7 @@
   flex-direction: column;
   width: min(100%, 440px);
   background-color: var(--couleur-fond);
-  box-shadow: -12px 0 40px rgba(16, 37, 26, 0.18);
+  box-shadow: var(--ombre-elevation);
   animation: tiroir-entree var(--duree-mouvement) cubic-bezier(0.22, 0.8, 0.3, 1);
 }
 

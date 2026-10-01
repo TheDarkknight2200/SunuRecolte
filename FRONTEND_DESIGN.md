@@ -96,6 +96,7 @@ l'état actif, exactement comme `--couleur-primaire-sombre` l'est pour `--couleu
 Règles :
 
 - les couleurs de la palette sont les seules autorisées ; aucune couleur « au jugé » dans un composant ;
+- les tokens ajoutés par la refonte (§39.1) complètent ce tableau : ce sont les seules autres couleurs autorisées ;
 - le vert primaire ne porte jamais de texte sur fond vert clair sans vérification de contraste ;
 - l'accent terre ne sert pas à signaler une action destructive (réservé à `--couleur-erreur`) ;
 - les états de survol/focus modifient la couleur du token voisin, jamais une couleur inventée ;
@@ -149,7 +150,8 @@ Règles :
 Implémentation : `frontend/src/styles/_tokens.scss` (custom properties CSS déclarées dans `:root`,
 importées par `styles.scss`). Ce fichier est la source exacte des valeurs ; l'extrait ci-dessous en
 donne la structure. Seuls les tokens définis là sont autorisés ; tout nouveau token doit d'abord être
-ajouté ici avant usage.
+ajouté ici avant usage. **L'extrait ci-dessous est structurel** : les valeurs de la palette et les tokens
+ajoutés par la refonte sont en §5 et §39.1, qui font foi.
 
 ```scss
 :root {
@@ -1266,7 +1268,7 @@ où la structure HTML change réellement ; aucun test n'est supprimé ni désact
 
 ## 39. Refonte visuelle (maquette Figma, octobre 2026)
 
-Cette section **remplace** les règles ci-dessous de §6, §14 et §17 pour l'ensemble de l'interface :
+Cette section **remplace** les règles ci-dessous de §6, §7 (rayons et ombres), §14 et §17 pour l'ensemble de l'interface :
 
 - **Typographie (§6)** : titres en Fraunces (`--police-titre`, italique pour le mot d'accent), texte en DM Sans
   (`--police-texte`). Les deux polices sont **auto-hébergées** via `@fontsource-variable/*` (aucune requête
@@ -1274,7 +1276,7 @@ Cette section **remplace** les règles ci-dessous de §6, §14 et §17 pour l'en
 - **Palette (§5)** : valeurs des tokens mises à jour dans `_tokens.scss` (vert forêt `#203d2e`, terre cuite
   `#b66b3b`, crème `#f8f7f1`) ; les noms de tokens sont inchangés, donc tous les écrans suivent.
   Nouveaux tokens : `--couleur-sable`, `--couleur-foret-profonde`, `--couleur-sable-accent`,
-  `--rayon-pilule`, `--duree-mouvement`, `--police-titre`.
+  `--rayon-pilule`, `--duree-mouvement`, `--police-titre`, et ceux de §39.1.
 - **Formes (§17)** : boutons et badges en pilule (`--rayon-pilule`).
 - **Animations (§14)** : survol des cartes de récolte (élévation de 4 px, zoom lent de la photo), glissement de la
   flèche des boutons, ouverture du panier latéral (`--duree-mouvement`, 300 ms). Toutes sont neutralisées par
@@ -1284,3 +1286,43 @@ Cette section **remplace** les règles ci-dessous de §6, §14 et §17 pour l'en
   commande reste calculée et validée par le serveur.
 - **Images (§15)** : la photo du hero est une photographie d'illustration ; les cartes de récolte utilisent
   `imageUrl` de l'API.
+
+### 39.1 Tokens de la refonte
+
+Ce tableau est la liste à jour des couleurs, rayons, ombres et voiles introduits par la maquette. Aucune autre
+valeur n'est autorisée (§5) : une teinte ou un rayon absent d'ici doit d'abord être ajouté ici, puis dans
+`_tokens.scss`, avant d'apparaître dans un écran.
+
+| Rôle | Token | Valeur | Usage |
+|---|---|---|---|
+| Vert survol | `--couleur-primaire-survol` | `#365a43` | survol et état actif des actions vertes (`--couleur-primaire`, `--couleur-encre`) |
+| Sauge | `--couleur-sauge` | `#b5c3a6` | `::selection` ; ne porte jamais de texte |
+| Fond d'image | `--couleur-fond-image` | `#e9e6db` | fond d'un bloc d'image avant et pendant le chargement |
+| Voile de modale | `--voile` | `rgba(16, 37, 26, 0.7)` | fond des modales (§31), sous `--flou-voile` |
+| Voile de tiroir | `--voile-tiroir` | `rgba(16, 37, 26, 0.6)` | fond du panier latéral et des tiroirs, **sans flou** |
+| Flou de voile | `--flou-voile` | `blur(8px)` | `backdrop-filter` du seul voile de modale |
+| Rayon de surface | `--rayon-surface` | `3px` | cartes, modales, panneaux et surfaces de même nature |
+| Ombre d'élévation | `--ombre-elevation` | `0 25px 50px -12px rgba(0, 0, 0, 0.25)` | panneau superposé qui borde l'écran : tiroir du panier, menu latéral |
+
+- **Rayons** : `--rayon-surface` (3 px) pour les surfaces, `--rayon-pilule` (999 px) pour les boutons, badges,
+  pastilles et champs de quantité. `--rayon-md` (6 px) reste la valeur des champs de saisie, des messages et du
+  lien d'évitement jusqu'à l'alignement de leur écran ; `--rayon-lg` (8 px) ne sert plus aux surfaces du design
+  system. Aucune valeur intermédiaire (4 px, 12 px, 16 px) n'est introduite.
+- **Ombres** : `--ombre-surface` reste la seule ombre des surfaces posées dans le flux, et une carte ne porte
+  jamais d'ombre au repos (une bordure suffit). Un panneau superposé qui **borde l'écran** (tiroir du panier,
+  menu latéral) est rendu par `--ombre-elevation` — jamais par une ombre directionnelle écrite en dur dans un
+  composant. La modale de confirmation, elle, reste à `--ombre-surface` et au `--rayon-surface` : la maquette ne la
+  dessine pas, et §31 garde la main jusqu'à son alignement. L'élévation au survol d'une carte de récolte
+  (`0 20px 50px rgba(28, 54, 39, 0.1)`, accueil) reste une signature locale et ne se généralise pas.
+- **Voiles** : `#10251a` à 70 % pour une modale, avec `--flou-voile`, et 60 % pour un tiroir, **sans flou** — la
+  maquette ne floute que le fond de la modale produit. Le flou est la seule exception acceptée à « pas d'effet
+  gratuit » (§17) : il sépare le panneau du contenu sans bordure ni épaisseur. Il reste décoratif — sans
+  `backdrop-filter`, le voile demeure plein et le panneau lisible.
+- **Survol des actions vertes** : le survol **éclaircit** le vert (`--couleur-primaire-survol`) au lieu de
+  l'assombrir, et le texte garde `--couleur-texte-inverse` (contraste 7,8:1 sur `#365a43`). Aucun survol n'inverse
+  fond et texte, aucun survol n'utilise une teinte de survol d'une autre famille.
+- **Polices** : Fraunces (`--police-titre`, titres et chiffres éditoriaux, italique pour le mot d'accent) et
+  DM Sans (`--police-texte`, corps) sont auto-hébergées par `@fontsource-variable/*` et déclarées dans
+  `angular.json`. Aucune webfont n'est chargée depuis un CDN, y compris pour un écran en cours d'alignement.
+- **Périmètre de la maquette** : `figma-reference/` ne couvre que l'accueil. Pour tout autre écran, la référence
+  est ce §39, les tokens de §39.1 et les quatre écrans validés (accueil, en-tête, pied de page, panier latéral).
