@@ -82,6 +82,16 @@
   border: 0;
 }
 
+/* Bouton neutralisé au plafond du stock : même traitement que `.bouton:disabled`, sans retirer le focus. */
+.tiroir__pas[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+
+  &:hover {
+    background-color: transparent;
+  }
+}
+
 .tiroir__glyphe,
 .tiroir__pas .materiel-icone {
   font-size: 1.25rem;
@@ -172,6 +182,11 @@
   margin: 0;
   color: var(--couleur-texte-secondaire);
   font-size: var(--taille-xs);
+}
+
+/* Mention sous une ligne : plafond du stock atteint ou refus du service. */
+.tiroir__mention--aide {
+  margin-top: var(--espace-2);
 }
 
 .tiroir__lien {

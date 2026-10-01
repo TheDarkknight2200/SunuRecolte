@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
 import { CLE_PANIER, LignePanier, PanierService } from '../../core/services/panier.service';
+import { ToastService } from '../../core/services/toast.service';
 import { TiroirPanierService } from '../../core/services/tiroir-panier.service';
 import { PanierTiroir } from './panier-tiroir';
 
@@ -31,6 +32,32 @@ describe('PanierTiroir', () => {
     fixture = TestBed.createComponent(PanierTiroir);
     racine = fixture.nativeElement as HTMLElement;
     fixture.detectChanges();
+  }
+
+  function element<T extends HTMLElement>(selecteur: string): T {
+    const trouve = racine.querySelector<T>(selecteur);
+    if (!trouve) {
+      throw new Error(`Élément introuvable : ${selecteur}`);
+    }
+    return trouve;
+  }
+
+  function texteDe(noeud: HTMLElement): string {
+    return (noeud.textContent ?? '').replace(/\s+/g, ' ').trim();
+  }
+
+  /** Ouvre le tiroir sur le contenu déjà posé dans le panier. */
+  function ouvrir(): void {
+    TestBed.inject(TiroirPanierService).ouvrir();
+    fixture.detectChanges();
+  }
+
+  function boutonAjout(): HTMLButtonElement {
+    return element<HTMLButtonElement>('button[aria-label^="Ajouter une unité"]');
+  }
+
+  function boutonRetrait(): HTMLButtonElement {
+    return element<HTMLButtonElement>('button[aria-label^="Retirer une unité"]');
   }
 
   afterEach(() => {
@@ -80,6 +107,66 @@ describe('PanierTiroir', () => {
     moins?.click();
     moins?.click();
     expect(panier.lignes()).toEqual([]);
+  });
+
+  it('neutralise le « + » au stock connu et l’annonce par une mention liée', () => {
+    monter([{ ...LIGNE, quantite: 10 }]);
+    ouvrir();
+
+    const plus = boutonAjout();
+    expect(plus.getAttribute('aria-disabled')).toBe('true');
+    expect(plus.getAttribute('aria-describedby')).toBe('stock-max-7');
+    expect(texteDe(element('#stock-max-7'))).toBe('Stock maximum atteint');
+
+    plus.click();
+    fixture.detectChanges();
+    expect(TestBed.inject(PanierService).lignes()[0]?.quantite).toBe(10);
+  });
+
+  it('laisse le « − » utilisable et rend le « + » dès que la ligne redescend sous le stock', () => {
+    monter([{ ...LIGNE, quantite: 10 }]);
+    ouvrir();
+
+    boutonRetrait().click();
+    fixture.detectChanges();
+
+    expect(TestBed.inject(PanierService).lignes()[0]?.quantite).toBe(9);
+    expect(racine.querySelector('#stock-max-7')).toBeNull();
+    expect(boutonAjout().getAttribute('aria-disabled')).toBeNull();
+  });
+
+  it('affiche dans le tiroir le motif d’un refus que le plafond du bouton ne couvre pas', () => {
+    monter([{ ...LIGNE, quantite: 1.5, quantiteDisponible: 2 }]);
+    ouvrir();
+
+    const plus = boutonAjout();
+    expect(plus.getAttribute('aria-disabled')).toBeNull();
+    plus.click();
+    fixture.detectChanges();
+
+    const aide = element('#refus-7');
+    expect(aide.getAttribute('role')).toBe('status');
+    expect(plus.getAttribute('aria-describedby')).toBe('refus-7');
+    expect(texteDe(aide)).toBe(
+      'Quantité refusée pour « Oignons de Gambie » : le stock connu est de 2 sac au maximum, 0,01 au minimum.',
+    );
+    expect(TestBed.inject(PanierService).lignes()[0]?.quantite).toBe(1.5);
+  });
+
+  it('confie le refus du tiroir à la ligne, jamais à la notice globale', () => {
+    monter([{ ...LIGNE, quantite: 1.5, quantiteDisponible: 2 }]);
+    ouvrir();
+
+    boutonAjout().click();
+    fixture.detectChanges();
+
+    expect(TestBed.inject(ToastService).notice()).toBeNull();
+
+    boutonRetrait().click();
+    fixture.detectChanges();
+
+    expect(TestBed.inject(PanierService).lignes()[0]?.quantite).toBe(0.5);
+    expect(racine.querySelector('#refus-7')).toBeNull();
   });
 
   it('se ferme avec la touche Échap, au clic sur le voile et par son action principale', () => {

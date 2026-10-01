@@ -9,6 +9,7 @@ import {
   VARIANTES_BADGE_COMMANDE,
 } from '../../../core/modeles/referentiels';
 import { CommandeService } from '../../../core/services/commande.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { messageErreurApi } from '../../../core/utilitaires/erreurs-api';
 import {
   formaterDateHeure,
@@ -53,6 +54,7 @@ const ETAPES_SUIVANTES: Partial<
 })
 export class CommandesRecues {
   private readonly commandes = inject(CommandeService);
+  private readonly toast = inject(ToastService);
 
   protected readonly liste = signal<CommandeResponse[]>([]);
   protected readonly chargement = signal(true);
@@ -123,6 +125,8 @@ export class CommandesRecues {
     this.commandeEnCours.set(commande.id);
     this.succes.set(null);
     this.refus.set(null);
+    // Une nouvelle tentative efface la notice du refus précédent.
+    this.toast.masquer();
 
     this.commandes.changerStatut(commande.id, etape.statut).subscribe({
       next: (reponse) => {
@@ -141,13 +145,12 @@ export class CommandesRecues {
       error: (erreur: unknown) => {
         // Échec : la carte garde le statut affiché, c'est le serveur qui a le dernier mot.
         this.commandeEnCours.set(null);
-        this.refus.set({
-          id: commande.id,
-          message: messageErreurApi(
-            erreur,
-            'Le statut de cette commande n’a pas pu être mis à jour.',
-          ),
-        });
+        const message = messageErreurApi(
+          erreur,
+          'Le statut de cette commande n’a pas pu être mis à jour.',
+        );
+        this.refus.set({ id: commande.id, message });
+        this.toast.afficher(message, 'erreur');
       },
     });
   }

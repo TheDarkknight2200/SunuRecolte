@@ -37,13 +37,6 @@
       </div>
     </div>
   } @else {
-    @if (succes(); as message) {
-      <div class="message message--succes" role="status">
-        <span class="materiel-icone message__icone" aria-hidden="true">&#xf0be;</span>
-        <p>{{ message }}</p>
-      </div>
-    }
-
     @if (erreurGenerale(); as message) {
       <div class="message message--erreur" role="alert">
         <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>

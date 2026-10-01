@@ -1350,8 +1350,10 @@ déclenchée par l'utilisateur (ajout au panier, enregistrement, statut modifié
 état d'écran. Elle est migrée **écran par écran**. Écrans qui l'utilisent aujourd'hui : les ajouts rapides de
 l'accueil et du catalogue, puis le **LOT 1 « parcours acheteur »** — `/acheteur/panier` (`refus()`), `/recoltes`
 (`succesPanier()` et `refusPanier()` du bouton texte), `/recoltes/:id` (les deux mêmes) et
-`/acheteur/commandes/:id` (`succesAnnulation()`). Les bannières `.message--succes` et `.message--erreur` des
-autres écrans restent en place jusqu'à leur étape.
+`/acheteur/commandes/:id` (`succesAnnulation()`), puis le **LOT 2 « parcours producteur »** —
+`/producteur/commandes` (refus de transition : le `messageErreurApi()` du PATCH, texte mot pour mot repris
+du signal `refus()`) et `/producteur/profil` (succès d'enregistrement : « Profil mis à jour. »). Les bannières
+`.message--succes` et `.message--erreur` des autres écrans restent en place jusqu'à leur étape.
 
 Sur un écran migré, le **signal du composant reste la source du texte** : la notice est émise à partir du même
 message (`messageRefusAjout()`, `La commande n° … a été annulée.`, etc.), mot pour mot. `ToastService` n'écrit
@@ -1398,6 +1400,14 @@ aucun libellé et n'est jamais l'autorité d'un succès.
   de l'accueil, qui ouvrait le tiroir, ne l'ouvre plus et rend sa notice — sans cette dérogation la notice serait
   systématiquement masquée. Limite connue et assumée : le tiroir ne piège pas encore le focus de la page, donc un
   refus déclenché au clavier **derrière** un tiroir ouvert est retardé jusqu'à sa fermeture plutôt que perdu.
+- **Refus d'une ligne du tiroir (LOT 2)** : un refus **déjà au panier** ne devient **jamais** une notice globale.
+  Il est porté par la ligne elle-même, en mention discrète sous le pas (`role="status"`, reliée au « + » par
+  `aria-describedby`), parce que le tiroir est modal et que la correction se lit à l'endroit même du geste. Le
+  « + » est neutralisé **au plafond du stock connu** (`quantite >= quantiteDisponible`) en `aria-disabled` — et non
+  `disabled`, pour ne pas perdre le focus — avec la mention « Stock maximum atteint » ; un refus que ce plafond ne
+  couvre pas (quantité fractionnaire) reste affiché sous la ligne. La phrase du refus vient de
+  `messageRefusQuantite()` (`core/utilitaires/panier-affichage.ts`) : **source unique**, partagée avec la page
+  `/acheteur/panier`, qui l'envoie elle en notice.
 - **Ajout rapide (`+`)** : la pilule ronde d'une carte de récolte ajoute `QUANTITE_INITIALE` unité et applique
   **exactement** les mêmes règles que le bouton texte de la même carte : même garde `estAjoutPossible()`, mêmes
   bornes de commande, même refus de `PanierService`, et **récolte épuisée ou stock insuffisant = bouton désactivé**
@@ -1412,7 +1422,9 @@ aucun libellé et n'est jamais l'autorité d'un succès.
   |---|---|---|
   | `/acheteur/commande` | `erreur()` (`commande.html:112`) | cible de focus (`#erreurMessage`, `tabindex="-1"`, `focusAttendu('erreur')`) **et** porte le bouton « Réessayer l'envoi » ; le même signal porte deux messages de validation du formulaire de réception |
   | `/acheteur/paiement/:id` | `erreurSoumission()` (`paiement.html:133`) | désigné par l'`aria-describedby` du fieldset « Moyen de paiement » : le message corrige une saisie et doit rester attaché au champ ; le même signal porte « Choisissez un moyen de paiement pour continuer. » |
-  | toute **modale** | `detail-commande.html:189`, `prix-marche.html:307`, `mes-recoltes.html:159`, `utilisateurs.html:171`, `recoltes-admin.html:143`, `commandes-recues.html:123` | une notice hors de la modale sortirait le message du contexte fermé et masquerait le bouton à reprendre |
+  | `/producteur/commandes` | `succes()` rendu par `succesPour()` (`commandes-recues.html:110`) | cible du focus après une transition réussie (`#zoneSucces`, `role="status"`, `tabindex="-1"`, `focusSurSucces()`) ; les specs assertent `document.activeElement` |
+  | `/producteur/profil` | `erreurGenerale()` (`profil-producteur.html:40`) | signal **mixte**, non scindé : porte à la fois la validation d'un champ (filière obligatoire) et l'échec du PUT ; la correction attendue est une saisie |
+  | toute **modale** | `detail-commande.html:189`, `prix-marche.html:307`, `mes-recoltes.html:159`, `utilisateurs.html:171`, `recoltes-admin.html:143` | une notice hors de la modale sortirait le message du contexte fermé et masquerait le bouton à reprendre |
   | `/connexion`, `/inscription` | `erreur()`, `erreurGenerale()` | échec de formulaire : la correction est la saisie elle-même, le message doit persister jusqu'à la correction |
   | `/tableau-de-bord` | `compteCree()` | confirmation d'un événement déjà passé, pas le retour d'une action immédiate ; doit rester lue à l'arrivée sur l'écran |
   | **états de chargement** | les 17 bannières rendues à la place du contenu | ce ne sont pas des retours d'action : la notice ne remplace jamais un état d'écran |

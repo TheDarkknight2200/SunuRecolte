@@ -53,6 +53,8 @@
                   type="button"
                   class="tiroir__pas"
                   [attr.aria-label]="'Ajouter une unité de ' + ligne.produit"
+                  [attr.aria-disabled]="stockAtteint(ligne) ? 'true' : null"
+                  [attr.aria-describedby]="descriptionAjout(ligne)"
                   (click)="changer(ligne, 1)"
                 >
                   <span class="materiel-icone" aria-hidden="true">&#xe145;</span>
@@ -61,6 +63,23 @@
                   Retirer
                 </button>
               </div>
+
+              @if (stockAtteint(ligne)) {
+                <p
+                  class="tiroir__mention tiroir__mention--aide"
+                  id="stock-max-{{ ligne.recolteId }}"
+                >
+                  Stock maximum atteint
+                </p>
+              } @else if (motifRefus(ligne); as message) {
+                <p
+                  class="tiroir__mention tiroir__mention--aide"
+                  role="status"
+                  id="refus-{{ ligne.recolteId }}"
+                >
+                  {{ message }}
+                </p>
+              }
             </div>
             <p class="tiroir__montant">{{ formaterMontant(ligne.quantite * ligne.prixUnitaire) }}</p>
           </li>

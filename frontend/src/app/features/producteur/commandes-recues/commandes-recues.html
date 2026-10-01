@@ -119,13 +119,6 @@
             </div>
           }
 
-          @if (refusPour(commande); as message) {
-            <div class="message message--erreur" role="alert">
-              <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
-              <p>{{ message }}</p>
-            </div>
-          }
-
           <p class="commandes-recues__actions">
             @if (etapeDe(commande); as etape) {
               <button

@@ -1,5 +1,6 @@
 import { RecolteResponse } from '../modeles/domaine.modeles';
 import { LIBELLES_STATUT_RECOLTE } from '../modeles/referentiels';
+import type { LignePanier } from '../services/panier.service';
 import { formaterQuantite } from './formatage';
 
 /**
@@ -7,7 +8,8 @@ import { formaterQuantite } from './formatage';
  *
  * Ce module ne décide rien de métier : le stock, le prix et la quantité acceptée
  * sont vérifiés par `PanierService` (interface) puis par le backend à la création
- * de la commande. Il sert uniquement à présenter un bouton cohérent sur deux écrans.
+ * de la commande. Il sert uniquement à présenter un bouton et son motif cohérents
+ * sur les écrans du panier.
  */
 
 /**
@@ -52,4 +54,17 @@ export function messageRefusAjout(recolte: RecolteResponse): string {
     recolte.quantiteDisponible,
     recolte.unite,
   )}).`;
+}
+
+/**
+ * Motif d'un refus essuyé par une ligne déjà au panier : `PanierService` ne renvoie
+ * qu'un booléen, ce texte reformule sa règle (le stock connu au maximum, 0,01 au
+ * minimum) avec les seules valeurs affichées. Source unique de la phrase, pour la
+ * page du panier comme pour son tiroir.
+ */
+export function messageRefusQuantite(ligne: LignePanier): string {
+  return `Quantité refusée pour « ${ligne.produit} » : le stock connu est de ${formaterQuantite(
+    ligne.quantiteDisponible,
+    ligne.unite,
+  )} au maximum, ${STOCK_MINIMUM.toFixed(2).replace('.', ',')} au minimum.`;
 }

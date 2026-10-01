@@ -6,6 +6,7 @@ import {
 } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
+import { vi } from 'vitest';
 import { SessionUtilisateur } from '../../../core/modeles/auth.modeles';
 import { ProducteurResponse } from '../../../core/modeles/domaine.modeles';
 import { routes } from '../../../app.routes';
@@ -13,6 +14,7 @@ import { authGuard } from '../../../core/guards/auth.guard';
 import { roleGuard } from '../../../core/guards/role.guard';
 import { authInterceptor } from '../../../core/intercepteurs/auth.interceptor';
 import { CLE_JETON, CLE_UTILISATEUR } from '../../../core/services/auth.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { ProfilProducteur } from './profil-producteur';
 
 const API = 'http://localhost:8080/api';
@@ -104,6 +106,11 @@ function ouvrir(): void {
 function chargerProfil(profil: ProducteurResponse = PROFIL): void {
   http.expectOne(MOI).flush(profil);
   fixture.detectChanges();
+}
+
+/** La notice globale émise par l'écran : le succès d'enregistrement n'a plus de bannière. */
+function notice(): ReturnType<ToastService['notice']> {
+  return TestBed.inject(ToastService).notice();
 }
 
 /** GET et PUT partagent l'URL « /moi » : seule la méthode distingue les deux. */
@@ -473,9 +480,25 @@ describe('ProfilProducteur — profil du producteur connecté', () => {
     });
     fixture.detectChanges();
 
-    expect(texteDe(element(racine, '.message--succes p'))).toBe('Profil mis à jour.');
+    expect(notice()?.type).toBe('succes');
+    expect(notice()?.message).toBe('Profil mis à jour.');
+    expect(racine.querySelector('.message--succes')).toBeNull();
     expect(valeurDe('#description')).toBe('Producteur membre du GIE de Rufisque.');
     expect(valeurDe('#localisationExploitation')).toBe('Rufisque Centre');
+  });
+
+  it('confie le succès à la notice : l’écran ne rend plus aucune bannière de succès', () => {
+    ouvrir();
+    chargerProfil();
+
+    taper('#localisationExploitation', 'Rufisque');
+    soumettre();
+    const espion = vi.spyOn(TestBed.inject(ToastService), 'afficher');
+    demandeModification().flush(PROFIL);
+    fixture.detectChanges();
+
+    expect(espion).toHaveBeenCalledWith('Profil mis à jour.', 'succes');
+    expect(racine.querySelector('.message--succes')).toBeNull();
   });
 
   it('rafraîchit l’identité locale après un changement de prénom, nom et email', () => {
@@ -539,6 +562,7 @@ describe('ProfilProducteur — profil du producteur connecté', () => {
       'Un compte existe déjà avec cette adresse email.',
     );
     expect(racine.querySelector('.message--succes')).toBeNull();
+    expect(notice()).toBeNull();
     // La saisie reste en place pour corriger l'adresse.
     expect(valeurDe('#email')).toBe('prise@exemple.sn');
   });

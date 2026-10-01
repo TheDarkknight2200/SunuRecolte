@@ -14,6 +14,7 @@ import { LIBELLES_STATUT_RECOLTE, StatutRecolte } from '../../../core/modeles/re
 import { LignePanier, PanierService } from '../../../core/services/panier.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { formaterMontant, formaterQuantite } from '../../../core/utilitaires/formatage';
+import { messageRefusQuantite } from '../../../core/utilitaires/panier-affichage';
 
 /** Écart des boutons d'incrémentation : une unité du produit, jamais d'arrondi implicite. */
 const PAS = 1;
@@ -167,10 +168,7 @@ export class Panier {
       this.toast.masquer();
       return;
     }
-    const motif = `Quantité refusée pour « ${ligne.produit} » : le stock connu est de ${formaterQuantite(
-      ligne.quantiteDisponible,
-      ligne.unite,
-    )} au maximum, 0,01 au minimum.`;
+    const motif = messageRefusQuantite(ligne);
     this.refus.set(motif);
     this.toast.afficher(motif, 'erreur');
   }
