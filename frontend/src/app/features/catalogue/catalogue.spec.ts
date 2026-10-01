@@ -7,6 +7,7 @@ import { RecolteResponse } from '../../core/modeles/domaine.modeles';
 import { FILIERES, Role, STATUTS_RECOLTE } from '../../core/modeles/referentiels';
 import { CLE_UTILISATEUR } from '../../core/services/auth.service';
 import { PanierService } from '../../core/services/panier.service';
+import { ToastService } from '../../core/services/toast.service';
 import { Catalogue } from './catalogue';
 
 const API = 'http://localhost:8080/api';
@@ -435,5 +436,62 @@ describe('Catalogue', () => {
     expect(lignes).toHaveLength(1);
     expect(lignes[0].quantite).toBe(2);
     expect(texteDe(element(racine, '.message--succes'))).toContain('Récolte ajoutée au panier');
+  });
+
+  it('ajoute une unité par le « + », en rend la notice et laisse la bannière au bouton texte', () => {
+    ouvrir('ACHETEUR');
+    repondre([recolte(1, { produit: 'Arachides', quantiteDisponible: 500 })]);
+
+    const rapide = element<HTMLButtonElement>(racine, '#ajout-rapide-1');
+    expect(rapide.disabled).toBe(false);
+    expect(rapide.getAttribute('aria-label')).toBe('Ajouter Arachides au panier');
+    expect(rapide.getAttribute('aria-describedby')).toBeNull();
+
+    cliquer('#ajout-rapide-1');
+
+    const lignes = panier().lignes();
+    expect(lignes).toHaveLength(1);
+    expect(lignes[0].quantite).toBe(1);
+    expect(TestBed.inject(ToastService).notice()).toEqual({
+      message: 'Arachides ajouté au panier',
+      type: 'succes',
+    });
+    expect(racine.querySelector('.message--succes')).toBeNull();
+  });
+
+  it('désactive le « + » d’une récolte épuisée, comme le bouton texte de la carte', () => {
+    ouvrir('ACHETEUR');
+    repondre([recolte(1, { statut: 'EPUISEE', quantiteDisponible: 0 })]);
+
+    const rapide = element<HTMLButtonElement>(racine, '#ajout-rapide-1');
+    expect(rapide.disabled).toBe(true);
+    expect(rapide.getAttribute('aria-describedby')).toBe('motif-1');
+
+    rapide.click();
+    fixture.detectChanges();
+
+    expect(panier().lignes()).toHaveLength(0);
+    expect(TestBed.inject(ToastService).notice()).toBeNull();
+  });
+
+  it('rend une notice d’erreur quand le « + » est refusé, jamais une notice de succès', () => {
+    ouvrir('ACHETEUR');
+    repondre([recolte(1, { quantiteDisponible: 0.5 })]);
+
+    cliquer('#ajout-rapide-1');
+
+    const notice = TestBed.inject(ToastService).notice();
+    expect(notice?.type).toBe('erreur');
+    expect(notice?.message).toContain('inférieur');
+    expect(panier().lignes()).toHaveLength(0);
+  });
+
+  it('ne propose aucun ajout à une visite anonyme, « + » compris', () => {
+    ouvrir();
+    repondre([recolte(1)]);
+
+    expect(racine.querySelector('#ajouter-1')).toBeNull();
+    expect(racine.querySelector('#ajout-rapide-1')).toBeNull();
+    expect(racine.querySelector('.catalogue__ajout')).toBeNull();
   });
 });

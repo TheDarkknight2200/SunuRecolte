@@ -50,7 +50,11 @@ describe('PanierTiroir', () => {
 
     expect(racine.querySelector('.tiroir__nom')?.textContent).toContain('Oignons de Gambie');
     expect(racine.querySelector('.tiroir__total')?.textContent).toContain('Total indicatif');
-    expect(racine.querySelector('a[href="/acheteur/commande"]')).not.toBeNull();
+    // Le chemin vers la commande passe de nouveau par le panier complet (§39).
+    expect(racine.querySelector('.tiroir__pied .bouton--large')?.textContent?.trim()).toBe(
+      'Continuer à explorer',
+    );
+    expect(racine.querySelector('a[href="/acheteur/panier"]')).not.toBeNull();
   });
 
   it('propose le catalogue quand le panier est vide', () => {
@@ -78,7 +82,7 @@ describe('PanierTiroir', () => {
     expect(panier.lignes()).toEqual([]);
   });
 
-  it('se ferme avec la touche Échap et au clic sur le voile', () => {
+  it('se ferme avec la touche Échap, au clic sur le voile et par son action principale', () => {
     monter([LIGNE]);
     const tiroir = TestBed.inject(TiroirPanierService);
     tiroir.ouvrir();
@@ -90,6 +94,11 @@ describe('PanierTiroir', () => {
     tiroir.ouvrir();
     fixture.detectChanges();
     racine.querySelector<HTMLElement>('.tiroir__voile')?.click();
+    expect(tiroir.ouvert()).toBe(false);
+
+    tiroir.ouvrir();
+    fixture.detectChanges();
+    racine.querySelector<HTMLButtonElement>('.tiroir__pied .bouton--large')?.click();
     expect(tiroir.ouvert()).toBe(false);
   });
 });

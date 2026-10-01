@@ -13,6 +13,7 @@ import { RecolteResponse } from '../../core/modeles/domaine.modeles';
 import { AuthService } from '../../core/services/auth.service';
 import { PanierService } from '../../core/services/panier.service';
 import { CriteresRechercheRecolte, RecolteService } from '../../core/services/recolte.service';
+import { ToastService } from '../../core/services/toast.service';
 import { messageErreurApi } from '../../core/utilitaires/erreurs-api';
 import { formaterDate, formaterMontant, formaterQuantite } from '../../core/utilitaires/formatage';
 import {
@@ -41,6 +42,7 @@ export class Catalogue {
   private readonly recoltes = inject(RecolteService);
   private readonly auth = inject(AuthService);
   private readonly panier = inject(PanierService);
+  private readonly toast = inject(ToastService);
 
   protected readonly formulaire = this.fb.group({
     recherche: [''],
@@ -165,5 +167,23 @@ export class Catalogue {
     }
     this.succesPanier.set(null);
     this.refusPanier.set(messageRefusAjout(recolte));
+  }
+
+  /**
+   * Ajout rapide (« + ») : mêmes garde, même quantité initiale et même refus que le bouton
+   * texte. La bannière de la carte reste réservé au bouton texte ; le « + » rend sa notice,
+   * de succès seulement si `PanierService` a accepté **et** enregistré le panier (§39.2).
+   */
+  protected ajouterRapide(recolte: RecolteResponse): void {
+    if (!this.panier.ajouter(recolte, QUANTITE_INITIALE)) {
+      this.toast.afficher(messageRefusAjout(recolte), 'erreur');
+      return;
+    }
+    const echecStockage = this.panier.erreurStockage();
+    if (echecStockage !== null) {
+      this.toast.afficher(echecStockage, 'erreur');
+      return;
+    }
+    this.toast.afficher(`${recolte.produit} ajouté au panier`, 'succes');
   }
 }

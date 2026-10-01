@@ -1,0 +1,120 @@
+@use "points-rupture" as pr;
+
+/* Notice de retour d'action — FRONTEND_DESIGN.md §39.2.
+   La zone est fixe et ne capte aucun clic : seule la pilule est interactive. */
+.toast__zone {
+  position: fixed;
+  right: 0;
+  bottom: calc(var(--espace-5) + env(safe-area-inset-bottom));
+  left: 0;
+  z-index: var(--z-toast);
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--espace-4);
+  pointer-events: none;
+}
+
+.toast__region {
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: pr.$point-mobile - 1px) {
+  .toast {
+    width: 100%;
+  }
+
+  .toast__texte {
+    text-align: center;
+  }
+}
+
+.toast {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  max-width: 26rem;
+  padding: var(--espace-3) var(--espace-5);
+  border-radius: var(--rayon-pilule);
+  box-shadow: var(--ombre-toast);
+  color: var(--couleur-texte-inverse);
+  font-size: var(--taille-sm);
+  font-weight: 500;
+  animation: toast-montee var(--duree-mouvement) ease-out both;
+}
+
+.toast--succes {
+  background-color: var(--couleur-primaire);
+}
+
+.toast--info {
+  background-color: var(--couleur-info);
+}
+
+.toast--erreur {
+  background-color: var(--couleur-erreur);
+}
+
+.toast--sortie {
+  animation: toast-descente var(--duree-mouvement) ease-in both;
+}
+
+.toast__icone {
+  flex: none;
+  font-size: 1.25rem;
+}
+
+.toast__texte {
+  margin: 0;
+}
+
+.toast__fermer {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: var(--espace-1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.85;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.toast__croix {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+@keyframes toast-montee {
+  from {
+    opacity: 0;
+    transform: translateY(var(--espace-4));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-descente {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(var(--espace-4));
+  }
+}

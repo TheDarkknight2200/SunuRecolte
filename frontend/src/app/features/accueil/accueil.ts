@@ -5,10 +5,14 @@ import { LIBELLES_STATUT_RECOLTE } from '../../core/modeles/referentiels';
 import { AuthService } from '../../core/services/auth.service';
 import { PanierService } from '../../core/services/panier.service';
 import { RecolteService } from '../../core/services/recolte.service';
-import { TiroirPanierService } from '../../core/services/tiroir-panier.service';
+import { ToastService } from '../../core/services/toast.service';
 import { messageErreurApi } from '../../core/utilitaires/erreurs-api';
 import { formaterDate, formaterMontant, formaterQuantite } from '../../core/utilitaires/formatage';
-import { QUANTITE_INITIALE, estAjoutPossible } from '../../core/utilitaires/panier-affichage';
+import {
+  QUANTITE_INITIALE,
+  estAjoutPossible,
+  messageRefusAjout,
+} from '../../core/utilitaires/panier-affichage';
 
 const PHOTO_HERO_DISTANTE =
   'https://images.unsplash.com/photo-1746014929708-fcb859fd3185?w=1400&q=85';
@@ -24,7 +28,7 @@ export class Accueil {
   private readonly recoltes = inject(RecolteService);
   private readonly auth = inject(AuthService);
   private readonly panier = inject(PanierService);
-  private readonly tiroir = inject(TiroirPanierService);
+  private readonly toast = inject(ToastService);
 
   protected readonly chargement = signal(true);
   protected readonly erreur = signal<string | null>(null);
@@ -92,11 +96,22 @@ export class Accueil {
     return estAjoutPossible(recolte);
   }
 
-  /** Ajoute une unité puis montre le panier latéral ; un refus du service est sans effet. */
+  /**
+   * Ajout rapide : une unité, notice de succès **seulement** si `PanierService` a accepté
+   * et a pu enregistrer le panier. Un refus (statut, stock, cumul) ou une écriture impossible
+   * donne la notice d'erreur correspondante, jamais le message de succès (§39.2).
+   */
   protected ajouter(recolte: RecolteResponse): void {
-    if (this.panier.ajouter(recolte, QUANTITE_INITIALE)) {
-      this.tiroir.ouvrir();
+    if (!this.panier.ajouter(recolte, QUANTITE_INITIALE)) {
+      this.toast.afficher(messageRefusAjout(recolte), 'erreur');
+      return;
     }
+    const echecStockage = this.panier.erreurStockage();
+    if (echecStockage !== null) {
+      this.toast.afficher(echecStockage, 'erreur');
+      return;
+    }
+    this.toast.afficher(`${recolte.produit} ajouté au panier`, 'succes');
   }
 
   protected repliPhotoHero(): void {

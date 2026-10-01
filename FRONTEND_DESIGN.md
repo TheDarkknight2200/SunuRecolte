@@ -1283,8 +1283,11 @@ Cette section **remplace** les règles ci-dessous de §6, §7 (rayons et ombres)
   flèche des boutons, ouverture du panier latéral (`--duree-mouvement`, 300 ms). Toutes sont neutralisées par
   `prefers-reduced-motion`. Aucune animation permanente ni carrousel automatique.
 - **Panier latéral** : composant `app-panier-tiroir`, ouvert par le lien « Panier » de l'en-tête (le lien garde son
-  adresse `/acheteur/panier`) et par l'ajout depuis l'accueil. Il ne fait que refléter `PanierService` ; la
-  commande reste calculée et validée par le serveur.
+  adresse `/acheteur/panier`). Son action principale est **« Continuer à explorer »** : elle ferme le tiroir sans
+  naviguer ; l'accès à la commande et au panier complet reste assuré par « Voir le panier complet »
+  (`/acheteur/panier`), qui mène lui-même à l'étape de commande (§26). Le tiroir ne fait que refléter
+  `PanierService` ; la commande reste calculée et validée par le serveur. L'ajout rapide depuis l'accueil ne
+  l'ouvre plus : il rend une notice (§39.2).
 - **Images (§15)** : la photo du hero est une photographie d'illustration ; les cartes de récolte utilisent
   `imageUrl` de l'API.
 - **Catalogue (étape 4 de l'alignement)** : la liste dense (`<table>` à sept colonnes) devient la **grille de cartes
@@ -1313,6 +1316,8 @@ valeur n'est autorisée (§5) : une teinte ou un rayon absent d'ici doit d'abord
 | Rayon de surface | `--rayon-surface` | `3px` | cartes, modales, panneaux et surfaces de même nature |
 | Ombre d'élévation | `--ombre-elevation` | `0 25px 50px -12px rgba(0, 0, 0, 0.25)` | panneau superposé qui borde l'écran : tiroir du panier, menu latéral |
 | Ombre de carte au survol | `--ombre-carte-survol` | `0 20px 50px rgba(28, 54, 39, 0.1)` | élévation d'une carte de récolte au survol (accueil, catalogue) |
+| Ombre de notice | `--ombre-toast` | `0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)` | pilule de la notice de retour d'action (§39.2) |
+| Empilement de la notice | `--z-toast` | `70` | niveau de la notice : au-dessus du tiroir (`50` et `51`) et de `--z-voile` |
 
 - **Rayons** : `--rayon-surface` (3 px) pour les surfaces, `--rayon-pilule` (999 px) pour les boutons, badges,
   pastilles et champs de quantité. `--rayon-md` (6 px) reste la valeur des champs de saisie, des messages et du
@@ -1337,3 +1342,54 @@ valeur n'est autorisée (§5) : une teinte ou un rayon absent d'ici doit d'abord
   `angular.json`. Aucune webfont n'est chargée depuis un CDN, y compris pour un écran en cours d'alignement.
 - **Périmètre de la maquette** : `figma-reference/` ne couvre que l'accueil. Pour tout autre écran, la référence
   est ce §39, les tokens de §39.1 et les quatre écrans validés (accueil, en-tête, pied de page, panier latéral).
+
+### 39.2 Notice de retour d'action (`ToastService` + `app-toast`)
+
+La notice est le **mécanisme unique de retour d'action** de l'application : elle confirme ou infirme une action
+déclenchée par l'utilisateur (ajout au panier, demain enregistrement, statut modifié), sans jamais remplacer un
+état d'écran. Elle est migrée **écran par écran** : `ToastService` et le composant sont posés ici, mais seuls les
+ajouts rapides de l'accueil et du catalogue les utilisent. Les bannières `.message--succes` et `.message--erreur`
+existantes restent en place sur tous les autres écrans jusqu'à leur étape.
+
+- **API** : `afficher(message, type)` avec `type` parmi `'succes' | 'erreur' | 'info'` (défaut `info`),
+  `masquer()`, `suspendre()`, `reprendre()`. **Une seule notice à la fois** : la nouvelle remplace l'ancienne et
+  repart sur sa propre durée. `ToastService` est un service **visuel** : il n'appelle aucune API, ne connaît ni le
+  panier ni l'authentification, et n'est jamais l'autorité d'un succès — ce succès lui est transmis par l'écran.
+- **Durées** : succès et info **2500 ms**, erreur **5000 ms**. Le minuteur est **en pause** pendant que la notice
+  est survolée ou qu'un de ses éléments a le focus, et repart au retrait du survol ou du focus. Une erreur porte
+  un **bouton de fermeture** (« Fermer la notification ») ; succès et info n'en portent pas, ils se retirent
+  seuls. Un message long reste donc traitable par l'utilisateur, et aucune notice n'est éternelle.
+- **Position** : en bas de l'écran, centrée ; sous `$point-mobile`, pleine largeur moins les marges, au-dessus de
+  la safe-area (`env(safe-area-inset-bottom)`). Elle ne déplace pas le contenu et ne piège pas le focus.
+- **Entrée et sortie** : la pilule monte depuis le bas (`translateY` + `opacity`) en `--duree-mouvement`
+  (300 ms), reste visible pendant sa durée, puis redescend et est retirée du DOM. Sous
+  `prefers-reduced-motion: reduce`, le reset global de §14 (`_base.scss`, `!important` sur toute durée) neutralise
+  **aussi** le fondu : la notice apparaît et disparaît instantanément. C'est plus strict que le simple fondu visé,
+  et c'est assumé : le reset global sert toute l'interface et n'est pas rétréci pour un seul composant.
+- **Accessibilité** : les régions de notification sont **permanentes dans le DOM** (montées dans `app.html`, après
+  le tiroir), le message seul entre et sort. Deux régions, jamais une seule dont le rôle changerait :
+  `role="status" aria-live="polite"` pour succès et info, `role="alert"` pour erreur. Une notice n'est jamais le
+  seul porteur d'une information durable : l'état d'écran (compteur du panier, libellé, tableau) reste la source.
+- **Variante par type** :
+
+  | Type | Fond | Texte | Icône (§9, sous-ensemble existant) | Rôle | Durée |
+  |---|---|---|---|---|---|
+  | `succes` | `--couleur-primaire` (#203d2e) | `--couleur-texte-inverse` (contraste 11,9:1) | `check_circle` `f0be` | `status` / `polite` | 2500 ms |
+  | `info` | `--couleur-info` (#29527a) | `--couleur-texte-inverse` (contraste 7,6:1) | `info` `e88e` | `status` / `polite` | 2500 ms |
+  | `erreur` | `--couleur-erreur` (#b3261e) | `--couleur-texte-inverse` (contraste 6,5:1) | `error` `f8b6` | `alert` | 5000 ms |
+
+  Aucun texte technique dans une notice : le message vient du `message` renvoyé par le backend ou d'un texte court
+  rédigé par l'écran qui détient la donnée (§11 et §16 — ni trace, ni SQL, ni contenu de jeton).
+  `ToastService` ne fait que transporter le texte ; il n'en connaît ni la source ni la grammaire. Le succès d'un
+  ajout au panier est « `[produit] ajouté au panier` », le refus reprend `messageRefusAjout()`.
+- **Empilement et panier latéral** : `--z-toast` (70) place la notice au-dessus du tiroir (50 et 51) et des
+  modales (`--z-voile`, 20). Parce que le tiroir est modal et que son action principale est collée en bas de
+  l'écran, **aucune notice n'est rendue pendant qu'il est ouvert** : le composant lit `TiroirPanierService.ouvert()`
+  et rend ses régions vides. Corollaire obligatoire : l'ajout rapide de l'accueil, qui ouvrait le tiroir, ne
+  l'ouvre plus et rend sa notice — sans cette dérogation la notice serait systématiquement masquée.
+- **Ajout rapide (`+`)** : la pilule ronde d'une carte de récolte ajoute `QUANTITE_INITIALE` unité et applique
+  **exactement** les mêmes règles que le bouton texte de la même carte : même garde `estAjoutPossible()`, mêmes
+  bornes de commande, même refus de `PanierService`, et **récolte épuisée ou stock insuffisant = bouton désactivé**
+  avec son motif (§11). Elle affiche une notice de succès **seulement si** `PanierService.ajouter()` a renvoyé
+  `true` ; sinon c'est une notice d'erreur portant le motif du refus. Un refus du service ne produit jamais de
+  notice de succès. Le bouton texte et sa bannière `.message--succes` restent inchangés là où ils existent déjà.

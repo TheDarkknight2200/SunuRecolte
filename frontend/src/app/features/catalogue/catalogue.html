@@ -159,13 +159,30 @@
               }
 
               <div class="catalogue__bas">
-                <p class="catalogue__stock">
-                  {{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }} disponibles
-                </p>
-                <p class="catalogue__prix">
-                  {{ formaterMontant(recolte.prixUnitaire) }}
-                  <span>/ {{ recolte.unite }}</span>
-                </p>
+                <div>
+                  <p class="catalogue__stock">
+                    {{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }} disponibles
+                  </p>
+                  <p class="catalogue__prix">
+                    {{ formaterMontant(recolte.prixUnitaire) }}
+                    <span>/ {{ recolte.unite }}</span>
+                  </p>
+                </div>
+                @if (acheteur()) {
+                  <button
+                    type="button"
+                    class="catalogue__ajout"
+                    [id]="'ajout-rapide-' + recolte.id"
+                    [disabled]="!estAjoutPossible(recolte)"
+                    [attr.aria-label]="'Ajouter ' + recolte.produit + ' au panier'"
+                    [attr.aria-describedby]="
+                      estAjoutPossible(recolte) ? null : 'motif-' + recolte.id
+                    "
+                    (click)="ajouterRapide(recolte)"
+                  >
+                    <span class="materiel-icone" aria-hidden="true">&#xe145;</span>
+                  </button>
+                }
               </div>
 
               <div class="catalogue__operations">

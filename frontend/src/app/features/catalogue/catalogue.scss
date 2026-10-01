@@ -191,9 +191,56 @@
 /* === Montants : toujours au bas de la carte, une ligne par récolte === */
 
 .catalogue__bas {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--espace-3);
   margin-top: auto;
   padding-top: var(--espace-4);
   border-top: var(--filet-ligne);
+}
+
+/* Pilule d'ajout rapide : la sœur de `.recolte__ajout` de l'accueil, dans les filets du design system. */
+.catalogue__ajout {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-pilule);
+  background-color: var(--couleur-surface);
+  color: var(--couleur-primaire);
+  cursor: pointer;
+  transition:
+    background-color var(--duree-transition) ease-out,
+    color var(--duree-transition) ease-out,
+    transform var(--duree-transition) ease-out;
+
+  .materiel-icone {
+    font-size: 1.25rem;
+  }
+
+  &:hover {
+    background-color: var(--couleur-primaire);
+    color: var(--couleur-texte-inverse);
+  }
+
+  &:active {
+    transform: scale(0.92);
+  }
+
+  &:disabled {
+    color: var(--couleur-texte-secondaire);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  &:disabled:hover {
+    background-color: var(--couleur-surface);
+    color: var(--couleur-texte-secondaire);
+  }
 }
 
 .catalogue__stock {
