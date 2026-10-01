@@ -6,6 +6,7 @@ import { ProducteurResponse, RecolteResponse } from '../../../core/modeles/domai
 import { LIBELLES_FILIERE, LIBELLES_STATUT_RECOLTE, StatutRecolte } from '../../../core/modeles/referentiels';
 import { ProducteurService } from '../../../core/services/producteur.service';
 import { RecolteService } from '../../../core/services/recolte.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { messageErreurApi } from '../../../core/utilitaires/erreurs-api';
 import { formaterDate, formaterMontant, formaterQuantite } from '../../../core/utilitaires/formatage';
 
@@ -28,6 +29,7 @@ export class MesRecoltes {
   private readonly recoltes = inject(RecolteService);
   private readonly route = inject(ActivatedRoute);
   private readonly document = inject(DOCUMENT);
+  private readonly toast = inject(ToastService);
 
   protected readonly producteur = signal<ProducteurResponse | null>(null);
   protected readonly liste = signal<RecolteResponse[]>([]);
@@ -187,13 +189,16 @@ export class MesRecoltes {
 
     this.suppressionEnCours.set(true);
     this.erreurSuppression.set(null);
+    this.toast.masquer();
 
     this.recoltes.supprimer(recolte.id).subscribe({
       next: () => {
         this.liste.update((liste) => liste.filter((element) => element.id !== recolte.id));
         this.suppressionEnCours.set(false);
         this.recolteASupprimer.set(null);
-        this.messageSucces.set(`« ${recolte.produit} » a été supprimée du catalogue.`);
+        // `messageSucces` reste la bannière du message d'arrivée : le retrait ne l'écrase
+        // plus et se dit seul en notice, avec le même texte (§39.2).
+        this.toast.afficher(`« ${recolte.produit} » a été supprimée du catalogue.`, 'succes');
         this.placerLeFocusApresSuppression();
       },
       error: (erreur: unknown) => {

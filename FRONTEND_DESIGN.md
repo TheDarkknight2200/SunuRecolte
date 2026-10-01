@@ -1352,7 +1352,11 @@ l'accueil et du catalogue, puis le **LOT 1 « parcours acheteur »** — `/achet
 (`succesPanier()` et `refusPanier()` du bouton texte), `/recoltes/:id` (les deux mêmes) et
 `/acheteur/commandes/:id` (`succesAnnulation()`), puis le **LOT 2 « parcours producteur »** —
 `/producteur/commandes` (refus de transition : le `messageErreurApi()` du PATCH, texte mot pour mot repris
-du signal `refus()`) et `/producteur/profil` (succès d'enregistrement : « Profil mis à jour. »). Les bannières
+du signal `refus()`) et `/producteur/profil` (succès d'enregistrement : « Profil mis à jour. »), puis le
+**LOT 4 « récoltes du producteur »** — `/producteur/recoltes` pour le **retrait d'une récolte** (« « X » a été
+supprimée du catalogue. », texte mot pour mot). Seul écran migré où le texte ne vient pas du signal de l'écran :
+`messageSucces()` rend le message d'arrivée (voir le tableau ci-dessous) et n'est plus écrit par la suppression,
+qui porte elle-même sa phrase à la notice. Les bannières
 `.message--succes` et `.message--erreur` des autres écrans restent en place jusqu'à leur étape.
 
 Sur un écran migré, le **signal du composant reste la source du texte** : la notice est émise à partir du même
@@ -1431,6 +1435,7 @@ aucun libellé et n'est jamais l'autorité d'un succès.
   | `/acheteur/paiement/:id` | `erreurSoumission()` (`paiement.html:133`) | désigné par l'`aria-describedby` du fieldset « Moyen de paiement » : le message corrige une saisie et doit rester attaché au champ ; le même signal porte « Choisissez un moyen de paiement pour continuer. » |
   | `/producteur/commandes` | `succes()` rendu par `succesPour()` (`commandes-recues.html:110`) | cible du focus après une transition réussie (`#zoneSucces`, `role="status"`, `tabindex="-1"`, `focusSurSucces()`) ; les specs assertent `document.activeElement` |
   | `/producteur/profil` | `erreurGenerale()` (`profil-producteur.html:40`) | signal **mixte**, non scindé : porte à la fois la validation d'un champ (filière obligatoire) et l'échec du PUT ; la correction attendue est une saisie |
+  | `/producteur/recoltes` | `messageSucces()` (`mes-recoltes.html:36`) | **message d'arrivée** porté par `?recolteCreee` / `?recolteModifiee` : confirmation d'un événement déjà passé, comme `compteCree()`, à lire en arrivant et tant qu'on la lit. Le retrait d'une récolte (LOT 4) part en notice **sans écrire ce signal** : la bannière partagée n'est pas scindée |
   | toute **modale** | `detail-commande.html:189`, `prix-marche.html:307`, `mes-recoltes.html:159`, `utilisateurs.html:171`, `recoltes-admin.html:143` | une notice hors de la modale sortirait le message du contexte fermé et masquerait le bouton à reprendre |
   | `/connexion`, `/inscription` | `erreur()`, `erreurGenerale()` | échec de formulaire : la correction est la saisie elle-même, le message doit persister jusqu'à la correction |
   | `/tableau-de-bord` | `compteCree()` | confirmation d'un événement déjà passé, pas le retour d'une action immédiate ; doit rester lue à l'arrivée sur l'écran |

@@ -11,6 +11,7 @@ import {
   provideRouter,
   withDisabledInitialNavigation,
 } from '@angular/router';
+import { vi } from 'vitest';
 import { routes } from '../../../app.routes';
 import { authGuard } from '../../../core/guards/auth.guard';
 import { roleGuard } from '../../../core/guards/role.guard';
@@ -18,6 +19,7 @@ import { authInterceptor } from '../../../core/intercepteurs/auth.interceptor';
 import { ProducteurResponse, RecolteResponse } from '../../../core/modeles/domaine.modeles';
 import { SessionUtilisateur } from '../../../core/modeles/auth.modeles';
 import { CLE_JETON, CLE_UTILISATEUR } from '../../../core/services/auth.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { MesRecoltes } from './mes-recoltes';
 
 const API = 'http://localhost:8080/api';
@@ -99,6 +101,11 @@ function sansEspace(valeur: string): string {
 
 function texteDe(noeud: HTMLElement): string {
   return (noeud.textContent ?? '').replace(/\s+/g, ' ').trim();
+}
+
+/** La notice globale émise par l'écran : le retrait d'une récolte n'a plus de bannière (§39.2). */
+function notice(): ReturnType<ToastService['notice']> {
+  return TestBed.inject(ToastService).notice();
 }
 
 describe('MesRecoltes', () => {
@@ -314,6 +321,25 @@ describe('MesRecoltes', () => {
     expect(texteDe(element(racine, '.message--succes p'))).toBe('Votre récolte a été modifiée.');
   });
 
+  it('garde le message d’arrivée en bannière : une suppression ne le remplace pas et ne lui ajoute aucune notice', () => {
+    ouvrir({ recolteCreee: '1' });
+    charger([produit(12, { produit: 'Tomate' })]);
+
+    const banniere = element<HTMLElement>(racine, '.message--succes');
+    expect(banniere.getAttribute('role')).toBe('status');
+    expect(texteDe(element(racine, '.message--succes p'))).toBe('Votre récolte a été publiée.');
+    // Le message d'arrivée n'est pas un retour d'action : il ne part pas en notice (§39.2).
+    expect(notice()).toBeNull();
+
+    ouvrirModale();
+    cliquer('#suppression-confirmer');
+    http.expectOne(`${API}/recoltes/12`).flush(null, { status: 204, statusText: 'No Content' });
+    fixture.detectChanges();
+
+    expect(texteDe(element(racine, '.message--succes p'))).toBe('Votre récolte a été publiée.');
+    expect(notice()?.message).toBe('« Tomate » a été supprimée du catalogue.');
+  });
+
   it('affiche l’erreur du backend avec Réessayer, sans état vide', () => {
     ouvrir();
     profilFactice().flush(profilProducteur());
@@ -526,12 +552,39 @@ describe('MesRecoltes', () => {
       http.expectOne(`${API}/recoltes/12`).flush(null, { status: 204, statusText: 'No Content' });
       fixture.detectChanges();
 
-      const succes = element<HTMLElement>(racine, '.message--succes');
-      expect(succes.getAttribute('role')).toBe('status');
-      expect(texteDe(element(racine, '.message--succes p'))).toBe(
-        '« Tomate » a été supprimée du catalogue.',
-      );
+      // Re-ciblé sur la notice (§39.2) : le type « succes » est rendu par la région
+      // role="status" du composant, vérifiée dans toast.spec.ts.
+      expect(notice()?.type).toBe('succes');
+      expect(notice()?.message).toBe('« Tomate » a été supprimée du catalogue.');
+      expect(racine.querySelector('.message--succes')).toBeNull();
       expect(texteDe(racine)).toContain('1 récolte publiée');
+    });
+
+    it('rend la notice sans déplacer le focus : il reste sur le lien de publication', () => {
+      ouvrirModale();
+      cliquer('#suppression-confirmer');
+      http.expectOne(`${API}/recoltes/12`).flush(null, { status: 204, statusText: 'No Content' });
+      fixture.detectChanges();
+
+      expect(notice()).not.toBeNull();
+      const actif = document.activeElement as HTMLElement;
+      expect(actif.tagName).toBe('A');
+      expect(actif.getAttribute('href')).toBe('/producteur/recoltes/nouvelle');
+      expect(texteDe(actif)).toBe('Publier une récolte');
+    });
+
+    it('efface la notice précédente avant une nouvelle tentative de suppression', () => {
+      const toast = TestBed.inject(ToastService);
+      toast.afficher('Notice d’un écran précédent.', 'succes');
+      const masquer = vi.spyOn(toast, 'masquer');
+
+      ouvrirModale();
+      cliquer('#suppression-confirmer');
+      expect(masquer).toHaveBeenCalledTimes(1);
+
+      http.expectOne(`${API}/recoltes/12`).flush(null, { status: 204, statusText: 'No Content' });
+      fixture.detectChanges();
+      expect(notice()?.message).toBe('« Tomate » a été supprimée du catalogue.');
     });
 
     it('la modale se verrouille pendant l’envoi : un seul DELETE pour deux clics', () => {
