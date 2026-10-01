@@ -1244,9 +1244,10 @@ Et trois éléments de la référence **ne sont pas implémentés**, parce qu'au
 | Producteur affiché par ligne de commande | `LigneCommandeResponse` = `{ id, recolteId, produit, unite, quantite, prixUnitaire, sousTotal }`, sans producteur ni localité |
 
 Y ajouter une valeur aurait voulu dire l'inventer à l'écran ou la demander au client (§19 : les montants ne
-sont jamais acceptés depuis le client). Une image de produit est dans le même cas : `RecolteResponse.imageUrl`
-n'est **jamais** servi, faute d'upload et de fichiers dans `public/` — le catalogue n'ajoute donc pas
-d'illustration, et ses listes restent typographiques (§10.6).
+sont jamais acceptés depuis le client). **Amendement (§39)** : `RecolteResponse.imageUrl` est une adresse saisie
+par le producteur dans son formulaire, donc servie par l'API quand elle existe. Un écran de récolte ne dessine un
+bloc d'image **que** lorsque cette adresse est non nulle — le catalogue et le détail restent typographiques sinon
+(§10.6). Aucun fichier image n'est ajouté à `public/` pour garnir une récolte sans photo.
 
 ### 38.5 Responsive : une table dense n'est pas une table transportée
 
@@ -1286,6 +1287,14 @@ Cette section **remplace** les règles ci-dessous de §6, §7 (rayons et ombres)
   commande reste calculée et validée par le serveur.
 - **Images (§15)** : la photo du hero est une photographie d'illustration ; les cartes de récolte utilisent
   `imageUrl` de l'API.
+- **Catalogue (étape 4 de l'alignement)** : la liste dense (`<table>` à sept colonnes) devient la **grille de cartes
+  de récolte** de l'accueil — une colonne sous `$point-mobile`, deux de `$point-mobile` à `$point-desktop`, quatre
+  au-delà. Une carte porte le visuel (seulement quand `imageUrl` est non nul), le statut en pilule, le produit, le
+  producteur, la description, les colonnes restantes de l'ancienne table (disponibilité, bornes de commande, prix,
+  date et lieu) **uniquement quand l'API les fournit**, puis les actions. Ni filière ni catégorie n'apparaissent sur
+  la carte : `RecolteResponse` ne les expose pas (§38.4). Le formulaire de filtres, les quatre états (§11), les
+  messages du panier et le comportement d'ajout au panier restent inchangés. `.tableau--empile` (§38.5) ne s'applique
+  plus à cette page, qui n'a plus de table ; il reste la règle des autres tableaux.
 
 ### 39.1 Tokens de la refonte
 
@@ -1303,6 +1312,7 @@ valeur n'est autorisée (§5) : une teinte ou un rayon absent d'ici doit d'abord
 | Flou de voile | `--flou-voile` | `blur(8px)` | `backdrop-filter` du seul voile de modale |
 | Rayon de surface | `--rayon-surface` | `3px` | cartes, modales, panneaux et surfaces de même nature |
 | Ombre d'élévation | `--ombre-elevation` | `0 25px 50px -12px rgba(0, 0, 0, 0.25)` | panneau superposé qui borde l'écran : tiroir du panier, menu latéral |
+| Ombre de carte au survol | `--ombre-carte-survol` | `0 20px 50px rgba(28, 54, 39, 0.1)` | élévation d'une carte de récolte au survol (accueil, catalogue) |
 
 - **Rayons** : `--rayon-surface` (3 px) pour les surfaces, `--rayon-pilule` (999 px) pour les boutons, badges,
   pastilles et champs de quantité. `--rayon-md` (6 px) reste la valeur des champs de saisie, des messages et du
@@ -1312,8 +1322,9 @@ valeur n'est autorisée (§5) : une teinte ou un rayon absent d'ici doit d'abord
   jamais d'ombre au repos (une bordure suffit). Un panneau superposé qui **borde l'écran** (tiroir du panier,
   menu latéral) est rendu par `--ombre-elevation` — jamais par une ombre directionnelle écrite en dur dans un
   composant. La modale de confirmation, elle, reste à `--ombre-surface` et au `--rayon-surface` : la maquette ne la
-  dessine pas, et §31 garde la main jusqu'à son alignement. L'élévation au survol d'une carte de récolte
-  (`0 20px 50px rgba(28, 54, 39, 0.1)`, accueil) reste une signature locale et ne se généralise pas.
+  dessine pas, et §31 garde la main jusqu'à son alignement. L'élévation au survol d'une **carte de récolte** est
+  rendu par `--ombre-carte-survol` (accueil et catalogue) : elle ne s'applique qu'au survol, jamais au repos, et
+  seulement aux cartes de récolte — ni aux tableaux, ni aux panneaux d'administration.
 - **Voiles** : `#10251a` à 70 % pour une modale, avec `--flou-voile`, et 60 % pour un tiroir, **sans flou** — la
   maquette ne floute que le fond de la modale produit. Le flou est la seule exception acceptée à « pas d'effet
   gratuit » (§17) : il sépare le panneau du contenu sans bordure ni épaisseur. Il reste décoratif — sans

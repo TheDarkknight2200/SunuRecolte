@@ -107,75 +107,68 @@
     } @else {
       <p class="catalogue__denombrement">{{ denombrement() }}</p>
 
-      <table class="tableau tableau--maitre tableau--empile catalogue__liste" aria-labelledby="catalogue-titre">
-        <thead>
-          <tr>
-            <th scope="col">Récolte</th>
-            <th scope="col">Statut</th>
-            <th scope="col">Disponibilité</th>
-            <th scope="col">Commande</th>
-            <th scope="col" class="nombre">Prix unitaire</th>
-            <th scope="col">Date et lieu</th>
-            <th scope="col">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (recolte of liste(); track recolte.id) {
-            <tr class="catalogue__ligne">
-              <td data-libelle="Récolte">
-                <div class="cellule-double">
-                  <span class="cellule-double__titre">
-                    <a class="catalogue__lien" [routerLink]="lien(recolte)">{{ recolte.produit }}</a>
-                  </span>
-                  <span class="cellule-double__detail">{{ producteur(recolte) }}</span>
+      <ul class="catalogue__liste" aria-labelledby="catalogue-titre">
+        @for (recolte of liste(); track recolte.id) {
+          <li class="catalogue__carte">
+            @if (recolte.imageUrl) {
+              <a
+                class="catalogue__visuel"
+                [routerLink]="lien(recolte)"
+                tabindex="-1"
+                aria-hidden="true"
+              >
+                <img class="catalogue__image" [src]="recolte.imageUrl" alt="" loading="lazy" />
+              </a>
+            }
+
+            <div class="catalogue__corps">
+              <span
+                class="catalogue__statut"
+                [class.catalogue__statut--epuise]="recolte.statut === 'EPUISEE'"
+              >
+                {{ libelleStatut(recolte.statut) }}
+              </span>
+
+              <h2 class="catalogue__nom">
+                <a [routerLink]="lien(recolte)">{{ recolte.produit }}</a>
+              </h2>
+              <p class="catalogue__producteur">{{ producteur(recolte) }}</p>
+
+              @if (recolte.description) {
+                <p class="catalogue__description">{{ recolte.description }}</p>
+              }
+              @if (meta(recolte); as details) {
+                <p class="catalogue__meta">{{ details }}</p>
+              }
+
+              @if (recolte.quantiteMin !== null || recolte.quantiteMax !== null) {
+                <div class="catalogue__bornes">
+                  @if (recolte.quantiteMin !== null) {
+                    <p class="catalogue__borne">
+                      <span class="catalogue__borne-libelle">Commande minimale</span>
+                      {{ formaterQuantite(recolte.quantiteMin, recolte.unite) }}
+                    </p>
+                  }
+                  @if (recolte.quantiteMax !== null) {
+                    <p class="catalogue__borne">
+                      <span class="catalogue__borne-libelle">Commande maximale</span>
+                      {{ formaterQuantite(recolte.quantiteMax, recolte.unite) }}
+                    </p>
+                  }
                 </div>
-                @if (recolte.description) {
-                  <p class="catalogue__description">{{ recolte.description }}</p>
-                }
-              </td>
+              }
 
-              <td data-libelle="Statut">
-                <span class="catalogue__statut">{{ libelleStatut(recolte.statut) }}</span>
-              </td>
+              <div class="catalogue__bas">
+                <p class="catalogue__stock">
+                  {{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }} disponibles
+                </p>
+                <p class="catalogue__prix">
+                  {{ formaterMontant(recolte.prixUnitaire) }}
+                  <span>/ {{ recolte.unite }}</span>
+                </p>
+              </div>
 
-              <td class="nombre" data-libelle="Disponibilité">
-                {{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }}
-              </td>
-
-              <td data-libelle="Commande">
-                @if (recolte.quantiteMin !== null || recolte.quantiteMax !== null) {
-                  <div class="catalogue__bornes">
-                    @if (recolte.quantiteMin !== null) {
-                      <span class="catalogue__borne">
-                        <span class="catalogue__borne-libelle">Commande minimale</span>
-                        {{ formaterQuantite(recolte.quantiteMin, recolte.unite) }}
-                      </span>
-                    }
-                    @if (recolte.quantiteMax !== null) {
-                      <span class="catalogue__borne">
-                        <span class="catalogue__borne-libelle">Commande maximale</span>
-                        {{ formaterQuantite(recolte.quantiteMax, recolte.unite) }}
-                      </span>
-                    }
-                  </div>
-                } @else {
-                  <span class="catalogue__absent">—</span>
-                }
-              </td>
-
-              <td class="nombre catalogue__prix" data-libelle="Prix unitaire">
-                {{ formaterMontant(recolte.prixUnitaire) }} / {{ recolte.unite }}
-              </td>
-
-              <td data-libelle="Date et lieu">
-                @if (meta(recolte); as details) {
-                  <span class="catalogue__meta">{{ details }}</span>
-                } @else {
-                  <span class="catalogue__absent">—</span>
-                }
-              </td>
-
-              <td class="tableau__actions" data-libelle="Action">
+              <div class="catalogue__operations">
                 @if (acheteur()) {
                   <div class="catalogue__achat">
                     @if (estAjoutPossible(recolte)) {
@@ -205,11 +198,11 @@
                   </div>
                 }
                 <a class="lien-action catalogue__action" [routerLink]="lien(recolte)">Voir la récolte</a>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
     }
   </div>
 </section>

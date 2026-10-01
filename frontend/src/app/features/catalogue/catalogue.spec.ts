@@ -214,11 +214,11 @@ describe('Catalogue', () => {
     ]);
 
     expect(
-      elements<HTMLElement>(racine, '.catalogue__ligne .cellule-double__titre').map(texteDe),
+      elements<HTMLElement>(racine, '.catalogue__carte .catalogue__nom').map(texteDe),
     ).toEqual(['Niébe', 'Mangue']);
     expect(texteDe(racine)).toContain('2 récoltes affichées');
 
-    const seconde = elements<HTMLElement>(racine, '.catalogue__ligne')[1];
+    const seconde = elements<HTMLElement>(racine, '.catalogue__carte')[1];
     expect(sansEspace(texteDe(seconde))).toContain('12500FCFA');
     expect(texteDe(seconde)).toContain('500 kg');
     expect(texteDe(seconde)).toContain('Diop — Thiès');
@@ -230,7 +230,7 @@ describe('Catalogue', () => {
 
     repondre([recolte(1)]);
 
-    const ligne = element<HTMLElement>(racine, '.catalogue__ligne');
+    const ligne = element<HTMLElement>(racine, '.catalogue__carte');
     expect(texteDe(ligne)).not.toContain('Commande minimale');
     expect(texteDe(ligne)).not.toContain('Commande maximale');
     expect(texteDe(ligne)).not.toContain('Disponible à partir du');
@@ -246,7 +246,7 @@ describe('Catalogue', () => {
 
     repondre([recolte(1, { quantiteMin: 5, quantiteMax: 50, description: 'Variety Kent', localisation: 'Thiès', dateDisponibilite: '2026-04-10' })]);
 
-    const ligne = element<HTMLElement>(racine, '.catalogue__ligne');
+    const ligne = element<HTMLElement>(racine, '.catalogue__carte');
     expect(texteDe(ligne)).toContain('Commande minimale');
     expect(texteDe(ligne)).toContain('Commande maximale');
     expect(texteDe(ligne)).toContain('5 kg');
@@ -261,7 +261,7 @@ describe('Catalogue', () => {
 
     repondre([recolte(12), recolte(7)]);
 
-    const hrefs = elements<HTMLAnchorElement>(racine, '.catalogue__ligne a').map((lien) =>
+    const hrefs = elements<HTMLAnchorElement>(racine, '.catalogue__carte a').map((lien) =>
       sansEspace(lien.getAttribute('href') ?? ''),
     );
     expect(hrefs).toEqual(['/recoltes/12', '/recoltes/12', '/recoltes/7', '/recoltes/7']);
@@ -399,7 +399,7 @@ describe('Catalogue', () => {
     ouvrir('ACHETEUR');
     repondre([recolte(1, { statut: 'EPUISEE', quantiteDisponible: 0 })]);
 
-    expect(elements(racine, '.catalogue__ligne')).toHaveLength(1);
+    expect(elements(racine, '.catalogue__carte')).toHaveLength(1);
     const bouton = element<HTMLButtonElement>(racine, '#ajouter-1');
     expect(bouton.disabled).toBe(true);
     expect(bouton.getAttribute('aria-describedby')).toBe('motif-1');
