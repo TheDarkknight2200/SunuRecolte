@@ -1,6 +1,7 @@
 @use "points-rupture" as pr;
 
 .entete {
+  position: relative;
   background-color: var(--couleur-fond);
   border-bottom: 1px solid var(--couleur-filet);
 }
@@ -18,12 +19,16 @@
   text-transform: uppercase;
 }
 
+/*
+ * Une seule ligne à toutes les largeurs (§10.5) : marque à gauche, pile d'actions à droite,
+ * et les liens de navigation qui ne tiennent qu'à partir de `--point-desktop`. Rien ne passe
+ * donc plus à la ligne, et le contenu de la ligne reste visible à 375 px.
+ */
 .entete__contenu {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--espace-3) var(--espace-4);
+  gap: var(--espace-3);
   min-height: 76px;
   padding-top: var(--espace-2);
   padding-bottom: var(--espace-2);
@@ -31,11 +36,11 @@
 
 .entete__marque {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: var(--espace-2);
   color: var(--couleur-primaire);
   text-decoration: none;
-  flex-shrink: 0;
 
   &:hover {
     color: var(--couleur-primaire);
@@ -62,11 +67,68 @@
   }
 }
 
-.entete__navigation {
+/* Pile d'actions : cloche, sac, burger. Elle est toujours visible, jamais repliée. */
+.entete__actions {
   display: flex;
-  flex-wrap: wrap;
+  flex: none;
+  order: 1;
   align-items: center;
-  gap: var(--espace-2) var(--espace-4);
+  gap: var(--espace-2);
+  margin-left: auto;
+}
+
+.entete__panier,
+.entete__notifications,
+.entete__menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-pilule);
+  background-color: transparent;
+  color: var(--couleur-primaire);
+  cursor: pointer;
+  transition:
+    background-color var(--duree-transition) ease-out,
+    color var(--duree-transition) ease-out;
+
+  &:hover {
+    background-color: var(--couleur-primaire);
+    color: var(--couleur-fond);
+    text-decoration: none;
+  }
+}
+
+/* Compteurs en pastille d'angle : le badge reste non cliquable, son support l'est (§10.7). */
+.entete__panier-compteur,
+.entete__notifications-compteur {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  padding: 0 var(--espace-1);
+}
+
+.entete__navigation {
+  display: none;
+}
+
+.entete--menu-ouvert .entete__navigation {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espace-3);
+  padding: var(--espace-4);
+  background-color: var(--couleur-surface);
+  border-bottom: 1px solid var(--couleur-filet);
+  box-shadow: var(--ombre-surface);
 }
 
 .entete__lien {
@@ -119,58 +181,35 @@
   /* hérite des styles .badge */
 }
 
-/* Lien « Panier » et son compteur (§25) : le badge reste non cliquable, le lien l'est. */
-.entete__panier {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--espace-2);
-  padding: var(--espace-2) var(--espace-3);
-  border: 1px solid var(--couleur-bordure);
-  border-radius: var(--rayon-pilule);
-  transition:
-    background-color var(--duree-transition) ease-out,
-    color var(--duree-transition) ease-out;
-
-  &:hover {
-    background-color: var(--couleur-primaire);
-    color: var(--couleur-fond);
-  }
-}
-
-.entete__panier-icone {
-  font-size: 1rem;
-}
-
 /*
- * Compteur de notifications non lues (§29) : un badge, jamais un lien, jamais une cinquième
- * entrée de navigation (§10.5). Le nombre visible reste seul à l'écran ; la légende, hors
- * écran, porte le sens de ce que l'annonce `aria-live` fait entendre.
+ * À partir de `--point-desktop` (1100 px, §12), les liens reprennent leur ligne et le bouton
+ * burger disparaît : à cette largeur, quatre liens au plus, l'identité et « Se déconnecter »
+ * tiennent sans déborder (§10.5).
  */
-.entete__notifications {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--espace-1);
-}
-
-.entete__notifications-legende {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-/*
- * Une ligne de liens ne tient qu'à partir de la tablette : un acheteur connecté cumule
- * quatre liens, son identité et « Se déconnecter ». Sous ce point, ils passent à la ligne
- * (§10.5) plutôt que de faire déborder l'en-tête en scroll horizontal.
- */
-@media (min-width: pr.$point-tablette) {
+@media (min-width: pr.$point-desktop) {
   .entete__navigation {
+    order: 1;
+    display: flex;
     flex-wrap: nowrap;
+    align-items: center;
+    gap: var(--espace-4);
+    margin-left: auto;
+    padding: 0;
+    background-color: transparent;
+    border-bottom: 0;
+    box-shadow: none;
+  }
+
+  /*
+   * Le recul vient de la navigation, plus de la pile : les liens restent collés au bord droit
+   * comme avant le burger, la pile d'actions les suit immédiatement.
+   */
+  .entete__actions {
+    order: 2;
+    margin-left: 0;
+  }
+
+  .entete__menu {
+    display: none;
   }
 }

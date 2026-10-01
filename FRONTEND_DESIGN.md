@@ -319,27 +319,46 @@ Angular ne redéfinit pas un bouton ou un champ, il réutilise ces classes.
 ### 10.5 Navigation
 
 - **En-tête public** : marque + nom, zone de liens à droite (Accueil, Connexion, Inscription).
-- **En-tête connecté** : marque + nom, lien vers l'espace du rôle, nom de l'utilisateur et rôle,
-  bouton discret « Se déconnecter ».
+- **En-tête connecté** : marque + nom, pile d'actions (cloche, sac, burger), liens d'espace à droite, nom de
+  l'utilisateur et rôle, bouton discret « Se déconnecter ».
 - L'en-tête est identique sur toutes les pages (un seul composant), hauteur minimale 64 px, fond
   surface, bordure basse 1 px, contenu contraint à `--largeur-contenu`.
 - La page active est signalée visuellement et par `aria-current="page"` (`ariaCurrentWhenActive`),
   jamais par une couleur criarde. Le lien « Accueil » utilise `routerLinkActiveOptions: { exact: true }`
   pour ne pas rester actif sur toutes les pages.
 - Le lien de l'espace d'un rôle est actif par **préfixe** : il reste marqué actif sur la liste et sur le
-  détail de ses commandes. Le lien « Panier » garde `exact: true`, et comme l'espace acheteur pointe sur
-  une page sœur (`/acheteur/commandes`) et non sur un parent, un seul lien porte `aria-current="page"` à la
-  fois.
-- Les liens **ne sont pas repliés** dans un menu : sous `--point-tablette` (768 px), ils passent simplement
-  à la ligne (`flex-wrap`), l'en-tête s'agrandissant en hauteur ; une seule ligne ne devient la règle qu'à
-  partir de ce point. Décision prise à l'implémentation : quatre liens au plus coexistent (l'en-tête acheteur
-  ajoute « Mes commandes » et le lien « Panier » avec son compteur, §25 et §33), un menu replié
-  (`<details>`) n'apportait rien et ajoutait un état à gérer, donc à tester. Le seuil a été relevé de 480 px
-  à 768 px après une QA réelle : à ~510 px, les quatre liens, l'identité et « Se déconnecter » ne tenaient
-  plus sur une ligne et l'en-tête débordait en scroll horizontal.
+  détail de ses commandes. Comme l'espace acheteur pointe sur une page sœur (`/acheteur/commandes`) et non
+  sur un parent, un seul lien porte `aria-current="page"` à la fois. Le sac n'est pas dans cette liste :
+  c'est un bouton (§25), il ne porte donc ni `routerLink` ni `aria-current`.
+- **Une seule ligne d'en-tête, à toutes les largeurs** : `.entete__contenu` est en `flex-wrap: nowrap`, la
+  marque et la pile d'actions en `flex: none`. Aucun contenu visible de cette ligne ne passe à la ligne ni ne
+  déborde à 375 px. Ce sont les **liens** qui cèdent la place, sous forme de panneau replié — la règle
+  ancienne (« les liens passent à la ligne sous `--point-tablette`, seuil relevé de 480 px à 768 px après une
+  QA réelle à ~510 px ») est **remplacée** par le burger ci-dessous.
+- **Menu burger (`.entete__menu`)** : sous `--point-desktop` (1100 px), les liens sont repliés derrière un
+  bouton rond de 44 × 44 px (§12), glyphe `menu`. Le motif est une **navigation disclosure, pas une modale** :
+  `aria-expanded` sur le bouton, `aria-controls="navigation-principale"` pointant sur le `<nav>`, **aucun**
+  `aria-modal`, **aucun** `aria-haspopup`, **aucun** piège de focus — les liens du panneau déplié restent dans
+  l'ordre de tabulation naturel. Échap ferme le panneau **et rend le focus au bouton** ; un clic sur un lien du
+  panneau ferme le panneau, la marque fait de même. À partir de 1100 px, les liens reprennent leur ligne à droite
+  et le bouton disparaît (`display: none`) : il n'existe plus à ces largeurs.
+- **Seuil choisi : `--point-desktop` (1100 px), non `--point-tablette` (768 px).** La pile cloche + sac + burger
+  remplace le lien texte « Panier » ; entre 768 et 1100 px, trois liens, l'identité et « Se déconnecter » avec
+  cette pile ne tiennent plus sur une ligne. Le panneau se déplie donc jusqu'à 1100 px. **Non vérifié en
+  navigateur** : le rendu réel aux quatre largeurs de contrôle (375 / 768 / 1024 / 1366) reste à jouer.
+- **Sac (`.entete__panier`)** : bouton rond, glyphe `shopping_cart`, rendu **seulement** à un acheteur ; il ouvre
+  le panier latéral (§33) en appelant `TiroirPanierService.ouvrir()`, le mécanisme déjà en place. Son `aria-label`
+  porte le compte — « Ouvrir le panier, 3 articles » — et son compteur est la pastille d'angle `.badge` (§25).
+  Il n'a plus d'adresse : `/acheteur/panier` reste atteignable par le bouton « Voir le panier complet » du tiroir.
+- **Cloche (`.entete__notifications`)** : lien vers `/notifications`, glyphe `notifications`, rendu pour **tout**
+  rôle connecté — acheteur, producteur et administrateur (§29). Le compteur de non-lues est sa pastille d'angle,
+  **absente à 0**, et son `aria-label` dit le compte — « Notifications, 3 non lues », « Notifications » quand il
+  n'y en a aucune. Le conteneur garde `aria-live="polite"` : un changement de nombre est annoncé sans
+  interrompre la navigation clavier.
 - Le libellé du lien d'espace suit le rôle : « Mes récoltes » (producteur), « Mes commandes » (acheteur),
   « Administration » (`/admin`) pour un administrateur, qui ne voit alors que trois liens — Catalogue,
-  Tableau de bord, Administration — le « Panier » n'étant pas son domaine (§37).
+  Tableau de bord, Administration — le sac n'étant pas son domaine (§37). La cloche, elle, est rendue pour les
+  trois rôles (§29).
 - **Pied de page** : une seule ligne sobre (mention du projet, année, lien GitHub du dépôt),
   sans colonnes marketing.
 - **Onglets d'espace (`.onglets`)** : bandeau de navigation **entre routes sœurs d'un même espace**, réservé à
@@ -598,8 +617,9 @@ Toute nouvelle règle visuelle transverse doit d'abord être ajoutée à ce docu
 
 - Le panier est un état local du frontend (`localStorage`, clé préfixée `sunurecolte.`) : il n'existe
   ni entité, ni table, ni endpoint de panier. Il sert uniquement à composer une commande.
-- **Compteur de lignes dans l'en-tête** : `.badge` compact (`--taille-xs`, 600) dans le lien « Panier » ;
-  au-delà de 99, le compteur affiche `99+`. Le badge reste non cliquable (§10.7) : c'est le lien qui l'est.
+- **Compteur de lignes dans l'en-tête** : `.badge` compact (`--taille-xs`, 600) en pastille d'angle du **bouton
+  sac** rond (§10.5) ; au-delà de 99, le compteur affiche `99+`. Le badge reste non cliquable (§10.7) : c'est le
+  bouton qui l'est, et son `aria-label` reprend le même compte.
 - **Ligne de panier** : produit à gauche, quantité au centre, sous-total à droite, séparateur 1 px,
   pas de zébrage (§10.6).
 - **Quantité** : champ numérique + deux boutons `.bouton--compact` portant chacun un `aria-label`
@@ -681,11 +701,14 @@ Mapping statut → couleurs (§5 ; §10.7 applique la couleur au texte et son fo
   (`notifications.filter(n => !n.lu).length`) : **aucun endpoint de comptage n'existe** dans l'API, et il ne
   faut pas en inventer. Le frontend n'envoie **jamais** `utilisateurId` — ni en paramètre, ni en corps, ni
   depuis `localStorage` ou la route : l'identité du destinataire vient du jeton (§19).
-- **Compteur de non-lues dans l'en-tête**, dans un conteneur `aria-live="polite"` ; il se met à jour à la
+- **Compteur de non-lues dans l'en-tête**, pastille d'angle de la **cloche** — le lien `.entete__notifications`
+  vers `/notifications` (§10.5) — dans un conteneur `aria-live="polite"` ; il se met à jour à la
   navigation, après un marquage lu et par le bouton « Actualiser » de la page. **Aucun `setInterval`,
-  aucun polling** : le MVP n'a pas de temps réel.
-- Le compteur est plafonné à **`99+`** au-delà de 99 lignes non lues, disparaît à 0, et reste **non
-  cliquable** (§10.7) : le badge n'est pas un lien et ne devient pas un bouton. Il n'est jamais affiché à un
+  aucun polling** : le MVP n'a pas de temps réel. Son `aria-label` dit le compte (« Notifications, 3 non lues »),
+  ou simplement « Notifications » quand il n'y a rien à lire.
+- Le compteur est plafonné à **`99+`** au-delà de 99 lignes non lues et disparaît à 0. Le compteur lui-même reste
+  un **`.badge`** (§10.7) : il n'est pas un lien et ne devient pas un bouton — c'est la cloche qui le porte qui
+  est le lien. Il n'est jamais affiché à un
   visiteur anonyme, et `GET /api/notifications` n'est **jamais** appelé sans session validée — un appel
   anonyme renverrait `401` et déclencherait la purge de la session (§19).
 - **Aucune actualisation automatique.** Les trois seules causes d'un `GET /api/notifications` sont :
@@ -697,12 +720,13 @@ Mapping statut → couleurs (§5 ; §10.7 applique la couleur au texte et son fo
   renvoie l'`Observable` déjà parti (`shareReplay` + `refCount`, avec remise à zéro en `finalize` si c'est bien
   lui qui se termine) au lieu d'émettre un second `GET` identique. Dès que la réponse est reçue ou perdue, la
   lecture suivante repart au serveur : « Actualiser » et « Réessayer » restent des requêtes réelles (§11).
-- **Accès à la liste : Tableau de bord et espaces principaux** (lien « Notifications »), jamais depuis l'en-tête.
-  Le point d'entrée est proposé sur `/tableau-de-bord`, sur les pages d'atterrissage d'espace — `/producteur/recoltes`
-  (`#lien-notifications-producteur`) et `/acheteur/commandes` (`#lien-notifications-acheteur`) — et sur les écrans
-  de l'ADMIN (`/admin`, `/admin/utilisateurs`, `/admin/recoltes`, `/admin/prix-marche`). L'en-tête garde ses quatre
-  liens (§10.5) et n'en reçoit pas un cinquième : son compteur de non-lues reste un **badge non cliquable** (§10.7),
-  et ces entrées sont des liens d'espace, pas des remplacements du badge.
+- **Accès à la liste : la cloche de l'en-tête, le Tableau de bord et les espaces principaux** (lien
+  « Notifications »). La cloche est l'entrée courte (§10.5) ; le point d'entrée est aussi proposé sur
+  `/tableau-de-bord`, sur les pages d'atterrissage d'espace — `/producteur/recoltes` (`#lien-notifications-producteur`)
+  et `/acheteur/commandes` (`#lien-notifications-acheteur`) — et sur les écrans de l'ADMIN (`/admin`,
+  `/admin/utilisateurs`, `/admin/recoltes`, `/admin/prix-marche`). La cloche est une **action d'en-tête**, pas
+  une entrée de la navigation : le `<nav>` garde ses trois liens d'espace au plus (§10.5) et n'en reçoit pas un
+  quatrième ; ces entrées d'écran restent des liens d'espace, elles ne remplacent pas la cloche.
 - Une notification non lue est signalée par un **texte** (« Non lue ») en plus de tout traitement visuel ;
   l'état lu ne repose pas sur la seule absence de couleur.
 - Le passage à l'état lu passe par un **bouton explicite** « Marquer comme lue », jamais par un simple
@@ -940,8 +964,9 @@ vide (« Aucune commande reçue pour le moment. » + lien « Voir mes récoltes 
 jamais un faux état vide.
 
 **Navigation.** Le lien d'entrée est dans l'en-tête de « Mes récoltes » (« Commandes reçues ») et le lien de
-retour dans celle-ci : l'en-tête global conserve ses quatre liens, sans cinquième entrée (§10.5, même arbitrage
-qu'en §29). Le lien d'espace de l'en-tête reste actif par préfixe sur les deux pages producteur (§10.5).
+retour dans celle-ci : l'en-tête global ne reçoit pas d'entrée de navigation de plus, « Commandes reçues » reste
+hors de son `<nav>` (§10.5, même arbitrage qu'en §29). Le lien d'espace de l'en-tête reste actif par préfixe sur
+les deux pages producteur (§10.5).
 
 **Ce que cet écran ne fait pas.** Aucun paiement, aucun vocabulaire de paiement (§28), aucune annulation
 offerte au producteur, aucune notification envoyée, aucun appel de récolte, **aucun polling, aucun
@@ -1282,8 +1307,14 @@ Cette section **remplace** les règles ci-dessous de §6, §7 (rayons et ombres)
 - **Animations (§14)** : survol des cartes de récolte (élévation de 4 px, zoom lent de la photo), glissement de la
   flèche des boutons, ouverture du panier latéral (`--duree-mouvement`, 300 ms). Toutes sont neutralisées par
   `prefers-reduced-motion`. Aucune animation permanente ni carrousel automatique.
-- **Panier latéral** : composant `app-panier-tiroir`, ouvert par le lien « Panier » de l'en-tête (le lien garde son
-  adresse `/acheteur/panier`). Son action principale est **« Continuer à explorer »** : elle ferme le tiroir sans
+- **En-tête** : trois actions rondes en pilule (`--rayon-pilule`, 44 × 44 px, bordure `--couleur-bordure`, survol
+  `--couleur-primaire` + texte `--couleur-fond`) — **sac** (acheteur), **cloche** (tout rôle connecté), **burger**
+  (sous 1100 px). Les comptes sont des `.badge` en pastille d'angle, jamais des surfaces cliquables distinctes.
+  Les liens sont repliés en **navigation disclosure** sous `--point-desktop` et reprennent leur ligne à droite au
+  dessus. Détail des règles, des `aria-label` et du seuil : §10.5.
+- **Panier latéral** : composant `app-panier-tiroir`, ouvert par le **bouton sac** rond de l'en-tête (§10.5) ; le
+  sac n'a pas d'adresse, `/acheteur/panier` reste atteint par le tiroir. Son action principale est
+  **« Continuer à explorer »** : elle ferme le tiroir sans
   naviguer ; l'accès à la commande et au panier complet reste assuré par « Voir le panier complet »
   (`/acheteur/panier`), qui mène lui-même à l'étape de commande (§26). Le tiroir ne fait que refléter
   `PanierService` ; la commande reste calculée et validée par le serveur. L'ajout rapide depuis l'accueil ne

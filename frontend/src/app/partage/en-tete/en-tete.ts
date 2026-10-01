@@ -1,4 +1,13 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  HostListener,
+  computed,
+  effect,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { LIBELLES_ROLE } from '../../core/modeles/referentiels';
 import { AuthService } from '../../core/services/auth.service';
@@ -51,12 +60,18 @@ export class EnTete {
 
   /**
    * Compteur de lignes du panier local (§25) : nombre d'articles du panier, jamais la
-   * somme des quantités ni un total. Il vit dans le lien « Panier », le badge seul
-   * restant non cliquable (§10.7).
+   * somme des quantités ni un total. Il vit dans le sac rond, le badge seul restant
+   * non cliquable (§10.7) — c'est le bouton qui ouvre le tiroir.
    */
   protected readonly compteurPanier = computed(() => {
     const lignes = this.panier.lignes().length;
     return lignes > 99 ? '99+' : String(lignes);
+  });
+
+  /** Nom accessible du sac : le compte déjà affiché, jamais un second compteur. */
+  protected readonly libelleSac = computed(() => {
+    const compteur = this.compteurPanier();
+    return `Ouvrir le panier, ${compteur} article${this.panier.lignes().length > 1 ? 's' : ''}`;
   });
 
   /**
@@ -88,6 +103,23 @@ export class EnTete {
     return nonLues > 99 ? '99+' : String(nonLues);
   });
 
+  /** Nom accessible de la cloche : le compte est dans le libellé, jamais dans un second texte. */
+  protected readonly libelleNotifications = computed(() => {
+    const compteur = this.compteurNotifications();
+    if (compteur === null) {
+      return 'Notifications';
+    }
+    return `Notifications, ${compteur} non ${this.notifications.nonLues() === 1 ? 'lue' : 'lues'}`;
+  });
+
+  /**
+   * Le menu mobile est un **repli de navigation** (§10.5), pas une modale : pas de
+   * `aria-modal`, pas de piège de focus, et le focus reste sur le bouton jusqu'à Échap.
+   */
+  protected readonly menuOuvert = signal(false);
+
+  private readonly boutonMenu = viewChild<ElementRef<HTMLButtonElement>>('boutonMenu');
+
   constructor() {
     effect(() => {
       const session = this.auth.session();
@@ -104,16 +136,28 @@ export class EnTete {
     });
   }
 
-  /**
-   * Le lien « Panier » garde son adresse (clic central, ouverture dans un onglet) mais,
-   * au clic simple, ouvre le panier latéral au lieu de quitter la page.
-   */
-  protected ouvrirPanier(evenement: MouseEvent): void {
-    if (evenement.ctrlKey || evenement.metaKey || evenement.shiftKey || evenement.button !== 0) {
+  /** Le sac rond ouvre le panier latéral existant : seul point d'ouverture de l'en-tête. */
+  protected ouvrirPanier(): void {
+    this.tiroir.ouvrir();
+  }
+
+  protected basculerMenu(): void {
+    this.menuOuvert.update((ouvert) => !ouvert);
+  }
+
+  /** Un clic sur un lien du menu le referme : la destination a la main, pas le repli. */
+  protected fermerMenu(): void {
+    this.menuOuvert.set(false);
+  }
+
+  /** Échap ferme le repli et rend le focus au bouton qui l'a ouvert (§13, navigation clavier). */
+  @HostListener('document:keydown.escape')
+  protected surEchap(): void {
+    if (!this.menuOuvert()) {
       return;
     }
-    evenement.preventDefault();
-    this.tiroir.ouvrir();
+    this.fermerMenu();
+    this.boutonMenu()?.nativeElement.focus();
   }
 
   protected seDeconnecter(): void {
