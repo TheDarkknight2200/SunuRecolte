@@ -222,6 +222,39 @@ describe('DetailRecolte', () => {
     expect(racine.querySelector('img')).toBeNull();
   });
 
+  it('pose le statut sur la photo, dans la puce de « Récolte du moment »', () => {
+    ouvrir('7');
+    repondre(recolte({ imageUrl: '/media/mangue-kent.jpg' }));
+
+    const puce = element<HTMLElement>(racine, '.detail-recolte__visuel .recolte__statut');
+    expect(texteDe(puce)).toBe('Disponible');
+    expect(puce.classList.contains('recolte__statut--epuise')).toBe(false);
+    // Un seul indicateur de statut à l’écran : la puce remplace le badge du titre.
+    expect(racine.querySelector('.detail-recolte__entete .badge')).toBeNull();
+  });
+
+  it('fonce la puce posée sur la photo d’une récolte épuisée', () => {
+    ouvrir('7');
+    repondre(recolte({ imageUrl: '/media/mangue-kent.jpg', statut: 'EPUISEE' }));
+
+    const puce = element<HTMLElement>(racine, '.recolte__statut');
+    expect(texteDe(puce)).toBe('Épuisée');
+    expect(puce.classList.contains('recolte__statut--epuise')).toBe(true);
+  });
+
+  it('rend le statut au badge du titre quand aucune photo n’est affichée', () => {
+    ouvrir('7');
+    repondre(recolte({ imageUrl: null }));
+
+    expect(racine.querySelector('.recolte__statut')).toBeNull();
+    expect(texteDe(element(racine, '.detail-recolte__entete .badge'))).toBe('Disponible');
+
+    ouvrir('7');
+    repondre(recolte({ imageUrl: null, statut: 'EPUISEE' }));
+
+    expect(texteDe(element(racine, '.detail-recolte__entete .badge'))).toBe('Épuisée');
+  });
+
   it('présente un 404 comme récolte introuvable, jamais comme erreur serveur', () => {
     ouvrir('7');
     repondreErreur(404, 'Recolte introuvable.');
@@ -302,8 +335,7 @@ describe('DetailRecolte', () => {
 
     const notice = TestBed.inject(ToastService).notice();
     expect(notice?.type).toBe('succes');
-    expect(notice?.message).toContain('Récolte ajoutée au panier');
-    expect(notice?.message).toContain('Mangue Kent');
+    expect(notice?.message).toBe('Mangue Kent ajouté au panier');
     expect(racine.querySelector('.message--succes')).toBeNull();
     const lignes = panier().lignes();
     expect(lignes).toHaveLength(1);
@@ -311,16 +343,36 @@ describe('DetailRecolte', () => {
     expect(lignes[0].quantite).toBe(1);
   });
 
-  it('désactive l’ajout d’une récolte épuisée sans altérer la fiche', () => {
+  it('marque l’ajout d’une récolte épuisée comme impossible, bouton restant focusable', () => {
     ouvrir('7', 'ACHETEUR');
     repondre(recolte({ statut: 'EPUISEE', quantiteDisponible: 0 }));
 
     expect(texteDe(element(racine, 'h1'))).toBe('Mangue Kent');
     const bouton = element<HTMLButtonElement>(racine, '#detail-ajouter');
-    expect(bouton.disabled).toBe(true);
+    expect(bouton.getAttribute('aria-disabled')).toBe('true');
+    expect(bouton.disabled).toBe(false);
     expect(bouton.getAttribute('aria-describedby')).toBe('detail-motif');
-    expect(texteDe(element(racine, '.detail-recolte__motif'))).toContain('Épuisée');
+
+    const motif = element(racine, '.detail-recolte__motif');
+    expect(motif.getAttribute('role')).toBe('status');
+    expect(texteDe(motif)).toContain('Épuisée');
     expect(panier().lignes()).toHaveLength(0);
+  });
+
+  it('n’ajoute rien quand on clique le bouton marqué aria-disabled', () => {
+    ouvrir('7', 'ACHETEUR');
+    repondre(recolte({ statut: 'EPUISEE', quantiteDisponible: 0 }));
+    const appelee = vi.spyOn(TestBed.inject(ToastService), 'afficher');
+
+    const bouton = element<HTMLButtonElement>(racine, '#detail-ajouter');
+    bouton.click();
+    fixture.detectChanges();
+    bouton.click();
+    fixture.detectChanges();
+
+    expect(appelee).not.toHaveBeenCalled();
+    expect(panier().lignes()).toHaveLength(0);
+    expect(TestBed.inject(ToastService).notice()).toBeNull();
   });
 
   it('refuse un ajout qui dépasserait le stock affiché et l’explique', () => {
@@ -350,7 +402,7 @@ describe('DetailRecolte', () => {
     bouton.click();
     fixture.detectChanges();
 
-    expect(appelee).toHaveBeenCalledWith('Récolte ajoutée au panier : Mangue Kent (1 kg).', 'succes');
+    expect(appelee).toHaveBeenCalledWith('Mangue Kent ajouté au panier', 'succes');
     expect(racine.querySelector('.detail-recolte__achat .message')).toBeNull();
   });
 

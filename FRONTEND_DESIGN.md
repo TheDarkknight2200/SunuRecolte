@@ -1329,6 +1329,19 @@ Cette section **remplace** les règles ci-dessous de §6, §7 (rayons et ombres)
   la carte : `RecolteResponse` ne les expose pas (§38.4). Le formulaire de filtres, les quatre états (§11), les
   messages du panier et le comportement d'ajout au panier restent inchangés. `.tableau--empile` (§38.5) ne s'applique
   plus à cette page, qui n'a plus de table ; il reste la règle des autres tableaux.
+- **Fiche de récolte `/recoltes/:id` (étape 5 de l'alignement)** : la route reste une **page** (lien partageable,
+  aucun piège de focus) et non une modale, avec la mise en page de la maquette produit : **deux colonnes** à partir
+  de `$point-tablette` — le visuel à gauche, les informations et les actions à droite — empilées sous ce seuil, le
+  visuel en premier. Le statut se pose **sur la photo** avec les classes de la carte de récolte de l'accueil
+  (`.recolte__statut`, variante `--epuise`) ; quand aucune photo n'est affichée (`imageUrl` null ou image qui ne
+  charge pas), il revient au `.badge` du titre : **un seul indicateur à la fois**, jamais deux. « Ajouter au
+  panier » est le bouton primaire de la colonne droite et ajoute `QUANTITE_INITIALE` unité, avec le libellé « Quantité
+  ajoutée : … » existant — cet écran n'a **pas** de sélecteur de quantité. Une récolte non ajoutable (statut ou
+  stock) garde son bouton **focusable** en `aria-disabled="true"` (jamais `disabled`), son motif en `role="status"`
+  relié par `aria-describedby`, et le composant refuse tout clic sur ce bouton : rien n'est ajouté, aucune notice
+  n'est émise. Le succès est « `[produit] ajouté au panier` » (§39.2), le refus `messageRefusAjout()`. Les trois
+  états §11 (chargement, erreur avec « Réessayer », introuvable) restent inchangés, reposés sur les seuls tokens
+  existants.
 
 ### 39.1 Tokens de la refonte
 

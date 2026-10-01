@@ -40,6 +40,12 @@ export class DetailRecolte {
   protected readonly introuvable = signal(false);
   protected readonly imageCassee = signal(false);
 
+  /** Le statut se pose sur la photo ; sans photo affichée, il reste dans le titre. */
+  protected readonly photoAffichee = computed(() => {
+    const recolte = this.recolte();
+    return recolte !== null && recolte.imageUrl !== null && !this.imageCassee();
+  });
+
   /** Réglage d'usage : la fiche reste consultable par tout le monde. */
   protected readonly acheteur = computed(() => this.auth.role() === 'ACHETEUR');
   /** Source des textes de la notice (§39.2) : aucune bannière ne les rend plus. */
@@ -117,8 +123,13 @@ export class DetailRecolte {
 
   /** La récolte est transmise telle quelle au service : aucune règle métier ici. */
   protected ajouterAuPanier(recolte: RecolteResponse): void {
+    // Un bouton en `aria-disabled` reste cliquable : la garde bloque l'ajout, pas le focus.
+    if (!estAjoutPossible(recolte)) {
+      return;
+    }
+    this.toast.masquer();
     if (this.panier.ajouter(recolte, QUANTITE_INITIALE)) {
-      const message = `Récolte ajoutée au panier : ${recolte.produit} (${quantiteAjoutee(recolte)}).`;
+      const message = `${recolte.produit} ajouté au panier`;
       this.refusPanier.set(null);
       this.succesPanier.set(message);
       this.toast.afficher(message, 'succes');

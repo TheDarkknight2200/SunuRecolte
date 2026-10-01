@@ -19,6 +19,61 @@
   margin: 0;
 }
 
+/* === Fiche : le visuel à gauche, les informations et les actions à droite === */
+
+.detail-recolte__fiche {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: var(--espace-5);
+
+  @media (min-width: pr.$point-tablette) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Aucune photo : la colonne d'informations reprend toute la largeur. */
+.detail-recolte__fiche > :only-child {
+  grid-column: 1 / -1;
+}
+
+.detail-recolte__visuel {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1.13;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-lg);
+  background-color: var(--couleur-fond-image);
+}
+
+.detail-recolte__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Puce de statut posée sur le visuel : classes et règles reprises à l'identique de
+   « Récolte du moment » (accueil.scss), ces styles étant scopés à leur composant. */
+.recolte__statut {
+  position: absolute;
+  top: var(--espace-4);
+  left: var(--espace-4);
+  padding: 6px 12px;
+  border-radius: var(--rayon-pilule);
+  background-color: var(--couleur-fond);
+  color: var(--couleur-primaire);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.recolte__statut--epuise {
+  background-color: rgba(32, 61, 46, 0.88);
+  color: var(--couleur-fond);
+}
+
 .detail-recolte__entete {
   display: flex;
   flex-wrap: wrap;
@@ -30,13 +85,6 @@
 
 .detail-recolte__entete h1 {
   margin: 0;
-}
-
-.detail-recolte__image {
-  display: block;
-  margin-bottom: var(--espace-5);
-  border: 1px solid var(--couleur-bordure);
-  border-radius: var(--rayon-lg);
 }
 
 .detail-recolte__description {

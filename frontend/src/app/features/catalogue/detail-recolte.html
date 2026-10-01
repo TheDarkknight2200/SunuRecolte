@@ -34,103 +34,121 @@
       </a>
     </p>
 
-    <div class="detail-recolte__entete">
-      <h1>{{ recolte.produit }}</h1>
-      <span class="badge" [class.badge--succes]="recolte.statut === 'DISPONIBLE'">
-        {{ libelleStatut(recolte.statut) }}
-      </span>
-    </div>
-
-    @if (recolte.imageUrl && !imageCassee()) {
-      <img
-        class="detail-recolte__image"
-        [src]="recolte.imageUrl"
-        [alt]="recolte.produit"
-        loading="lazy"
-        (error)="imageCassee.set(true)"
-      />
-    }
-
-    @if (recolte.description) {
-      <p class="detail-recolte__description">{{ recolte.description }}</p>
-    }
-
-    <dl class="detail-recolte__mesures">
-      <div>
-        <dt>Prix unitaire</dt>
-        <dd>{{ formaterMontant(recolte.prixUnitaire) }} / {{ recolte.unite }}</dd>
-      </div>
-      <div>
-        <dt>Quantité disponible</dt>
-        <dd>{{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }}</dd>
-      </div>
-      @if (recolte.quantiteMin !== null) {
-        <div>
-          <dt>Commande minimale</dt>
-          <dd>{{ formaterQuantite(recolte.quantiteMin, recolte.unite) }}</dd>
-        </div>
-      }
-      @if (recolte.quantiteMax !== null) {
-        <div>
-          <dt>Commande maximale</dt>
-          <dd>{{ formaterQuantite(recolte.quantiteMax, recolte.unite) }}</dd>
-        </div>
-      }
-      @if (recolte.dateDisponibilite) {
-        <div>
-          <dt>Disponible à partir du</dt>
-          <dd>{{ formaterDate(recolte.dateDisponibilite) }}</dd>
-        </div>
-      }
-      @if (recolte.localisation) {
-        <div>
-          <dt>Lieu de retrait</dt>
-          <dd>{{ recolte.localisation }}</dd>
-        </div>
-      }
-    </dl>
-
-    @if (acheteur()) {
-      <div class="detail-recolte__achat">
-        @if (estAjoutPossible(recolte)) {
-          <p class="detail-recolte__quantite">Quantité ajoutée : {{ quantiteAjoutee(recolte) }}</p>
-          <button
-            type="button"
-            class="bouton bouton--primaire"
-            id="detail-ajouter"
-            (click)="ajouterAuPanier(recolte)"
+    <div class="detail-recolte__fiche">
+      @if (photoAffichee()) {
+        <div class="detail-recolte__visuel">
+          <img
+            class="detail-recolte__image"
+            [src]="recolte.imageUrl"
+            [alt]="recolte.produit"
+            loading="lazy"
+            (error)="imageCassee.set(true)"
+          />
+          <span
+            class="recolte__statut"
+            [class.recolte__statut--epuise]="recolte.statut !== 'DISPONIBLE'"
           >
-            Ajouter au panier
-          </button>
-        } @else {
-          <p class="detail-recolte__motif" id="detail-motif">{{ messageRefusAjout(recolte) }}</p>
-          <button
-            type="button"
-            class="bouton bouton--secondaire"
-            id="detail-ajouter"
-            aria-describedby="detail-motif"
-            disabled
-          >
-            Ajouter au panier
-          </button>
+            {{ libelleStatut(recolte.statut) }}
+          </span>
+        </div>
+      }
+
+      <div class="detail-recolte__infos">
+        <div class="detail-recolte__entete">
+          <h1>{{ recolte.produit }}</h1>
+          @if (!photoAffichee()) {
+            <span class="badge" [class.badge--succes]="recolte.statut === 'DISPONIBLE'">
+              {{ libelleStatut(recolte.statut) }}
+            </span>
+          }
+        </div>
+
+        @if (recolte.description) {
+          <p class="detail-recolte__description">{{ recolte.description }}</p>
         }
-      </div>
-    }
 
-    <div class="carte detail-recolte__producteur">
-      <h2 class="carte__titre">Producteur</h2>
-      <dl class="detail-recolte__identification">
-        <div>
-          <dt>Nom</dt>
-          <dd>{{ recolte.nomProducteur }}</dd>
-        </div>
-        @if (recolte.localisationProducteur) {
+        <dl class="detail-recolte__mesures">
           <div>
-            <dt>Exploitation</dt>
-            <dd>{{ recolte.localisationProducteur }}</dd>
+            <dt>Prix unitaire</dt>
+            <dd>{{ formaterMontant(recolte.prixUnitaire) }} / {{ recolte.unite }}</dd>
+          </div>
+          <div>
+            <dt>Quantité disponible</dt>
+            <dd>{{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }}</dd>
+          </div>
+          @if (recolte.quantiteMin !== null) {
+            <div>
+              <dt>Commande minimale</dt>
+              <dd>{{ formaterQuantite(recolte.quantiteMin, recolte.unite) }}</dd>
+            </div>
+          }
+          @if (recolte.quantiteMax !== null) {
+            <div>
+              <dt>Commande maximale</dt>
+              <dd>{{ formaterQuantite(recolte.quantiteMax, recolte.unite) }}</dd>
+            </div>
+          }
+          @if (recolte.dateDisponibilite) {
+            <div>
+              <dt>Disponible à partir du</dt>
+              <dd>{{ formaterDate(recolte.dateDisponibilite) }}</dd>
+            </div>
+          }
+          @if (recolte.localisation) {
+            <div>
+              <dt>Lieu de retrait</dt>
+              <dd>{{ recolte.localisation }}</dd>
+            </div>
+          }
+        </dl>
+
+        @if (acheteur()) {
+          <div class="detail-recolte__achat">
+            @if (estAjoutPossible(recolte)) {
+              <p class="detail-recolte__quantite">
+                Quantité ajoutée : {{ quantiteAjoutee(recolte) }}
+              </p>
+              <button
+                type="button"
+                class="bouton bouton--primaire"
+                id="detail-ajouter"
+                (click)="ajouterAuPanier(recolte)"
+              >
+                Ajouter au panier
+              </button>
+            } @else {
+              <p class="detail-recolte__motif" id="detail-motif" role="status">
+                {{ messageRefusAjout(recolte) }}
+              </p>
+              <button
+                type="button"
+                class="bouton bouton--secondaire"
+                id="detail-ajouter"
+                aria-disabled="true"
+                aria-describedby="detail-motif"
+              >
+                Ajouter au panier
+              </button>
+            }
           </div>
         }
-      </dl>
+
+        <div class="carte detail-recolte__producteur">
+          <h2 class="carte__titre">Producteur</h2>
+          <dl class="detail-recolte__identification">
+            <div>
+              <dt>Nom</dt>
+              <dd>{{ recolte.nomProducteur }}</dd>
+            </div>
+            @if (recolte.localisationProducteur) {
+              <div>
+                <dt>Exploitation</dt>
+                <dd>{{ recolte.localisationProducteur }}</dd>
+              </div>
+            }
+          </dl>
+        </div>
+      </div>
     </div>
   }
 </section>
