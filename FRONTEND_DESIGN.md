@@ -1321,14 +1321,29 @@ Cette section **remplace** les règles ci-dessous de §6, §7 (rayons et ombres)
   l'ouvre plus : il rend une notice (§39.2).
 - **Images (§15)** : la photo du hero est une photographie d'illustration ; les cartes de récolte utilisent
   `imageUrl` de l'API.
+- **Puce de statut d'une récolte** : `.recolte__statut` et sa variante `.recolte__statut--epuise` vivent désormais
+  dans `styles/_composants.scss`, **promues à l'identique** depuis la carte « Récolte du moment » de l'accueil. Les
+  trois copies locales (accueil, catalogue, fiche) sont supprimées : une règle unique, posée **sur le visuel** d'une
+  récolte, partagée par les trois écrans. Ses trois valeurs (`padding: 6px 12px`, `font-size: 0.625rem`,
+  `rgba(32, 61, 46, 0.88)`) viennent de la règle d'origine et restent hors de la table §39.1 : elles y figureront si
+  un quatrième écran les reprend un jour, en attendant elles ne sont pas dupliquées.
 - **Catalogue (étape 4 de l'alignement)** : la liste dense (`<table>` à sept colonnes) devient la **grille de cartes
   de récolte** de l'accueil — une colonne sous `$point-mobile`, deux de `$point-mobile` à `$point-desktop`, quatre
-  au-delà. Une carte porte le visuel (seulement quand `imageUrl` est non nul), le statut en pilule, le produit, le
-  producteur, la description, les colonnes restantes de l'ancienne table (disponibilité, bornes de commande, prix,
-  date et lieu) **uniquement quand l'API les fournit**, puis les actions. Ni filière ni catégorie n'apparaissent sur
-  la carte : `RecolteResponse` ne les expose pas (§38.4). Le formulaire de filtres, les quatre états (§11), les
-  messages du panier et le comportement d'ajout au panier restent inchangés. `.tableau--empile` (§38.5) ne s'applique
-  plus à cette page, qui n'a plus de table ; il reste la règle des autres tableaux.
+  au-delà. Une carte porte le visuel (seulement quand `imageUrl` est non nul), le produit, le producteur, la
+  description, les colonnes restantes de l'ancienne table (disponibilité, bornes de commande, prix, date et lieu)
+  **uniquement quand l'API les fournit**, puis les actions. Le statut se pose **sur la photo** avec la puce promue
+  ci-dessus ; sans photo, il revient au `.badge` du titre : **un seul indicateur à la fois**, comme sur la fiche. Ni
+  filière ni catégorie n'apparaissent sur la carte : `RecolteResponse` ne les expose pas (§38.4). La barre de filtres
+  reprend celle de la maquette : **pastilles** de filière et de statut — « Toutes » et « Tous » portent l'absence de
+  critère — et champ de recherche **sur la même ligne**. Elles réutilisent `.bouton` : la pastille active est en
+  `.bouton--encre` et marquée `aria-pressed="true"`, les autres en `.bouton--secondaire` avec `aria-pressed="false"`.
+  Un clic sur une pastille note le critère et **ne lance aucune requête** : la recherche part toujours du bouton
+  « Rechercher », avec les mêmes paramètres d'URL qu'auparavant (§38.4). Une récolte non ajoutable (statut ou stock)
+  garde ses deux boutons — texte et « + » — **focusables** en `aria-disabled="true"` (jamais `disabled`), avec le
+  motif en `role="status"` relié par `aria-describedby`, et le composant refuse tout clic : rien n'est ajouté, aucune
+  notice n'est émise. Le succès est « `[produit] ajouté au panier` » (§39.2), dans les mêmes mots que l'accueil et la
+  fiche. Les quatre états (§11) restent inchangés. `.tableau--empile` (§38.5) ne s'applique plus à cette page, qui
+  n'a plus de table ; il reste la règle des autres tableaux.
 - **Fiche de récolte `/recoltes/:id` (étape 5 de l'alignement)** : la route reste une **page** (lien partageable,
   aucun piège de focus) et non une modale, avec la mise en page de la maquette produit : **deux colonnes** à partir
   de `$point-tablette` — le visuel à gauche, les informations et les actions à droite — empilées sous ce seuil, le
@@ -1465,11 +1480,14 @@ aucun libellé et n'est jamais l'autorité d'un succès.
   mention, jamais deux.
 - **Ajout rapide (`+`)** : la pilule ronde d'une carte de récolte ajoute `QUANTITE_INITIALE` unité et applique
   **exactement** les mêmes règles que le bouton texte de la même carte : même garde `estAjoutPossible()`, mêmes
-  bornes de commande, même refus de `PanierService`, et **récolte épuisée ou stock insuffisant = bouton désactivé**
-  avec son motif (§11). Elle affiche une notice de succès **seulement si** `PanierService.ajouter()` a renvoyé
-  `true` ; sinon c'est une notice d'erreur portant le motif du refus. Un refus du service ne produit jamais de
-  notice de succès. Depuis le LOT 1, le bouton texte obéit à la même règle sur `/recoltes` et `/recoltes/:id` :
-  les deux partagent le même refus et la carte ne porte plus de bannière.
+  bornes de commande, même refus de `PanierService`, et **récolte épuisée ou stock insuffisant = bouton rendu
+  `aria-disabled="true"` avec son motif** (§39) — jamais `disabled`, pour qu'il reste atteignable au clavier et que
+  le motif se lise ; la garde du composant refuse le clic. Elle affiche une notice de succès **seulement si**
+  `PanierService.ajouter()` a renvoyé `true` ; sinon c'est une notice d'erreur portant le motif du refus. Un refus
+  du service ne produit jamais de notice de succès. Sur l'accueil, le « + » n'est rendu que pour une récolte
+  disponible ; sur `/recoltes`, il est rendu bloqué, comme le bouton texte de la carte et celui de la fiche. Depuis
+  le LOT 1, le bouton texte obéit à la même règle sur `/recoltes` et `/recoltes/:id` : les deux partagent le même
+  refus et la carte ne porte plus de bannière.
 - **Règle d'exclusion — ce qui reste en bannière** : un retour n'est migré que s'il est **gratuit** (aucune
   correction attendue dans l'instant) et **non attaché à un champ**. Restent donc en bannière :
 

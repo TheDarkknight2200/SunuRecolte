@@ -413,6 +413,29 @@ textarea.champ__saisie {
   color: var(--couleur-primaire);
 }
 
+/* --- Puce de statut posée sur le visuel d'une récolte (§39) ---
+   Promue de la carte « Récolte du moment » de l'accueil, à l'identique : l'accueil, le catalogue
+   et la fiche de récolte partagent désormais cette seule règle. Elle s'ancre sur le premier
+   ancêtre `position: relative`, la carte elle-même. */
+.recolte__statut {
+  position: absolute;
+  top: var(--espace-4);
+  left: var(--espace-4);
+  padding: 6px 12px;
+  border-radius: var(--rayon-pilule);
+  background-color: var(--couleur-fond);
+  color: var(--couleur-primaire);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.recolte__statut--epuise {
+  background-color: rgba(32, 61, 46, 0.88);
+  color: var(--couleur-fond);
+}
+
 /* --- États d'interface (idle, chargement, succès, vide, erreur) --- */
 .etat {
   display: flex;

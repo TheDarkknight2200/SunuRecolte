@@ -6,6 +6,76 @@
     </p>
 
     <form class="catalogue__filtres" [formGroup]="formulaire" (ngSubmit)="charger()">
+      <div
+        class="champ catalogue__champ"
+        id="filiere"
+        role="group"
+        aria-labelledby="filiere-titre"
+      >
+        <span class="champ__libelle" id="filiere-titre">Filière</span>
+        <div class="catalogue__pastilles">
+          <button
+            type="button"
+            class="bouton"
+            data-valeur=""
+            [class.bouton--encre]="formulaire.controls.filiere.value === ''"
+            [class.bouton--secondaire]="formulaire.controls.filiere.value !== ''"
+            [attr.aria-pressed]="formulaire.controls.filiere.value === ''"
+            (click)="formulaire.controls.filiere.setValue('')"
+          >
+            Toutes
+          </button>
+          @for (filiere of filieres; track filiere) {
+            <button
+              type="button"
+              class="bouton"
+              [attr.data-valeur]="filiere"
+              [class.bouton--encre]="formulaire.controls.filiere.value === filiere"
+              [class.bouton--secondaire]="formulaire.controls.filiere.value !== filiere"
+              [attr.aria-pressed]="formulaire.controls.filiere.value === filiere"
+              (click)="formulaire.controls.filiere.setValue(filiere)"
+            >
+              {{ libelleFiliere(filiere) }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <div
+        class="champ catalogue__champ"
+        id="statut"
+        role="group"
+        aria-labelledby="statut-titre"
+      >
+        <span class="champ__libelle" id="statut-titre">Statut</span>
+        <div class="catalogue__pastilles">
+          <button
+            type="button"
+            class="bouton"
+            data-valeur=""
+            [class.bouton--encre]="formulaire.controls.statut.value === ''"
+            [class.bouton--secondaire]="formulaire.controls.statut.value !== ''"
+            [attr.aria-pressed]="formulaire.controls.statut.value === ''"
+            (click)="formulaire.controls.statut.setValue('')"
+          >
+            Tous
+          </button>
+          @for (statut of statuts; track statut) {
+            <button
+              type="button"
+              class="bouton"
+              [attr.data-valeur]="statut"
+              [class.bouton--encre]="formulaire.controls.statut.value === statut"
+              [class.bouton--secondaire]="formulaire.controls.statut.value !== statut"
+              [attr.aria-pressed]="formulaire.controls.statut.value === statut"
+              (click)="formulaire.controls.statut.setValue(statut)"
+            >
+              {{ libelleStatut(statut) }}
+            </button>
+          }
+        </div>
+      </div>
+
       <div class="champ catalogue__champ catalogue__champ--recherche">
         <label class="champ__libelle" for="recherche">Recherche</label>
         <input
@@ -15,26 +85,6 @@
           formControlName="recherche"
           placeholder="Nom du produit"
         />
-      </div>
-
-      <div class="champ catalogue__champ">
-        <label class="champ__libelle" for="statut">Statut</label>
-        <select class="champ__saisie" id="statut" formControlName="statut">
-          <option value="">Tous</option>
-          @for (statut of statuts; track statut) {
-            <option [value]="statut">{{ libelleStatut(statut) }}</option>
-          }
-        </select>
-      </div>
-
-      <div class="champ catalogue__champ">
-        <label class="champ__libelle" for="filiere">Filière</label>
-        <select class="champ__saisie" id="filiere" formControlName="filiere">
-          <option value="">Toutes</option>
-          @for (filiere of filieres; track filiere) {
-            <option [value]="filiere">{{ libelleFiliere(filiere) }}</option>
-          }
-        </select>
       </div>
 
       <div class="catalogue__actions">
@@ -107,19 +157,26 @@
               >
                 <img class="catalogue__image" [src]="recolte.imageUrl" alt="" loading="lazy" />
               </a>
-            }
-
-            <div class="catalogue__corps">
               <span
-                class="catalogue__statut"
-                [class.catalogue__statut--epuise]="recolte.statut === 'EPUISEE'"
+                class="recolte__statut"
+                [class.recolte__statut--epuise]="recolte.statut === 'EPUISEE'"
               >
                 {{ libelleStatut(recolte.statut) }}
               </span>
+            }
 
-              <h2 class="catalogue__nom">
-                <a [routerLink]="lien(recolte)">{{ recolte.produit }}</a>
-              </h2>
+            <div class="catalogue__corps">
+              <div class="catalogue__entete">
+                <h2 class="catalogue__nom">
+                  <a [routerLink]="lien(recolte)">{{ recolte.produit }}</a>
+                </h2>
+                @if (!recolte.imageUrl) {
+                  <span class="badge" [class.badge--succes]="recolte.statut === 'DISPONIBLE'">
+                    {{ libelleStatut(recolte.statut) }}
+                  </span>
+                }
+              </div>
+
               <p class="catalogue__producteur">{{ producteur(recolte) }}</p>
 
               @if (recolte.description) {
@@ -161,7 +218,7 @@
                     type="button"
                     class="catalogue__ajout"
                     [id]="'ajout-rapide-' + recolte.id"
-                    [disabled]="!estAjoutPossible(recolte)"
+                    [attr.aria-disabled]="estAjoutPossible(recolte) ? null : 'true'"
                     [attr.aria-label]="'Ajouter ' + recolte.produit + ' au panier'"
                     [attr.aria-describedby]="
                       estAjoutPossible(recolte) ? null : 'motif-' + recolte.id
@@ -191,12 +248,12 @@
                         type="button"
                         class="bouton bouton--secondaire bouton--compact"
                         [id]="'ajouter-' + recolte.id"
+                        aria-disabled="true"
                         [attr.aria-describedby]="'motif-' + recolte.id"
-                        disabled
                       >
                         Ajouter au panier
                       </button>
-                      <p class="catalogue__motif" [id]="'motif-' + recolte.id">
+                      <p class="catalogue__motif" [id]="'motif-' + recolte.id" role="status">
                         {{ messageRefusAjout(recolte) }}
                       </p>
                     }

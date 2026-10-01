@@ -324,25 +324,6 @@
   }
 }
 
-.recolte__statut {
-  position: absolute;
-  top: var(--espace-4);
-  left: var(--espace-4);
-  padding: 6px 12px;
-  border-radius: var(--rayon-pilule);
-  background-color: var(--couleur-fond);
-  color: var(--couleur-primaire);
-  font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.recolte__statut--epuise {
-  background-color: rgba(32, 61, 46, 0.88);
-  color: var(--couleur-fond);
-}
-
 .recolte__corps {
   display: flex;
   flex: 1;

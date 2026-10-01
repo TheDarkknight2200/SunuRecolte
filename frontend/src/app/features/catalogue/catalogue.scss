@@ -18,29 +18,27 @@
   font-size: var(--taille-lg);
 }
 
-/* === Filtres : bandeau sans carte, séparé de la grille par un filet === */
+/* === Filtres : pastilles et recherche sur une ligne, bandeau séparé par un filet === */
 
 .catalogue__filtres {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: var(--espace-4);
   margin-bottom: var(--espace-5);
   padding-bottom: var(--espace-5);
   border-bottom: var(--filet-ligne);
-
-  @media (min-width: pr.$point-mobile) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (min-width: pr.$point-tablette) {
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
-    align-items: end;
-  }
 }
 
-/* .champ porte un margin-bottom global : annulé ici, la grille gère l'écart. */
+/* .champ porte un margin-bottom global : annulé ici, la ligne gère l'écart. */
 .catalogue__champ {
   margin-bottom: 0;
+}
+
+.catalogue__pastilles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
 }
 
 .catalogue__actions {
@@ -126,22 +124,14 @@
 
 /* === Identité de la récolte === */
 
-.catalogue__statut {
-  align-self: flex-start;
-  padding: var(--espace-1) var(--espace-3);
-  border-radius: var(--rayon-pilule);
-  background-color: var(--couleur-fond);
-  color: var(--couleur-primaire);
-  font-size: var(--taille-xs);
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-/* Pilule pleine, et non translucide : ici elle ne se pose pas sur une photo. */
-.catalogue__statut--epuise {
-  background-color: var(--couleur-primaire-sombre);
-  color: var(--couleur-texte-inverse);
+/* Le statut se pose sur la photo (`.recolte__statut`, règle globale partagée avec l'accueil
+   et la fiche) ; sans photo, il reste dans l'entête du corps de carte, à côté du nom. */
+.catalogue__entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-2);
 }
 
 .catalogue__nom {
@@ -231,13 +221,14 @@
     transform: scale(0.92);
   }
 
-  &:disabled {
+  /* Le blocage passe par `aria-disabled` : le bouton reste focusable, la garde est dans le TS. */
+  &[aria-disabled='true'] {
     color: var(--couleur-texte-secondaire);
     cursor: not-allowed;
     opacity: 0.6;
   }
 
-  &:disabled:hover {
+  &[aria-disabled='true']:hover {
     background-color: var(--couleur-surface);
     color: var(--couleur-texte-secondaire);
   }

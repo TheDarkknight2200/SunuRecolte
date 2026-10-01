@@ -159,8 +159,12 @@ export class Catalogue {
    * fusion, plafond du stock connu et persistance appartiennent à `PanierService`.
    */
   protected ajouterAuPanier(recolte: RecolteResponse): void {
+    // Un bouton en `aria-disabled` reste cliquable : la garde bloque l'ajout, pas le focus.
+    if (!estAjoutPossible(recolte)) {
+      return;
+    }
     if (this.panier.ajouter(recolte, QUANTITE_INITIALE)) {
-      const message = `Récolte ajoutée au panier : ${recolte.produit} (${quantiteAjoutee(recolte)}).`;
+      const message = `${recolte.produit} ajouté au panier`;
       this.refusPanier.set(null);
       this.succesPanier.set(message);
       this.toast.afficher(message, 'succes');
@@ -178,6 +182,9 @@ export class Catalogue {
    * locale ait réussi, ce que le bouton texte ne vérifiait déjà pas.
    */
   protected ajouterRapide(recolte: RecolteResponse): void {
+    if (!estAjoutPossible(recolte)) {
+      return;
+    }
     if (!this.panier.ajouter(recolte, QUANTITE_INITIALE)) {
       this.toast.afficher(messageRefusAjout(recolte), 'erreur');
       return;
