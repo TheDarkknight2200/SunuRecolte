@@ -1,6 +1,7 @@
 import { provideLocationMocks } from '@angular/common/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
+import { vi } from 'vitest';
 import { routes } from '../../../app.routes';
 import { authGuard } from '../../../core/guards/auth.guard';
 import { roleGuard } from '../../../core/guards/role.guard';
@@ -11,6 +12,7 @@ import {
   MESSAGE_ERREUR_STOCKAGE,
   PanierService,
 } from '../../../core/services/panier.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { Panier } from './panier';
 
 function ligne(partiels: Partial<LignePanier> = {}): LignePanier {
@@ -96,6 +98,11 @@ describe('Panier', () => {
     fixture.detectChanges();
   }
 
+  /** Ce que `app-toast` rendrait : la notice confiée au service, type et texte inclus. */
+  function notice() {
+    return TestBed.inject(ToastService).notice();
+  }
+
   /** Saisie réelle : frappe, cycle de rendu, puis validation en quittant le champ. */
   function saisir(id: string, valeur: string): void {
     const champ = element<HTMLInputElement>(racine, `#${id}`);
@@ -131,6 +138,7 @@ describe('Panier', () => {
   }
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     localStorage.clear();
   });
@@ -230,6 +238,7 @@ describe('Panier', () => {
       expect(element<HTMLInputElement>(racine, '#quantite-101').value).toBe('4');
       expect(sansEspace(texteDe(element(racine, '.panier__total-valeur')))).toBe('2000FCFA');
       expect(racine.querySelector('.message--erreur')).toBeNull();
+      expect(notice()).toBeNull();
     });
 
     it('accepte une quantité décimale', () => {
@@ -248,11 +257,10 @@ describe('Panier', () => {
 
       expect(panier.lignes()[0].quantite).toBe(3);
       expect(element<HTMLInputElement>(racine, '#quantite-101').value).toBe('3');
-      expect(texteDe(element(racine, '.message--erreur'))).toContain(
-        'Quantité refusée pour « Tomate »',
-      );
-      expect(texteDe(element(racine, '.message--erreur'))).toContain('20 kg');
-      expect(element(racine, '.message--erreur').getAttribute('role')).toBe('alert');
+      expect(notice()?.type).toBe('erreur');
+      expect(notice()?.message).toContain('Quantité refusée pour « Tomate »');
+      expect(notice()?.message).toContain('20 kg');
+      expect(racine.querySelector('.message--erreur')).toBeNull();
     });
 
     it('refuse le zéro et une saisie non numérique', () => {
@@ -260,11 +268,12 @@ describe('Panier', () => {
 
       saisir('quantite-101', '0');
       expect(panier.lignes()[0].quantite).toBe(3);
-      expect(texteDe(element(racine, '.message--erreur'))).toContain('stock connu');
+      expect(notice()?.type).toBe('erreur');
+      expect(notice()?.message).toContain('stock connu');
 
       saisir('quantite-101', '');
       expect(panier.lignes()[0].quantite).toBe(3);
-      expect(texteDe(element(racine, '.message--erreur'))).toContain('Quantité invalide');
+      expect(notice()?.message).toContain('Quantité invalide');
       expect(element<HTMLInputElement>(racine, '#quantite-101').value).toBe('3');
     });
 
@@ -284,17 +293,40 @@ describe('Panier', () => {
       cliquer('button[aria-label="Augmenter la quantité de Tomate"]');
 
       expect(panier.lignes()[0].quantite).toBe(20);
-      expect(texteDe(element(racine, '.message--erreur'))).toContain('Quantité refusée');
+      expect(notice()?.type).toBe('erreur');
+      expect(notice()?.message).toContain('Quantité refusée');
+      expect(racine.querySelector('.message--erreur')).toBeNull();
     });
 
     it('la mention du maximum s’efface dès que la saisie est acceptée', () => {
       ouvrir([ligne({ quantite: 3 })]);
+      const t = TestBed.inject(ToastService);
+      vi.useFakeTimers();
 
       saisir('quantite-101', '25');
-      expect(racine.querySelector('.message--erreur')).not.toBeNull();
+      expect(notice()?.message).toContain('Quantité refusée');
 
       saisir('quantite-101', '5');
+      expect(t.enSortie()).toBe(true);
+
+      // La descente de 300 ms est terminée : il ne reste aucune mention à l’écran.
+      vi.advanceTimersByTime(300);
+      expect(notice()).toBeNull();
+      expect(panier.lignes()[0].quantite).toBe(5);
+    });
+
+    it('confie le refus à la notice : la page ne rend plus aucune bannière', () => {
+      ouvrir([ligne({ quantite: 3 })]);
+      const espion = vi.spyOn(TestBed.inject(ToastService), 'afficher');
+
+      saisir('quantite-101', '25');
+
+      expect(espion).toHaveBeenCalledWith(
+        'Quantité refusée pour « Tomate » : le stock connu est de 20 kg au maximum, 0,01 au minimum.',
+        'erreur',
+      );
       expect(racine.querySelector('.message--erreur')).toBeNull();
+      expect(racine.querySelector('.message--succes')).toBeNull();
     });
   });
 

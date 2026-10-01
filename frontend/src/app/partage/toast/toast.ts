@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, effect, inject } from '@angular/core';
 import { TiroirPanierService } from '../../core/services/tiroir-panier.service';
 import { Notice, ToastService } from '../../core/services/toast.service';
 
@@ -21,6 +21,20 @@ export class Toast {
   );
 
   protected readonly enSortie = this.toast.enSortie;
+
+  constructor() {
+    // Le tiroir modal passe devant la notice : son ouverture gèle le minuteur, sa fermeture le relance.
+    // Sans cette mise en attente, une notice émise derrière un tiroir ouvert expirerait sans jamais être lue.
+    effect(() => {
+      if (this.tiroir.ouvert()) {
+        if (this.toast.notice() !== null) {
+          this.toast.suspendre();
+        }
+      } else {
+        this.toast.reprendre();
+      }
+    });
+  }
 
   /** Succès et info : région `role="status"`, annoncée poliment. */
   protected readonly polie = computed<Notice | null>(() => {

@@ -13,11 +13,13 @@ import {
   withDisabledInitialNavigation,
 } from '@angular/router';
 import { Subject } from 'rxjs';
+import { vi } from 'vitest';
 import { SessionUtilisateur } from '../../core/modeles/auth.modeles';
 import { RecolteResponse } from '../../core/modeles/domaine.modeles';
 import { Role } from '../../core/modeles/referentiels';
 import { CLE_UTILISATEUR } from '../../core/services/auth.service';
 import { PanierService } from '../../core/services/panier.service';
+import { ToastService } from '../../core/services/toast.service';
 import { DetailRecolte } from './detail-recolte';
 
 const API = 'http://localhost:8080/api';
@@ -298,10 +300,11 @@ describe('DetailRecolte', () => {
     bouton.click();
     fixture.detectChanges();
 
-    const message = element(racine, '.message--succes');
-    expect(message.getAttribute('role')).toBe('status');
-    expect(texteDe(message)).toContain('Récolte ajoutée au panier');
-    expect(texteDe(message)).toContain('Mangue Kent');
+    const notice = TestBed.inject(ToastService).notice();
+    expect(notice?.type).toBe('succes');
+    expect(notice?.message).toContain('Récolte ajoutée au panier');
+    expect(notice?.message).toContain('Mangue Kent');
+    expect(racine.querySelector('.message--succes')).toBeNull();
     const lignes = panier().lignes();
     expect(lignes).toHaveLength(1);
     expect(lignes[0].recolteId).toBe(7);
@@ -330,11 +333,25 @@ describe('DetailRecolte', () => {
     bouton.click();
     fixture.detectChanges();
 
-    const message = element(racine, '.message--erreur');
-    expect(message.getAttribute('role')).toBe('alert');
-    expect(texteDe(message)).toContain('inférieur');
+    const notice = TestBed.inject(ToastService).notice();
+    expect(notice?.type).toBe('erreur');
+    expect(notice?.message).toContain('inférieur');
     expect(racine.querySelector('.message--succes')).toBeNull();
+    expect(racine.querySelector('.message--erreur')).toBeNull();
     expect(panier().lignes()).toHaveLength(0);
+  });
+
+  it('la fiche ne rend plus de bannière d’ajout : sa notice est le seul retour', () => {
+    ouvrir('7', 'ACHETEUR');
+    repondre(recolte());
+    const appelee = vi.spyOn(TestBed.inject(ToastService), 'afficher');
+
+    const bouton = element<HTMLButtonElement>(racine, '#detail-ajouter');
+    bouton.click();
+    fixture.detectChanges();
+
+    expect(appelee).toHaveBeenCalledWith('Récolte ajoutée au panier : Mangue Kent (1 kg).', 'succes');
+    expect(racine.querySelector('.detail-recolte__achat .message')).toBeNull();
   });
 
   it('ne montre jamais le bouton d’ajout pendant le chargement, ni à un producteur', () => {

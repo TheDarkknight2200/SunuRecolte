@@ -1346,10 +1346,16 @@ valeur n'est autorisée (§5) : une teinte ou un rayon absent d'ici doit d'abord
 ### 39.2 Notice de retour d'action (`ToastService` + `app-toast`)
 
 La notice est le **mécanisme unique de retour d'action** de l'application : elle confirme ou infirme une action
-déclenchée par l'utilisateur (ajout au panier, demain enregistrement, statut modifié), sans jamais remplacer un
-état d'écran. Elle est migrée **écran par écran** : `ToastService` et le composant sont posés ici, mais seuls les
-ajouts rapides de l'accueil et du catalogue les utilisent. Les bannières `.message--succes` et `.message--erreur`
-existantes restent en place sur tous les autres écrans jusqu'à leur étape.
+déclenchée par l'utilisateur (ajout au panier, enregistrement, statut modifié), sans jamais remplacer un
+état d'écran. Elle est migrée **écran par écran**. Écrans qui l'utilisent aujourd'hui : les ajouts rapides de
+l'accueil et du catalogue, puis le **LOT 1 « parcours acheteur »** — `/acheteur/panier` (`refus()`), `/recoltes`
+(`succesPanier()` et `refusPanier()` du bouton texte), `/recoltes/:id` (les deux mêmes) et
+`/acheteur/commandes/:id` (`succesAnnulation()`). Les bannières `.message--succes` et `.message--erreur` des
+autres écrans restent en place jusqu'à leur étape.
+
+Sur un écran migré, le **signal du composant reste la source du texte** : la notice est émise à partir du même
+message (`messageRefusAjout()`, `La commande n° … a été annulée.`, etc.), mot pour mot. `ToastService` n'écrit
+aucun libellé et n'est jamais l'autorité d'un succès.
 
 - **API** : `afficher(message, type)` avec `type` parmi `'succes' | 'erreur' | 'info'` (défaut `info`),
   `masquer()`, `suspendre()`, `reprendre()`. **Une seule notice à la fois** : la nouvelle remplace l'ancienne et
@@ -1385,11 +1391,30 @@ existantes restent en place sur tous les autres écrans jusqu'à leur étape.
 - **Empilement et panier latéral** : `--z-toast` (70) place la notice au-dessus du tiroir (50 et 51) et des
   modales (`--z-voile`, 20). Parce que le tiroir est modal et que son action principale est collée en bas de
   l'écran, **aucune notice n'est rendue pendant qu'il est ouvert** : le composant lit `TiroirPanierService.ouvert()`
-  et rend ses régions vides. Corollaire obligatoire : l'ajout rapide de l'accueil, qui ouvrait le tiroir, ne
-  l'ouvre plus et rend sa notice — sans cette dérogation la notice serait systématiquement masquée.
+  et rend ses régions vides. **Rien n'est perdu pour autant** : le composant met la notice **en attente** —
+  `suspendre()` gèle le temps restant à l'ouverture, `reprendre()` le relance à la fermeture. La notice est donc
+  rendue **une seule fois**, avec le temps qu'il lui restait, sans doublon si le tiroir s'ouvre et se ferme
+  plusieurs fois, et une notice déjà en sortie n'est jamais ressuscitée. Corollaire obligatoire : l'ajout rapide
+  de l'accueil, qui ouvrait le tiroir, ne l'ouvre plus et rend sa notice — sans cette dérogation la notice serait
+  systématiquement masquée. Limite connue et assumée : le tiroir ne piège pas encore le focus de la page, donc un
+  refus déclenché au clavier **derrière** un tiroir ouvert est retardé jusqu'à sa fermeture plutôt que perdu.
 - **Ajout rapide (`+`)** : la pilule ronde d'une carte de récolte ajoute `QUANTITE_INITIALE` unité et applique
   **exactement** les mêmes règles que le bouton texte de la même carte : même garde `estAjoutPossible()`, mêmes
   bornes de commande, même refus de `PanierService`, et **récolte épuisée ou stock insuffisant = bouton désactivé**
   avec son motif (§11). Elle affiche une notice de succès **seulement si** `PanierService.ajouter()` a renvoyé
   `true` ; sinon c'est une notice d'erreur portant le motif du refus. Un refus du service ne produit jamais de
-  notice de succès. Le bouton texte et sa bannière `.message--succes` restent inchangés là où ils existent déjà.
+  notice de succès. Depuis le LOT 1, le bouton texte obéit à la même règle sur `/recoltes` et `/recoltes/:id` :
+  les deux partagent le même refus et la carte ne porte plus de bannière.
+- **Règle d'exclusion — ce qui reste en bannière** : un retour n'est migré que s'il est **gratuit** (aucune
+  correction attendue dans l'instant) et **non attaché à un champ**. Restent donc en bannière :
+
+  | Écran | Bannière | Motif de non-migration |
+  |---|---|---|
+  | `/acheteur/commande` | `erreur()` (`commande.html:112`) | cible de focus (`#erreurMessage`, `tabindex="-1"`, `focusAttendu('erreur')`) **et** porte le bouton « Réessayer l'envoi » ; le même signal porte deux messages de validation du formulaire de réception |
+  | `/acheteur/paiement/:id` | `erreurSoumission()` (`paiement.html:133`) | désigné par l'`aria-describedby` du fieldset « Moyen de paiement » : le message corrige une saisie et doit rester attaché au champ ; le même signal porte « Choisissez un moyen de paiement pour continuer. » |
+  | toute **modale** | `detail-commande.html:189`, `prix-marche.html:307`, `mes-recoltes.html:159`, `utilisateurs.html:171`, `recoltes-admin.html:143`, `commandes-recues.html:123` | une notice hors de la modale sortirait le message du contexte fermé et masquerait le bouton à reprendre |
+  | `/connexion`, `/inscription` | `erreur()`, `erreurGenerale()` | échec de formulaire : la correction est la saisie elle-même, le message doit persister jusqu'à la correction |
+  | `/tableau-de-bord` | `compteCree()` | confirmation d'un événement déjà passé, pas le retour d'une action immédiate ; doit rester lue à l'arrivée sur l'écran |
+  | **états de chargement** | les 17 bannières rendues à la place du contenu | ce ne sont pas des retours d'action : la notice ne remplace jamais un état d'écran |
+
+  Un `erreurStockage()` rendu en `message--avertissement` (panier) n'est pas concerné par le LOT 1.

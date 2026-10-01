@@ -168,4 +168,83 @@ describe('Toast', () => {
       'Carotte ajouté au panier',
     );
   });
+
+  it('gèle le temps restant pendant l’ouverture du tiroir et le relance à la fermeture', () => {
+    monter();
+    afficher('Carotte ajouté au panier', 'succes');
+
+    vi.advanceTimersByTime(1000);
+    tiroir.ouvrir();
+    fixture.detectChanges();
+
+    vi.advanceTimersByTime(10_000);
+    expect(racine.querySelector('.toast')).toBeNull();
+    expect(toast.notice()?.message).toBe('Carotte ajouté au panier');
+
+    tiroir.fermer();
+    fixture.detectChanges();
+    // Il restait 1500 ms : la reprise ne doit pas les rallonger à 2500.
+    vi.advanceTimersByTime(1499);
+    expect(toast.notice()).not.toBeNull();
+    vi.advanceTimersByTime(1);
+    expect(toast.notice()).not.toBeNull();
+    vi.advanceTimersByTime(300);
+    fixture.detectChanges();
+    expect(toast.notice()).toBeNull();
+    expect(racine.querySelector('.toast')).toBeNull();
+  });
+
+  it('ne rejoue la notice en attente qu’une fois, sans doublon sur plusieurs ouvertures', () => {
+    monter();
+    tiroir.ouvrir();
+    afficher('Niébe ajouté au panier', 'succes');
+
+    tiroir.fermer();
+    fixture.detectChanges();
+    expect(racine.querySelectorAll('.toast')).toHaveLength(1);
+
+    tiroir.ouvrir();
+    fixture.detectChanges();
+    expect(racine.querySelector('.toast')).toBeNull();
+
+    tiroir.fermer();
+    fixture.detectChanges();
+    expect(racine.querySelectorAll('.toast')).toHaveLength(1);
+    expect(racine.querySelector('.toast__texte')?.textContent).toBe('Niébe ajouté au panier');
+
+    // Le minuteur n’est pas réarmé à chaque fermeture : la notice part d’elle-même une seule fois.
+    vi.advanceTimersByTime(2500 + 300);
+    fixture.detectChanges();
+    expect(toast.notice()).toBeNull();
+
+    tiroir.ouvrir();
+    fixture.detectChanges();
+    tiroir.fermer();
+    fixture.detectChanges();
+    expect(racine.querySelector('.toast')).toBeNull();
+  });
+
+  it('ne ressuscite pas une notice déjà en sortie quand le tiroir se referme', () => {
+    monter();
+    afficher('Niébe ajouté au panier', 'succes');
+    vi.advanceTimersByTime(2500);
+    expect(toast.enSortie()).toBe(true);
+
+    tiroir.ouvrir();
+    fixture.detectChanges();
+    tiroir.fermer();
+    fixture.detectChanges();
+    expect(toast.enSortie()).toBe(true);
+
+    vi.advanceTimersByTime(300);
+    fixture.detectChanges();
+    expect(toast.notice()).toBeNull();
+
+    tiroir.ouvrir();
+    fixture.detectChanges();
+    tiroir.fermer();
+    fixture.detectChanges();
+    expect(toast.notice()).toBeNull();
+    expect(racine.querySelector('.toast')).toBeNull();
+  });
 });

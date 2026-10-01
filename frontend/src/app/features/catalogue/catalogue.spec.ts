@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
+import { vi } from 'vitest';
 import { SessionUtilisateur } from '../../core/modeles/auth.modeles';
 import { RecolteResponse } from '../../core/modeles/domaine.modeles';
 import { FILIERES, Role, STATUTS_RECOLTE } from '../../core/modeles/referentiels';
@@ -385,10 +386,11 @@ describe('Catalogue', () => {
 
     cliquer('#ajouter-1');
 
-    const message = element(racine, '.message--succes');
-    expect(message.getAttribute('role')).toBe('status');
-    expect(texteDe(message)).toContain('Récolte ajoutée au panier');
-    expect(texteDe(message)).toContain('Mangue');
+    const notice = TestBed.inject(ToastService).notice();
+    expect(notice?.type).toBe('succes');
+    expect(notice?.message).toContain('Récolte ajoutée au panier');
+    expect(notice?.message).toContain('Mangue');
+    expect(racine.querySelector('.message--succes')).toBeNull();
     const lignes = panier().lignes();
     expect(lignes).toHaveLength(1);
     expect(lignes[0].recolteId).toBe(1);
@@ -417,11 +419,12 @@ describe('Catalogue', () => {
 
     cliquer('#ajouter-1');
 
-    const message = element(racine, '.message--erreur');
-    expect(message.getAttribute('role')).toBe('alert');
-    expect(texteDe(message)).toContain('Mangue');
-    expect(texteDe(message)).toContain('inférieur');
+    const notice = TestBed.inject(ToastService).notice();
+    expect(notice?.type).toBe('erreur');
+    expect(notice?.message).toContain('Mangue');
+    expect(notice?.message).toContain('inférieur');
     expect(racine.querySelector('.message--succes')).toBeNull();
+    expect(racine.querySelector('.message--erreur')).toBeNull();
     expect(panier().lignes()).toHaveLength(0);
   });
 
@@ -435,10 +438,26 @@ describe('Catalogue', () => {
     const lignes = panier().lignes();
     expect(lignes).toHaveLength(1);
     expect(lignes[0].quantite).toBe(2);
-    expect(texteDe(element(racine, '.message--succes'))).toContain('Récolte ajoutée au panier');
+    expect(TestBed.inject(ToastService).notice()?.message).toContain('Récolte ajoutée au panier');
   });
 
-  it('ajoute une unité par le « + », en rend la notice et laisse la bannière au bouton texte', () => {
+  it('le bouton texte ne rend plus de bannière : sa notice est le seul retour', () => {
+    ouvrir('ACHETEUR');
+    repondre([recolte(1, { quantiteDisponible: 500 })]);
+    const toast = TestBed.inject(ToastService);
+    const appelee = vi.spyOn(toast, 'afficher');
+
+    cliquer('#ajouter-1');
+
+    expect(appelee).toHaveBeenCalledWith(
+      'Récolte ajoutée au panier : Mangue (1 kg).',
+      'succes',
+    );
+    expect(racine.querySelector('.message--succes')).toBeNull();
+    expect(racine.querySelector('.message--erreur')).toBeNull();
+  });
+
+  it('ajoute une unité par le « + », avec une notice propre au clic rapide', () => {
     ouvrir('ACHETEUR');
     repondre([recolte(1, { produit: 'Arachides', quantiteDisponible: 500 })]);
 

@@ -30,13 +30,6 @@
     </div>
   }
 
-  @if (refus(); as message) {
-    <div class="message message--erreur" role="alert">
-      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
-      <p>{{ message }}</p>
-    </div>
-  }
-
   @if (estVide()) {
     <div class="etat">
       <span class="materiel-icone etat__icone" aria-hidden="true">&#xe8cc;</span>

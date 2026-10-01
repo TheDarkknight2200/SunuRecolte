@@ -20,6 +20,7 @@ import {
   VARIANTES_BADGE_COMMANDE,
 } from '../../../core/modeles/referentiels';
 import { CommandeService } from '../../../core/services/commande.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { messageErreurApi } from '../../../core/utilitaires/erreurs-api';
 import {
   formaterDateHeure,
@@ -66,6 +67,7 @@ const STATUTS_PAYABLES: readonly StatutCommande[] = ['EN_ATTENTE', 'CONFIRMEE', 
 export class DetailCommande {
   private readonly route = inject(ActivatedRoute);
   private readonly commandes = inject(CommandeService);
+  private readonly toast = inject(ToastService);
   private readonly document = inject(DOCUMENT);
 
   protected readonly commande = signal<CommandeResponse | null>(null);
@@ -76,6 +78,7 @@ export class DetailCommande {
   protected readonly confirmationAnnulation = signal(false);
   protected readonly annulationEnCours = signal(false);
   protected readonly erreurAnnulation = signal<string | null>(null);
+  /** Source du texte de la notice (§39.2) : l'annulation refusée reste dans la modale. */
   protected readonly succesAnnulation = signal<string | null>(null);
 
   protected readonly annulable = computed(() => {
@@ -221,7 +224,9 @@ export class DetailCommande {
         this.commande.set(reponse);
         this.annulationEnCours.set(false);
         this.confirmationAnnulation.set(false);
-        this.succesAnnulation.set(`La commande n° ${reponse.id} a été annulée.`);
+        const message = `La commande n° ${reponse.id} a été annulée.`;
+        this.succesAnnulation.set(message);
+        this.toast.afficher(message, 'succes');
         // Le bouton déclencheur disparaît avec le statut : le focus passera au retour.
         this.declencheurAnnulation = null;
         this.focusApresAnnulation.set(true);

@@ -13,10 +13,12 @@ import {
   withDisabledInitialNavigation,
 } from '@angular/router';
 import { Subject } from 'rxjs';
+import { vi } from 'vitest';
 import { SessionUtilisateur } from '../../../core/modeles/auth.modeles';
 import { CommandeResponse } from '../../../core/modeles/domaine.modeles';
 import { StatutCommande } from '../../../core/modeles/referentiels';
 import { CLE_JETON, CLE_UTILISATEUR } from '../../../core/services/auth.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { authInterceptor } from '../../../core/intercepteurs/auth.interceptor';
 import { DetailCommande } from './detail-commande';
 
@@ -387,6 +389,11 @@ describe('DetailCommande — annulation', () => {
     fixture.detectChanges();
   }
 
+  /** Ce que `app-toast` rendrait : la notice confiée au service, type et texte inclus. */
+  function notice() {
+    return TestBed.inject(ToastService).notice();
+  }
+
   function demandePatching(): TestRequest {
     return http.expectOne(`${API}/commandes/512/statut`);
   }
@@ -548,11 +555,10 @@ describe('DetailCommande — annulation', () => {
     demandePatching().flush(commande({ statut: 'ANNULEE' }));
     fixture.detectChanges();
 
-    const succes = element(racine, '.message--succes');
-    expect(succes.getAttribute('role')).toBe('status');
-    expect(texteDe(element(racine, '.message--succes p'))).toBe(
-      'La commande n° 512 a été annulée.',
-    );
+    const succes = notice();
+    expect(succes?.type).toBe('succes');
+    expect(succes?.message).toBe('La commande n° 512 a été annulée.');
+    expect(racine.querySelector('.message--succes')).toBeNull();
 
     const actif = document.activeElement as HTMLElement;
     expect(actif.tagName).toBe('A');
@@ -583,6 +589,7 @@ describe('DetailCommande — annulation', () => {
     expect(element(racine, '.message--erreur').getAttribute('role')).toBe('alert');
     expect(texteDe(element(racine, '.badge'))).toBe('Confirmée');
     expect(racine.querySelector('.message--succes')).toBeNull();
+    expect(notice()).toBeNull();
     expect(element<HTMLButtonElement>(racine, '#annulation-confirmer').disabled).toBe(false);
   });
 
@@ -621,6 +628,20 @@ describe('DetailCommande — annulation', () => {
     );
     expect(texteDe(element(racine, '.badge'))).toBe('Confirmée');
     expect(racine.querySelector('.message--succes')).toBeNull();
+    expect(notice()).toBeNull();
+  });
+
+  it('confie le succès à la notice : la page ne rend plus aucune bannière de succès', () => {
+    ouvrir();
+    ouvrirModale();
+    const espion = vi.spyOn(TestBed.inject(ToastService), 'afficher');
+
+    cliquer('#annulation-confirmer');
+    demandePatching().flush(commande({ statut: 'ANNULEE' }));
+    fixture.detectChanges();
+
+    expect(espion).toHaveBeenCalledWith('La commande n° 512 a été annulée.', 'succes');
+    expect(racine.querySelector('.message')).toBeNull();
   });
 
   it('l’annulation ne mentionne jamais un paiement', () => {

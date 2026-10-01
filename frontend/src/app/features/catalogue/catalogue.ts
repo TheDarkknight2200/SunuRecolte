@@ -60,6 +60,7 @@ export class Catalogue {
 
   /** Réglage d'usage, pas une règle de sécurité : le catalogue reste public. */
   protected readonly acheteur = computed(() => this.auth.role() === 'ACHETEUR');
+  /** Source des textes de la notice (§39.2) : aucune bannière ne les rend plus. */
   protected readonly succesPanier = signal<string | null>(null);
   protected readonly refusPanier = signal<string | null>(null);
 
@@ -159,20 +160,22 @@ export class Catalogue {
    */
   protected ajouterAuPanier(recolte: RecolteResponse): void {
     if (this.panier.ajouter(recolte, QUANTITE_INITIALE)) {
+      const message = `Récolte ajoutée au panier : ${recolte.produit} (${quantiteAjoutee(recolte)}).`;
       this.refusPanier.set(null);
-      this.succesPanier.set(
-        `Récolte ajoutée au panier : ${recolte.produit} (${quantiteAjoutee(recolte)}).`,
-      );
+      this.succesPanier.set(message);
+      this.toast.afficher(message, 'succes');
       return;
     }
+    const motif = messageRefusAjout(recolte);
     this.succesPanier.set(null);
-    this.refusPanier.set(messageRefusAjout(recolte));
+    this.refusPanier.set(motif);
+    this.toast.afficher(motif, 'erreur');
   }
 
   /**
    * Ajout rapide (« + ») : mêmes garde, même quantité initiale et même refus que le bouton
-   * texte. La bannière de la carte reste réservé au bouton texte ; le « + » rend sa notice,
-   * de succès seulement si `PanierService` a accepté **et** enregistré le panier (§39.2).
+   * texte, et notice dans les deux cas (§39.2). Le « + » exige en plus que la persistance
+   * locale ait réussi, ce que le bouton texte ne vérifiait déjà pas.
    */
   protected ajouterRapide(recolte: RecolteResponse): void {
     if (!this.panier.ajouter(recolte, QUANTITE_INITIALE)) {
