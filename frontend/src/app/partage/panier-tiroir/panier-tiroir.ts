@@ -12,7 +12,11 @@ import { RouterLink } from '@angular/router';
 import { LignePanier, PanierService } from '../../core/services/panier.service';
 import { TiroirPanierService } from '../../core/services/tiroir-panier.service';
 import { formaterMontant, formaterQuantite } from '../../core/utilitaires/formatage';
-import { messageRefusQuantite } from '../../core/utilitaires/panier-affichage';
+import {
+  estLigneBloquee,
+  messageLigneBloquee,
+  messageRefusQuantite,
+} from '../../core/utilitaires/panier-affichage';
 
 /** Panier latéral (à droite) : résumé du panier local, sans logique métier propre. */
 @Component({
@@ -30,6 +34,7 @@ export class PanierTiroir {
   protected readonly nombre = computed(() => this.lignes().length);
   protected readonly formaterMontant = formaterMontant;
   protected readonly formaterQuantite = formaterQuantite;
+  protected readonly messageLigneBloquee = messageLigneBloquee;
 
   private readonly boutonFermer = viewChild<ElementRef<HTMLButtonElement>>('boutonFermer');
 
@@ -56,10 +61,11 @@ export class PanierTiroir {
   }
 
   /**
-   * Un pas d'une unité. Au plafond du stock connu, le « + » est neutralisé en `aria-disabled`
-   * — il reste atteignable au clavier et lit sa mention — donc un clic y reste sans effet.
-   * Une valeur refusée par le service malgré tout est affichée sous la ligne, jamais en notice.
-   * Une quantité nulle retire la ligne.
+   * Un pas d'une unité. Le « + » est neutralisé en `aria-disabled` quand la ligne n'est plus
+   * disponible ou quand le plafond du stock connu est atteint — il reste atteignable au clavier
+   * et lit sa mention — donc un clic y reste sans effet. Le « − » et le retrait restent possibles
+   * sur une ligne bloquée. Une valeur refusée par le service malgré tout est affichée sous la
+   * ligne, jamais en notice. Une quantité nulle retire la ligne.
    */
   protected changer(ligne: LignePanier, pas: number): void {
     const quantite = Math.round((ligne.quantite + pas) * 100) / 100;
@@ -67,7 +73,7 @@ export class PanierTiroir {
       this.retirer(ligne);
       return;
     }
-    if (pas > 0 && this.stockAtteint(ligne)) {
+    if (pas > 0 && this.ajoutNeutralise(ligne)) {
       return;
     }
     if (this.panier.modifierQuantite(ligne.recolteId, quantite)) {
@@ -91,12 +97,28 @@ export class PanierTiroir {
     return ligne.quantite >= ligne.quantiteDisponible;
   }
 
+  /** Même règle que la page du panier : une récolte non disponible ne se pilote plus. */
+  protected ligneBloquee(ligne: LignePanier): boolean {
+    return estLigneBloquee(ligne);
+  }
+
   protected motifRefus(ligne: LignePanier): string | null {
     return this.refus()[ligne.recolteId] ?? null;
   }
 
-  /** Ce qui décrit le bouton d'ajout : d'abord le plafond, ensuite un refus du service. */
+  /** Ce qui neutralise le « + » : le statut de la ligne prime, ensuite le plafond du stock connu. */
+  protected ajoutNeutralise(ligne: LignePanier): boolean {
+    return this.ligneBloquee(ligne) || this.stockAtteint(ligne);
+  }
+
+  /**
+   * Ce qui décrit le bouton d'ajout : une seule mention à la fois, le statut bloqué primant sur
+   * le plafond, puis le plafond sur un refus du service.
+   */
   protected descriptionAjout(ligne: LignePanier): string | null {
+    if (this.ligneBloquee(ligne)) {
+      return `ligne-bloquee-${ligne.recolteId}`;
+    }
     if (this.stockAtteint(ligne)) {
       return `stock-max-${ligne.recolteId}`;
     }

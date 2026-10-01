@@ -68,3 +68,17 @@ export function messageRefusQuantite(ligne: LignePanier): string {
     ligne.unite,
   )} au maximum, ${STOCK_MINIMUM.toFixed(2).replace('.', ',')} au minimum.`;
 }
+
+/**
+ * Une ligne dont le snapshot n'est plus disponible ne se pilote plus : la quantité se
+ * laisse telle quelle, seul le retrait reste possible. Même règle pour la page du
+ * panier et son tiroir.
+ */
+export function estLigneBloquee(ligne: LignePanier): boolean {
+  return ligne.statut !== 'DISPONIBLE';
+}
+
+/** Ce que la page du panier dit d'une ligne bloquée ; le tiroir reprend ces mots, sans en inventer d'autres. */
+export function messageLigneBloquee(): string {
+  return 'Cette récolte n’est plus disponible. Retirez-la du panier.';
+}

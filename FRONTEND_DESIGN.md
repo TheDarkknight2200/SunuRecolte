@@ -1408,6 +1408,13 @@ aucun libellé et n'est jamais l'autorité d'un succès.
   couvre pas (quantité fractionnaire) reste affiché sous la ligne. La phrase du refus vient de
   `messageRefusQuantite()` (`core/utilitaires/panier-affichage.ts`) : **source unique**, partagée avec la page
   `/acheteur/panier`, qui l'envoie elle en notice.
+- **Ligne non disponible dans le tiroir (LOT 3)** : le tiroir obéit au **même** blocage que la page. Une ligne dont
+  le snapshot n'est plus `DISPONIBLE` neutralise son « + » en `aria-disabled`, porte sous la ligne le motif de la
+  page — `messageLigneBloquee()`, **mot pour mot** — en `role="status"` et relié par `aria-describedby`, et garde
+  le « − » et « Retirer » utilisables : rien n'est jamais masqué ni retiré automatiquement (§25). La règle
+  `estLigneBloquee()` et sa phrase vivent dans `core/utilitaires/panier-affichage.ts`, **source unique** des deux
+  écrans comme au LOT 2. Quand statut bloqué et plafond de stock se cumulent, **le statut prime** : une seule
+  mention, jamais deux.
 - **Ajout rapide (`+`)** : la pilule ronde d'une carte de récolte ajoute `QUANTITE_INITIALE` unité et applique
   **exactement** les mêmes règles que le bouton texte de la même carte : même garde `estAjoutPossible()`, mêmes
   bornes de commande, même refus de `PanierService`, et **récolte épuisée ou stock insuffisant = bouton désactivé**

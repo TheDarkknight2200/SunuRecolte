@@ -53,7 +53,7 @@
                   type="button"
                   class="tiroir__pas"
                   [attr.aria-label]="'Ajouter une unité de ' + ligne.produit"
-                  [attr.aria-disabled]="stockAtteint(ligne) ? 'true' : null"
+                  [attr.aria-disabled]="ajoutNeutralise(ligne) ? 'true' : null"
                   [attr.aria-describedby]="descriptionAjout(ligne)"
                   (click)="changer(ligne, 1)"
                 >
@@ -64,7 +64,15 @@
                 </button>
               </div>
 
-              @if (stockAtteint(ligne)) {
+              @if (ligneBloquee(ligne)) {
+                <p
+                  class="tiroir__mention tiroir__mention--aide"
+                  role="status"
+                  id="ligne-bloquee-{{ ligne.recolteId }}"
+                >
+                  {{ messageLigneBloquee() }}
+                </p>
+              } @else if (stockAtteint(ligne)) {
                 <p
                   class="tiroir__mention tiroir__mention--aide"
                   id="stock-max-{{ ligne.recolteId }}"

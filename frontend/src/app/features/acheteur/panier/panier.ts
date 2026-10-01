@@ -14,7 +14,11 @@ import { LIBELLES_STATUT_RECOLTE, StatutRecolte } from '../../../core/modeles/re
 import { LignePanier, PanierService } from '../../../core/services/panier.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { formaterMontant, formaterQuantite } from '../../../core/utilitaires/formatage';
-import { messageRefusQuantite } from '../../../core/utilitaires/panier-affichage';
+import {
+  estLigneBloquee,
+  messageLigneBloquee,
+  messageRefusQuantite,
+} from '../../../core/utilitaires/panier-affichage';
 
 /** Écart des boutons d'incrémentation : une unité du produit, jamais d'arrondi implicite. */
 const PAS = 1;
@@ -105,8 +109,8 @@ export class Panier {
    * automatiquement (§25). Le texte dit ce que l'acheteur peut faire.
    */
   protected motifLigne(ligne: LignePanier): string | null {
-    if (ligne.statut !== 'DISPONIBLE') {
-      return 'Cette récolte n’est plus disponible. Retirez-la du panier.';
+    if (estLigneBloquee(ligne)) {
+      return messageLigneBloquee();
     }
     if (ligne.quantite >= ligne.quantiteDisponible) {
       return 'Le panier contient déjà la totalité du stock connu.';
@@ -116,7 +120,7 @@ export class Panier {
 
   /** Une récolte épuisée n'a plus de quantité à saisir : le retrait reste possible. */
   protected estBloquee(ligne: LignePanier): boolean {
-    return ligne.statut !== 'DISPONIBLE';
+    return estLigneBloquee(ligne);
   }
 
   protected sousTotal(ligne: LignePanier): number {

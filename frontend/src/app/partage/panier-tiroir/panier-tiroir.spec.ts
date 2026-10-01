@@ -135,6 +135,62 @@ describe('PanierTiroir', () => {
     expect(boutonAjout().getAttribute('aria-disabled')).toBeNull();
   });
 
+  it('bloque une récolte non disponible comme la page : « + » neutralisé et motif lié', () => {
+    monter([{ ...LIGNE, quantite: 3, statut: 'EPUISEE' }]);
+    ouvrir();
+
+    const plus = boutonAjout();
+    expect(plus.getAttribute('aria-disabled')).toBe('true');
+    expect(plus.getAttribute('aria-describedby')).toBe('ligne-bloquee-7');
+
+    const motif = element('#ligne-bloquee-7');
+    expect(motif.getAttribute('role')).toBe('status');
+    expect(texteDe(motif)).toBe('Cette récolte n’est plus disponible. Retirez-la du panier.');
+
+    plus.click();
+    fixture.detectChanges();
+    expect(TestBed.inject(PanierService).lignes()[0]?.quantite).toBe(3);
+  });
+
+  it('laisse le « − » et le retrait possibles sur une ligne bloquée', () => {
+    monter([{ ...LIGNE, quantite: 3, statut: 'EPUISEE' }]);
+    const panier = TestBed.inject(PanierService);
+    ouvrir();
+
+    boutonRetrait().click();
+    fixture.detectChanges();
+    expect(panier.lignes()[0]?.quantite).toBe(2);
+
+    element<HTMLButtonElement>('.tiroir__retirer').click();
+    fixture.detectChanges();
+    expect(panier.lignes()).toEqual([]);
+  });
+
+  it('fait primer le statut bloqué sur le plafond de stock : une seule mention', () => {
+    monter([{ ...LIGNE, quantite: 10, statut: 'EPUISEE' }]);
+    ouvrir();
+
+    expect(racine.querySelector('#ligne-bloquee-7')).not.toBeNull();
+    expect(racine.querySelector('#stock-max-7')).toBeNull();
+    expect(boutonAjout().getAttribute('aria-describedby')).toBe('ligne-bloquee-7');
+    expect(racine.querySelectorAll('.tiroir__mention--aide')).toHaveLength(1);
+  });
+
+  it('ne change rien sur une ligne disponible sous son plafond', () => {
+    monter([LIGNE]);
+    ouvrir();
+
+    const plus = boutonAjout();
+    expect(plus.getAttribute('aria-disabled')).toBeNull();
+    expect(plus.getAttribute('aria-describedby')).toBeNull();
+    expect(racine.querySelector('#ligne-bloquee-7')).toBeNull();
+    expect(racine.querySelector('#stock-max-7')).toBeNull();
+
+    plus.click();
+    fixture.detectChanges();
+    expect(TestBed.inject(PanierService).lignes()[0]?.quantite).toBe(3);
+  });
+
   it('affiche dans le tiroir le motif d’un refus que le plafond du bouton ne couvre pas', () => {
     monter([{ ...LIGNE, quantite: 1.5, quantiteDisponible: 2 }]);
     ouvrir();
