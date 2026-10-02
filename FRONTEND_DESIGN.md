@@ -1236,6 +1236,34 @@ décorative**. Cet alignement est adopté comme **hiérarchie d'action**, et non
   maquettes en décalant, sans raison, les vingt autres pages.
 - Les ombres restent interdites hors des deux usages de §7 ; les références ne contiennent aucune ombre, ce qui
   confirme la règle plutôt qu'il ne la change.
+- **Arbitrage consigné — `/admin` ne porte pas `.page--surface`** (LOT 15). Le modificateur est posé « sur la
+  racine de page d'un écran maître (Catalogue, Détail commande, Administration) » (§10.4, ligne 309) et son effet
+  est unique : « faire lire les filets `--filet-ligne` sur blanc » (§10.4, lignes 316-317). Or « Administration »,
+  dans la référence, est **un écran à trois sections** (§38.3) : il est rendu en réalité par la navigation partagée
+  et les trois tables administrées — `utilisateurs.html`, `recoltes-admin.html`, `prix-marche.html` —, qui portent
+  toutes le modificateur. `/admin` (`espace-admin.html`) est la page d'entrée décrite en §37 : « n'est pas un
+  tableau de bord », une liste de trois cartes, **aucune table donc aucun filet à faire lire sur blanc**. Son fond
+  reste le crème global (§6) : cette absence est **voulue**, ce n'est pas un écart à corriger. C'est le même
+  arbitrage que pour l'écran d'arrivée (§40, puce « États inchangés » : « Pas de `.page--surface` : §38.1 réserve
+  ce fond aux trois écrans maîtres »). Par suite, les trois liens des cartes de `/admin` restent en
+  `.bouton--secondaire` : l'encre de la ligne 1227 porte l'action principale des trois écrans maîtres, et `/admin`
+  n'en est pas un.
+- **Arbitrage consigné — une confirmation destructive reste `.bouton--danger`** (LOT 15). La hiérarchie d'encre de
+  §38.1 ne repeint pas le bouton de confirmation de la désactivation d'un compte : §31 prescrit « bouton destructif
+  en `.bouton--danger`, avec un libellé qui nomme l'effet réel » (ligne 782), §5 réserve `--couleur-erreur` aux
+  « erreurs, actions destructives » et son sombre au survol de ces actions (lignes 74-75), et §10.1 fait des deux
+  variantes des rôles distincts — `.bouton--danger` (fond erreur) n'est pas une nuance de `.bouton--encre`
+  (variante d'action principale des écrans maîtres) (lignes 271-272). La désactivation est bien « l'action la plus
+  lourde de l'espace » et suit « les conventions de §31 » (§37.1) : `utilisateurs.html` est conforme (ligne 188),
+  idem pour « Retirer le prix » de la suppression d'un prix indicatif (§37.3, `prix-marche.html` ligne 323). Les
+  actions principales **non destructives** de ces mêmes écrans restent en encre — soumission du formulaire de prix
+  (ligne 161) et bascule `DISPONIBLE ⇄ EPUISEE`, qui n'a pas de modale précisément parce que le geste est
+  réversible (§37.2, `recoltes-admin.html` ligne 127). Peindre ces confirmations en encre contredirait §38.1
+  lui-même : « un statut n'est jamais repeint en encre pour ressembler à une maquette » (ligne 1233).
+
+Ces deux arbitrages closent les derniers écarts visuels ouverts de §38.1 : la surface de `/admin` et la couleur du
+bouton de confirmation de `/admin/utilisateurs` sont **tranchées dans le sens du code livré**, et aucune des deux
+n'appelle de modification. Les règles ci-dessus restent inchangées par ailleurs.
 
 ### 38.2 Dates : le format livré garde son format
 
