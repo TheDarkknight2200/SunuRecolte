@@ -1594,3 +1594,37 @@ reste simulé (§34), les modes de réception et les moyens de paiement restent 
   « Récapitulatif » est lu via `.commande__recap .carte__titre` au lieu de `.commande__zone-titre`. Aucune
   assertion supprimée ni assouplie. **Non observé en navigateur réel** : les quatre largeurs
   375 / 768 / 1024 / 1366 restent à contrôler (§38.5).
+
+### 41.1 Liste et détail des commandes (LOT 11)
+
+`/acheteur/commandes` et `/acheteur/commandes/:id`. Les deux écrans portaient **déjà** le plafond §20
+(`<div class="conteneur">` imbriqué, étape 8 pour la liste, Phase 5.10 Étape 3 pour le détail) et la liste était
+**déjà** une `li.carte` avec `h2.carte__titre`, badge de statut et lien « Voir le détail ». Ce lot ne fait donc
+que trois ajustements, et consigne deux décisions.
+
+- **Rythme** : `.detail-commande .conteneur` passe de `--espace-4` à `--espace-5` — les cinq écrans du parcours
+  d'achat (panier, commande, paiement, liste, détail) respirent désormais à l'identique.
+- **Chiffre dominant** : `.commandes__total` prend `--police-titre` + `--taille-xl`, poids 600 conservé,
+  `tabular-nums` déjà porté par `.commandes__champs dd` — même écriture que `.panier__total-valeur` (§30) et que
+  le total du tunnel (§41).
+- **Capitules** : `.commandes__champs dt` reçoit `text-transform: uppercase` et `letter-spacing: 0.02em`, comme
+  `.commande__chiffres dt` et les champs du paiement.
+- **Décision — les lignes du détail restent un `<table>`.** `detail-commande.html` garde
+  `table.tableau.tableau--maitre.tableau--empile` lié à son titre par `aria-labelledby="lignes-titre"` : c'est
+  §38.5 qui l'exige, parce que l'empilement sous `$point-tablette` doit conserver l'association cellule / en-tête
+  (`th scope="col"` dans le DOM, libellé de colonne repris par `data-libelle`). Une mise en cartes aurait été
+  silencieuse : **aucune** assertion ne regardait le `<table>`. Trois tests de protection ont donc été écrits
+  **avant** le restylage (`detail-commande.spec.ts`, 40 → 43) — `<table>` + classes denses + titre lié, les
+  quatre `th scope`, les huit `data-libelle` d'une commande à deux lignes. Toute conversion future des lignes en
+  cartes rougit la suite et doit d'abord révoquer §38.5 dans ce document.
+- **Décision — aucun bloc paiement sur ce détail, tant que le contrat ne l'expose pas.** `CommandeResponse` ne
+  porte aucun champ de paiement et `detail-commande.ts` n'émet **aucun** appel de paiement (`payable()` ne pilote
+  que le lien). La consultation d'un paiement enregistré reste l'écran §34, qui relit la commande et le paiement.
+  Afficher ici un moyen, un statut ou une référence de paiement exigerait soit un appel nouveau, soit un champ
+  inventé — l'un et l'autre hors règles.
+- **Ce que ce lot n'a pas fait, à dessein** : la liste reste en **une colonne**, sans grille multi-colonne, sans
+  filtre, sans tri et sans pagination (§33) ; aucune `.carte` nouvelle, aucun token, aucune classe globale
+  nouvelle, `styles/_composants.scss` non touché ; les `.ts` et les `.html` des deux écrans sont inchangés.
+- **Tests** : `detail-commande.spec.ts` 40 → 43, `commandes.spec.ts` 25 **inchangées** (la classe
+  `.commandes__total` est déjà épinglée par une assertion existante, un test supplémentaire n'aurait rien
+  protégé de plus). **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366.

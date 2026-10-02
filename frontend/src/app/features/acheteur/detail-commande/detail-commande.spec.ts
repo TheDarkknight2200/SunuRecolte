@@ -213,6 +213,46 @@ describe('DetailCommande — consultation', () => {
     expect(texteDe(racine)).not.toContain('indicatif');
   });
 
+  /*
+   * Filet de protection §38.5 — écrit avant tout restylage. Les lignes de ce détail restent un
+   * `<table>` dense : ce n'est pas une préférence de style mais ce qui conserve l'association
+   * cellule / en-tête pour un lecteur d'écran, l'empilement mobile étant porté par `data-libelle`.
+   * Aucun test de ce fichier ne regardait le `<table>` : une conversion en cartes aurait compile,
+   * rendu et passé la suite en supprimant la sémantique. Ces trois tests rougissent dans ce cas.
+   */
+  it('garde les lignes dans un <table> dense lié à son titre (§38.5)', () => {
+    ouvrir();
+    repondre(commande());
+
+    const tableau = element(racine, 'table');
+    expect(tableau.getAttribute('aria-labelledby')).toBe('lignes-titre');
+    expect(tableau.classList.contains('tableau--maitre')).toBe(true);
+    expect(tableau.classList.contains('tableau--empile')).toBe(true);
+    expect(texteDe(element(racine, '#lignes-titre'))).toBe('Lignes de la commande');
+  });
+
+  it('garde les quatre en-têtes de colonne dans le DOM, avec leur portée', () => {
+    ouvrir();
+    repondre(commande());
+
+    const entetes = elements<HTMLTableHeaderCellElement>(racine, 'table th');
+    expect(entetes.map((entete) => entete.getAttribute('scope'))).toEqual(['col', 'col', 'col', 'col']);
+    expect(entetes.map(texteDe)).toEqual(['Produit', 'Quantité', 'Prix unitaire', 'Sous-total']);
+  });
+
+  it('porte le libellé de colonne sur chaque cellule, pour l’empilement sous $point-tablette', () => {
+    ouvrir();
+    repondre(commande({ lignes: [ligne(900), ligne(901)] }));
+
+    const libellesColonne = ['Produit', 'Quantité', 'Prix unitaire', 'Sous-total'];
+    const cellules = elements<HTMLTableCellElement>(racine, 'table td');
+    expect(cellules).toHaveLength(8);
+    expect(cellules.map((cellule) => cellule.getAttribute('data-libelle'))).toEqual([
+      ...libellesColonne,
+      ...libellesColonne,
+    ]);
+  });
+
   it('explicite le retrait sans inventer d’adresse', () => {
     ouvrir();
     repondre(commande({ modeReception: 'RETRAIT' }));

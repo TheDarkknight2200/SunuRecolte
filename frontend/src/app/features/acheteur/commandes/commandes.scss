@@ -65,6 +65,9 @@
   color: var(--couleur-texte-secondaire);
   font-size: var(--taille-xs);
   font-weight: 600;
+  /* Capitules, au même traitement que `.commande__chiffres dt` et les champs du paiement (§41). */
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .commandes__champs dd {
@@ -72,7 +75,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Le total est le chiffre dominant de la carte, à la même écriture qu'au pied du panier (§30) :
+   `tabular-nums` est déjà porté par `.commandes__champs dd` plus haut. */
 .commandes__total {
+  font-family: var(--police-titre);
+  font-size: var(--taille-xl);
   font-weight: 600;
 }
 
