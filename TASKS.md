@@ -157,8 +157,14 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [x] Notifications (5.5.9 : écran transversal `/notifications` et compteur d'en-tête, QA navigateur réelle faite ;
   les cases **backend** de la Phase 7 restent en attente d'une décision de l'auteur, voir la note de cette phase)
 - [ ] Responsive (vérifié écran par écran au fil des pages métier)
+  - la vérification en **navigateur réel** aux quatre largeurs 375 / 768 / 1024 / 1366 n'a **jamais** été jouée :
+    les clôtures de 5.5.7, 5.5.8, 5.5.9 et 5.8-bis, comme la ligne « Admin UI » de la Phase 9, consignent
+    l'absence d'émulation de viewport dans cet environnement, et les deux campagnes de design (§38.5) n'ont pas
+    été davantage vues en rendu. Voir l'entrée ouverte « QA navigateur réelle des quatre largeurs
+    375 / 768 / 1024 / 1366 » de « Reste à faire à la fin de la campagne » (case **laissée décochée** —
+    corrigé le 2026-10-02)
 
-## Sous-phases 5.2 → 5.9 (détail réel)
+## Sous-phases 5.2 → 5.9-bis (détail réel)
 
 > **Avertissement de numérotation** : « 5.2 », « 5.3 », « 5.4 », « 5.5 », « 5.6 », « 5.7 », « 5.8 » et « 5.9 »
 > sont les repères des consignes de travail, pas les phases de ce fichier. Les cinq premiers et les deux derniers
@@ -795,13 +801,19 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   (5 gabarits + 5 specs) — en plus de celui du Tableau de bord. L'en-tête global, la route `/notifications`, les
   gardes et le backend n'ont **pas** été touchés ; le badge de non-lues de l'en-tête reste **non cliquable** (§29,
   §10.5, §10.7). Frontend **677/677** sur 36 fichiers, types **0 erreur**, build **sans avertissement** ; travail
-  **non commité**
+  **commité le 2026-09-29** avec l'espace administrateur, dans le checkpoint « feat: finalize admin and functional
+  integration », que `main` et le dépôt distant portent tous les deux (corrigé le 2026-10-02)
 - [x] Le travail est **commité au fur et à mesure** jusqu'à 5.8 : chaque sous-phase achevée a son checkpoint Git,
-  et le dépôt distant est à jour de ces checkpoints. **5.9 et 5.9-bis ne sont pas commitées** — le brief de cette
-  sous-phase l'interdit (ni commit automatique, ni push)
+  et le dépôt distant est à jour de ces checkpoints. **5.9 et 5.9-bis ont été commitées le 2026-09-29**, dans le
+  même checkpoint que la correction de navigation ci-dessus (« feat: finalize admin and functional integration »),
+  et le dépôt distant les porte (le brief de cette sous-phase interdisait commit et push ; cette interdiction a été
+  levée depuis — corrigé le 2026-10-02)
 - [ ] Le projet n'est **pas terminé** : la QA navigateur de l'espace administrateur (5.9) et celle de 5.6 restent
   à faire, l'intégration de bout en bout (Phase 10) et la finalisation (Phase 11) sont devant. L'espace admin,
-  dernier bloc fonctionnel du périmètre approuvé, est **livré et testé** ; il reste la phase de *redesign premium*
+  dernier bloc fonctionnel du périmètre approuvé, est **livré et testé** ; la phase de *redesign premium* a été
+  **jouée** sous le repère « Phase 5.11 » (LOT 1 → 18, section « Phases 5.10 et 5.11 »), validée par les specs,
+  les types et le build — sa **validation en navigateur réelle reste à faire**, consignée dans l'entrée ouverte de
+  « Reste à faire à la fin de la campagne » de cette même section (corrigé le 2026-10-02)
 - [x] « Phase 5.5 » des consignes de travail (commandes acheteur) : panier, tunnel de commande,
   consultation, annulation et **paiement simulé** **faits** ; les notifications, d'abord **volontairement
   hors périmètre**, ont été livrées ensuite en **5.5.9** (écran transversal et compteur d'en-tête)
@@ -811,7 +823,7 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 > **Ce que couvre cette section** : les deux campagnes frontend menées après 5.9-bis, consignées d'après
 > `git log` (messages, dates et fichiers des commits), les briefs de lots et `FRONTEND_DESIGN.md` §38 à §41.
 > « 5.10 » et « 5.11 » sont des **repères de consignes de travail**, dans le même esprit que l'avertissement de
-> numérotation de la section « Sous-phases 5.2 → 5.9 » : 5.10 correspond à §38 du document de design, les LOT
+> numérotation de la section « Sous-phases 5.2 → 5.9-bis » : 5.10 correspond à §38 du document de design, les LOT
 > 1 → 18 à §39 à §41 (le document intitule ces deux campagnes « Phase 5.11 » en §40 et §41).
 >
 > **Porte de validation de ces deux campagnes** : specs Vitest/jsdom, `npx tsc -p tsconfig.spec.json --noEmit`
