@@ -1,6 +1,11 @@
 @use "points-rupture" as pr;
 
-.detail-recolte {
+/* Le socle global fournit .conteneur (§20 : centrage, gouttières). La fiche garde sa largeur
+   étroite propre — 46rem, valeur préexistante reprise ici, aucune largeur nouvelle — mais ne la
+   porte plus sur sa racine : c'est le conteneur qui la reçoit, donc il est centré. La règle de
+   racine est supprimée, comme sur les écrans déjà alignés (§41.2, §41.3). Le rythme vertical reste
+   porté par les marges des blocs (retour, états, description) et n'est pas déplacé ici. */
+.detail-recolte .conteneur {
   max-width: 46rem;
 }
 

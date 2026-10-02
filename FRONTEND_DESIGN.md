@@ -1581,8 +1581,8 @@ reste simulé (§34), les modes de réception et les moyens de paiement restent 
   `32rem` existant et ajoute le centrage ; `paiement.scss` n'ajoute **aucune** largeur, puisqu'aucune
   n'existait. À ce lot, les trois largeurs locales encore non centrées — `detail-recolte` (46 rem),
   `formulaire-recolte` et `profil-producteur` (44 rem) — ne sont pas touchées. Les deux formulaires
-  producteur ont été alignés depuis (**§41.2**) et sortent de la liste de suivi : **reste à aligner
-  `detail-recolte` (46 rem)**.
+  producteur (**§41.2**) puis la fiche récolte (**§41.4**) ont été alignés depuis et sortent de la liste de
+  suivi : **il ne reste plus aucune largeur locale non centrée dans l'application**.
 - **États conservés, notices sans changement de type** : `.etat[aria-busy]` de chargement, bannière
   d'erreur avec son bouton « Réessayer » (elle reste bannière, §39.2 : cible de focus et porte l'action),
   écran de succès de la commande, bannière §28 « aucune transaction réelle » rendue hors des branches d'état,
@@ -1720,3 +1720,45 @@ centrage**, la colonne restait collée à la gouttière gauche.
   `document.activeElement` sur `#zoneSucces` sont passés tels quels.
 - **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366, le centrage effectif du
   plafond, le rendu des capitules et du chiffre dominant — jsdom ne rend pas la cascade SCSS.
+
+### 41.4 Fiche récolte — colonne étroite centrée dans le conteneur (LOT 14)
+
+`/recoltes/:id` (`detail-recolte`) : le dernier écran dont la largeur locale n'était pas centrée. Sa racine
+appliquait `max-width: 46rem` directement sur la `<section>`, sans `.conteneur` : la fiche restait collée à la
+gouttière gauche.
+
+- **Règle — la fiche applique « colonne étroite centrée dans le conteneur »** (§41, §41.2) : le contenu de la
+  `<section>` est enveloppé dans `<div class="conteneur">`, et le `46rem` **existant** passe de la racine sur
+  `.detail-recolte .conteneur`. **Aucune largeur nouvelle** ; la règle de racine est supprimée, comme sur les
+  écrans déjà alignés (§41, §41.2, §41.3). `margin-inline: auto` **n'a pas été ajouté** : le socle global
+  (`styles/_base.scss`) porte déjà `margin: 0 auto`, et la règle du composant (spécificité 0,2,0, attribut
+  d'encapsulation compris) l'emporte sur la globale pour `max-width`.
+- **Largeur utile mesurée** — 1 rem = 16 px (aucune taille de racine fixée par le projet), donc 46rem = 736 px,
+  `box-sizing: border-box` étant global **gouttières comprises** : **688 px** à `$point-tablette` (768 px) comme à
+  1366 px, le plafond bornant avant le viewport, moins 2 × `--espace-5` (24 px) ; **704 px** sous la tablette
+  (2 × `--espace-4`). La grille de la fiche y tient sans changer le breakpoint : deux colonnes de **332 px**
+  chacune, `(688 − 24) / 2` avec le `gap: --espace-5` existant, le visuel en `aspect-ratio: 1.13` rendu à
+  332 × ~294 px.
+- **Le rythme vertical n'a pas été déplacé** : contrairement aux lots précédents, la racine de cette fiche ne
+  portait **aucun** rythme — seulement `max-width`. Les respirations restent portées par les marges des blocs
+  (`__retour`, `__etat`, `__description`, `__mesures`, `__achat`). Introduire `display: flex` et un `gap` sur
+  `.detail-recolte .conteneur` aurait été un changement visuel hors périmètre : la divergence avec la formule des
+  autres écrans est donc **assumée et consignée ici**.
+- **Rien d'autre ne change** : les deux colonnes de la fiche à `$point-tablette`, `> :only-child` en
+  `grid-column: 1 / -1` (fiche sans photo), les capitules et `tabular-nums` déjà présents sur `__mesures` et
+  `__identification`, `--rayon-surface` du visuel, et **tous** les ids, classes et attributs assertés —
+  `.recolte__statut` / `--epuise` posés sur l'image, `.badge` du titre sans photo, `#detail-ajouter` avec son
+  `aria-disabled` et son `aria-describedby="detail-motif"`, `.etat[aria-busy]`, `.message--erreur` et le texte des
+  quatre états. Aucun token, aucune teinte, aucun rayon, aucune police nouveaux ; `styles/_composants.scss`,
+  `detail-recolte.ts`, `PanierService`, `ToastService`, routes, guards et backend non touchés.
+- **Tests** : le filet de structure a été écrit **avant** le restylage, sur le gabarit alors non modifié —
+  `detail-recolte.spec.ts` 21 → 26 (`h1` unique et le « Producteur » en `h2` unique ; chargement, « Récolte
+  introuvable », erreur serveur, retour et fiche rendus sous le **même parent de colonne** — l'assertion porte sur
+  le parent, pas sur son nom, donc elle survit au conteneur ; fiche en deux blocs `__visuel` / `__infos` ;
+  `__infos` seul sans photo), exécuté vert **26/26** avant tout changement de gabarit. Après le restylage, **un
+  seul** test de conteneur (26 → 27) vérifie que le `.conteneur` est unique, enfant direct de la `<section>`, et
+  qu'il porte à la fois le `h1`, la fiche et les deux états successifs. **Aucune assertion existante n'a été
+  modifiée, supprimée ni assouplie ; aucun re-ciblage nécessaire** — la spec n'employait aucun combinator `>`.
+- **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366 et le centrage effectif du
+  plafond — jsdom ne rend pas la cascade SCSS. La colonne utile ci-dessus est un **calcul**, pas une mesure de
+  rendu.

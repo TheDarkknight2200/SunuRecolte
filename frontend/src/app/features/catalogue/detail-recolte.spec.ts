@@ -136,6 +136,24 @@ describe('DetailRecolte', () => {
     return TestBed.inject(PanierService);
   }
 
+  /**
+   * Le parent qui porte la colonne de page : la `<section>` tant que le plafond §20 n'est pas
+   * en place, son `.conteneur` dès qu'il existe. Les tests de structure ne regardent que cette
+   * relation, jamais le nom du parent — ils survivent donc à l'enveloppement du gabarit.
+   */
+  function colonne(): HTMLElement {
+    const section = element<HTMLElement>(racine, 'section.detail-recolte');
+    const premier = section.firstElementChild;
+    if (premier && premier.classList.contains('conteneur')) {
+      return premier as HTMLElement;
+    }
+    return section;
+  }
+
+  function dansLaColonne(selecteur: string): void {
+    expect(element(racine, selecteur).parentElement).toBe(colonne());
+  }
+
   it('demande la récolte dont l’identifiant vient de la route', () => {
     ouvrir('7');
 
@@ -420,5 +438,87 @@ describe('DetailRecolte', () => {
 
     repondre(recolte());
     expect(racine.querySelector('#detail-ajouter')).not.toBeNull();
+  });
+
+  describe('structure de page', () => {
+    it('rend un titre h1 unique et le « Producteur » en h2', () => {
+      ouvrir('7');
+      repondre(recolte({ imageUrl: '/media/mangue-kent.jpg' }));
+
+      expect(racine.querySelectorAll('h1')).toHaveLength(1);
+      expect(texteDe(element(racine, 'h1'))).toBe('Mangue Kent');
+      expect(element(racine, 'h1').closest('.detail-recolte__entete')).not.toBeNull();
+      expect(racine.querySelectorAll('h2')).toHaveLength(1);
+    });
+
+    it('rend le chargement et « Récolte introuvable » sous le parent de colonne', () => {
+      ouvrir('7');
+      dansLaColonne('.detail-recolte__etat');
+
+      repondreErreur(404, 'Recolte introuvable.');
+      dansLaColonne('.detail-recolte__etat');
+      expect(texteDe(element(racine, '.detail-recolte__etat'))).toContain('Récolte introuvable');
+    });
+
+    it('rend l’erreur serveur, puis la fiche, sous le même parent de colonne', () => {
+      ouvrir('7');
+      repondreErreur(500, 'Le service est temporairement indisponible.');
+      dansLaColonne('.message--erreur');
+
+      element<HTMLButtonElement>(racine, '.message--erreur button').click();
+      const requete = attendre();
+      repondre(recolte({ imageUrl: '/media/mangue-kent.jpg' }), requete);
+
+      dansLaColonne('.detail-recolte__retour');
+      dansLaColonne('.detail-recolte__fiche');
+    });
+
+    it('sépare la fiche en un bloc visuel et un bloc d’informations', () => {
+      ouvrir('7');
+      repondre(recolte({ imageUrl: '/media/mangue-kent.jpg' }));
+
+      const fiche = element(racine, '.detail-recolte__fiche');
+      const visuel = element(racine, '.detail-recolte__visuel');
+      const infos = element(racine, '.detail-recolte__infos');
+      expect(visuel.parentElement).toBe(fiche);
+      expect(infos.parentElement).toBe(fiche);
+      expect(fiche.children).toHaveLength(2);
+      expect(visuel.querySelector('img.detail-recolte__image')).not.toBeNull();
+      expect(visuel.querySelector('.recolte__statut')).not.toBeNull();
+      expect(infos.querySelector('h1')).not.toBeNull();
+      expect(infos.querySelector('.detail-recolte__mesures')).not.toBeNull();
+    });
+
+    it('laisse les informations seules dans la fiche sans photo', () => {
+      ouvrir('7');
+      repondre(recolte({ imageUrl: null }));
+
+      expect(racine.querySelector('.detail-recolte__visuel')).toBeNull();
+      const fiche = element(racine, '.detail-recolte__fiche');
+      expect(fiche.children).toHaveLength(1);
+      expect(fiche.firstElementChild).toBe(element(racine, '.detail-recolte__infos'));
+      expect(texteDe(element(racine, '.detail-recolte__entete .badge'))).toBe('Disponible');
+    });
+
+    it('place toute la page dans un .conteneur unique (§20)', () => {
+      ouvrir('7');
+      repondre(recolte({ imageUrl: '/media/mangue-kent.jpg' }));
+
+      const section = element<HTMLElement>(racine, 'section.detail-recolte');
+      expect(section.querySelectorAll('.conteneur')).toHaveLength(1);
+      const conteneur = element<HTMLElement>(section, '.conteneur');
+      expect(conteneur.parentElement).toBe(section);
+      expect(conteneur.querySelector('.detail-recolte__retour')).not.toBeNull();
+      expect(conteneur.querySelector('h1')).not.toBeNull();
+      expect(conteneur.querySelector('.detail-recolte__fiche')).not.toBeNull();
+
+      // Les états passent par le même parent : vérifié sur une seconde monture, en chargement.
+      ouvrir('7');
+      const colonneEtat = element<HTMLElement>(racine, 'section.detail-recolte .conteneur');
+      expect(element(racine, '.detail-recolte__etat').parentElement).toBe(colonneEtat);
+
+      repondreErreur(404, 'Recolte introuvable.');
+      expect(element(racine, '.detail-recolte__etat').parentElement).toBe(colonneEtat);
+    });
   });
 });
