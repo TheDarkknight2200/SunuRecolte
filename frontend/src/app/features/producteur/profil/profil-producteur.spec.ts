@@ -644,6 +644,71 @@ describe('ProfilProducteur — profil du producteur connecté', () => {
     expect(racine.querySelector('.message--erreur')).toBeNull();
     expect(valeurDe('#prenom')).toBe('Awa');
   });
+
+  /*
+   * Filet de structure — écrit avant tout restylage. Ce que la refonte §20/§41 doit préserver :
+   * un titre de page unique, un formulaire unique, et les trois états rendus dans le même parent
+   * (un enveloppement qui laisserait un état hors de la colonne de page rougit ici).
+   */
+  describe('structure de page', () => {
+    function parentDe(selecteur: string): HTMLElement {
+      const parent = element(racine, selecteur).parentElement;
+      if (!parent) {
+        throw new Error(`Aucun parent pour ${selecteur}`);
+      }
+      return parent;
+    }
+
+    it('rend un seul <h1>, avant comme après le chargement du profil', () => {
+      ouvrir();
+      expect(racine.querySelectorAll('h1')).toHaveLength(1);
+
+      chargerProfil();
+      expect(racine.querySelectorAll('h1')).toHaveLength(1);
+      expect(texteDe(element(racine, 'h1'))).toBe('Profil');
+    });
+
+    it('rend un seul <form> quand le profil est affiché', () => {
+      ouvrir();
+      chargerProfil();
+
+      expect(racine.querySelectorAll('form')).toHaveLength(1);
+    });
+
+    it('rend la charge, l’erreur et le formulaire dans le même parent', () => {
+      ouvrir();
+      const parentCharge = parentDe('.etat');
+
+      http
+        .expectOne(MOI)
+        .flush(
+          { statut: 500, message: 'Le service est momentanément indisponible.' },
+          { status: 500, statusText: 'Internal Server Error' },
+        );
+      fixture.detectChanges();
+      const parentErreur = parentDe('.message--erreur');
+
+      element<HTMLButtonElement>(racine, '#profil-reessayer').click();
+      fixture.detectChanges();
+      chargerProfil();
+
+      expect(parentDe('form')).toBe(parentCharge);
+      expect(parentErreur).toBe(parentCharge);
+    });
+
+    it('place toute la colonne de page dans un .conteneur unique (§20)', () => {
+      ouvrir();
+
+      expect(racine.querySelectorAll('.conteneur')).toHaveLength(1);
+      const conteneur = element<HTMLElement>(racine, '.conteneur');
+      expect(conteneur.parentElement).toBe(element(racine, 'section.profil-producteur'));
+      expect(conteneur.querySelector('h1')).not.toBeNull();
+      expect(parentDe('.etat')).toBe(conteneur);
+
+      chargerProfil();
+      expect(parentDe('form')).toBe(conteneur);
+    });
+  });
 });
 
 /**

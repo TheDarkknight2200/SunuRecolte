@@ -547,4 +547,70 @@ describe('FormulaireRecolte', () => {
       expect(texteDe(element(racine, 'h1'))).toBe('Modifier la récolte');
     });
   });
+
+  /*
+   * Filet de structure — écrit avant tout restylage. Ce que la refonte §20/§41 doit préserver :
+   * un titre de page unique, un formulaire unique, et les trois états rendus dans le même parent
+   * (un enveloppement qui bougerait l'un des états hors de la colonne de page rougit ici).
+   */
+  describe('structure de page', () => {
+    function parentDe(selecteur: string): HTMLElement {
+      const parent = element(racine, selecteur).parentElement;
+      if (!parent) {
+        throw new Error(`Aucun parent pour ${selecteur}`);
+      }
+      return parent;
+    }
+
+    it('rend un seul <h1>, avant comme après le chargement du profil', () => {
+      ouvrir(null);
+      expect(racine.querySelectorAll('h1')).toHaveLength(1);
+
+      chargerProfil();
+      expect(racine.querySelectorAll('h1')).toHaveLength(1);
+      expect(texteDe(element(racine, 'h1'))).toBe('Publier une récolte');
+    });
+
+    it('rend un seul <form> quand le formulaire est affiché', () => {
+      ouvrir('7');
+      chargerProfil();
+      enAttenteRecolte().flush(recolte(7));
+      fixture.detectChanges();
+
+      expect(racine.querySelectorAll('form')).toHaveLength(1);
+    });
+
+    it('rend la charge, l’erreur et le formulaire dans le même parent', () => {
+      ouvrir(null);
+      const parentCharge = parentDe('.etat');
+
+      http.expectOne(MOI).flush(
+        { statut: 500, message: 'Le service est temporairement indisponible.', timestamp: 'x' },
+        { status: 500, statusText: 'Erreur' },
+      );
+      fixture.detectChanges();
+      const parentErreur = parentDe('.message--erreur');
+
+      element<HTMLButtonElement>(racine, '#erreur-reessayer').click();
+      fixture.detectChanges();
+      http.expectOne(MOI).flush(PROFIL);
+      fixture.detectChanges();
+
+      expect(parentDe('form')).toBe(parentCharge);
+      expect(parentErreur).toBe(parentCharge);
+    });
+
+    it('place toute la colonne de page dans un .conteneur unique (§20)', () => {
+      ouvrir(null);
+
+      expect(racine.querySelectorAll('.conteneur')).toHaveLength(1);
+      const conteneur = element<HTMLElement>(racine, '.conteneur');
+      expect(conteneur.parentElement).toBe(element(racine, 'section.formulaire-recolte'));
+      expect(conteneur.querySelector('h1')).not.toBeNull();
+      expect(parentDe('.etat')).toBe(conteneur);
+
+      chargerProfil();
+      expect(parentDe('form')).toBe(conteneur);
+    });
+  });
 });

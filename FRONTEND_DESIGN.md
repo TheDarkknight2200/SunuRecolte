@@ -1579,9 +1579,10 @@ reste simulé (§34), les modes de réception et les moyens de paiement restent 
   d'un formulaire ne se décrète pas écran par écran : il reprend la **valeur déjà présente** sur l'écran et se
   centre dans sa carte (`margin-inline: auto`), sans jamais en inventer une. `commande.scss` conserve donc son
   `32rem` existant et ajoute le centrage ; `paiement.scss` n'ajoute **aucune** largeur, puisqu'aucune
-  n'existait. Les trois largeurs locales encore non centrées — `detail-recolte` (46 rem),
-  `formulaire-recolte` et `profil-producteur` (44 rem) — sont **à aligner sur cette règle dans un lot
-  ultérieur** et ne sont pas touchées ici.
+  n'existait. À ce lot, les trois largeurs locales encore non centrées — `detail-recolte` (46 rem),
+  `formulaire-recolte` et `profil-producteur` (44 rem) — ne sont pas touchées. Les deux formulaires
+  producteur ont été alignés depuis (**§41.2**) et sortent de la liste de suivi : **reste à aligner
+  `detail-recolte` (46 rem)**.
 - **États conservés, notices sans changement de type** : `.etat[aria-busy]` de chargement, bannière
   d'erreur avec son bouton « Réessayer » (elle reste bannière, §39.2 : cible de focus et porte l'action),
   écran de succès de la commande, bannière §28 « aucune transaction réelle » rendue hors des branches d'état,
@@ -1628,3 +1629,37 @@ que trois ajustements, et consigne deux décisions.
 - **Tests** : `detail-commande.spec.ts` 40 → 43, `commandes.spec.ts` 25 **inchangées** (la classe
   `.commandes__total` est déjà épinglée par une assertion existante, un test supplémentaire n'aurait rien
   protégé de plus). **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366.
+
+### 41.2 Formulaires producteur — colonne étroite centrée dans le conteneur (LOT 12)
+
+`/producteur/recoltes/nouvelle`, `/producteur/recoltes/:id/modifier` et `/producteur/profil`. Ces deux écrans
+portaient déjà le rythme `--espace-5`, les `.carte` et `.champ` globaux, mais **aucun `.conteneur`** : leur
+racine (`.formulaire-recolte`, `.profil-producteur`) appliquait `display: flex` et `max-width: 44rem` **sans
+centrage**, la colonne restait collée à la gouttière gauche.
+
+- **Règle — un formulaire est une colonne étroite centrée dans le conteneur** : le contenu de la `<section>` est
+  enveloppé dans `<div class="conteneur">`, comme sur panier, commande, paiement, liste et détail des commandes
+  (§41, §41.1). Le socle global (`styles/_base.scss`) fournit `width: 100%`, `margin: 0 auto` et les gouttières.
+- **44rem conservé, aucune largeur nouvelle** : le `max-width` passe de la racine de section sur
+  `.formulaire-recolte .conteneur` et `.profil-producteur .conteneur`, avec le rythme vertical `--espace-5` ; la
+  règle de racine est supprimée, comme sur les six écrans déjà refaits. `margin-inline: auto` **n'a pas été
+  ajouté** — le global `.conteneur` porte déjà `margin: 0 auto`, et la règle du composant (spécificité 0,2,0)
+  l'emporte sur la globale (0,1,0) pour `max-width`. Conséquence à connaître : `box-sizing: border-box` étant
+  global, les 44rem incluent désormais les gouttières, la colonne utile vaut donc 44rem moins 2 × `--espace-4`
+  (mobile) ou 2 × `--espace-5` (≥ tablette).
+- **Rien d'autre ne change** : `--espace-4` des groupes, légendes, cartes, `.champ`, `__rangee` en deux colonnes
+  sous `$point-tablette`, `__note`, tailles de boutons, ainsi que tous les ids, classes et `aria-describedby`
+  assertés (les 7 champs du profil, ceux de la récolte, `#formulaire-soumettre`, `#profil-soumettre`,
+  `#erreur-reessayer`, `#profil-reessayer`) sont inchangés. Aucun token, aucune teinte, aucun rayon, aucune
+  police nouveaux ; `styles/_composants.scss`, les `.ts`, services, routes et guards non touchés.
+- **États conservés** : `.etat[aria-busy]` de chargement, écran « Récolte introuvable », message d'accès refusé,
+  bannière d'erreur avec son bouton « Réessayer » et bannière `erreurGenerale()` restent des bannières (§39.2)
+  et sont rendus dans la même colonne que le formulaire.
+- **Tests** : le filet de structure a été écrit **avant** le restylage, sur le gabarit alors non modifié —
+  `formulaire-recolte.spec.ts` 23 → 26 et `profil-producteur.spec.ts` 31 → 34 (`h1` unique et son libellé,
+  `<form>` unique, chargement / erreur / formulaire dans le même parent), exécuté vert **60/60** avant tout
+  changement de gabarit. Après le restylage, un test de conteneur par écran (26 → 27, 34 → 35 ; **62/62**)
+  vérifie que le `.conteneur` est **unique**, enfant direct de la `<section>`, et qu'il porte à la fois le `h1`,
+  l'état de chargement et le formulaire. **Aucune assertion existante n'a été modifiée, supprimée ni assouplie.**
+- **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366, et le centrage effectif du
+  plafond — jsdom ne rend pas la cascade SCSS.
