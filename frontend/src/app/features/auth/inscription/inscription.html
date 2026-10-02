@@ -45,6 +45,8 @@
           formControlName="nom"
           autocomplete="family-name"
           maxlength="100"
+          required
+          aria-required="true"
           [attr.aria-invalid]="invalide('nom')"
           aria-describedby="inscription-nom-erreur"
         />
@@ -64,6 +66,8 @@
           formControlName="prenom"
           autocomplete="given-name"
           maxlength="100"
+          required
+          aria-required="true"
           [attr.aria-invalid]="invalide('prenom')"
           aria-describedby="inscription-prenom-erreur"
         />
@@ -83,6 +87,8 @@
           formControlName="email"
           autocomplete="email"
           maxlength="150"
+          required
+          aria-required="true"
           [attr.aria-invalid]="invalide('email')"
           aria-describedby="inscription-email-erreur"
         />
@@ -102,6 +108,8 @@
           formControlName="telephone"
           autocomplete="tel"
           maxlength="20"
+          required
+          aria-required="true"
           [attr.aria-invalid]="invalide('telephone')"
           aria-describedby="inscription-telephone-aide inscription-telephone-erreur"
         />
@@ -125,6 +133,8 @@
           type="password"
           formControlName="motDePasse"
           autocomplete="new-password"
+          required
+          aria-required="true"
           [attr.aria-invalid]="invalide('motDePasse')"
           aria-describedby="inscription-mot-de-passe-aide inscription-mot-de-passe-erreur"
         />
@@ -147,6 +157,8 @@
             id="inscription-filiere"
             class="champ__saisie"
             formControlName="filiere"
+            required
+            aria-required="true"
             [attr.aria-invalid]="invalide('filiere')"
             aria-describedby="inscription-filiere-erreur"
           >
@@ -170,6 +182,8 @@
             id="inscription-type-acheteur"
             class="champ__saisie"
             formControlName="typeAcheteur"
+            required
+            aria-required="true"
             [attr.aria-invalid]="invalide('typeAcheteur')"
             aria-describedby="inscription-type-acheteur-erreur"
           >

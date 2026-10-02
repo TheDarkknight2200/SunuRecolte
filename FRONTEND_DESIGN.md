@@ -1879,9 +1879,42 @@ colonne **hors** du patron `.conteneur`. Chacun portait sa largeur sur la `<sect
   changement. Après le lot, **un** test de conteneur par écran (connexion 8 → 13, inscription 9 → 13). **Aucune
   assertion existante n'a été modifiée, supprimée ni assouplie.** Suite complète : 821 tests / 42 fichiers (baseline
   812 + 9 nouveaux).
-- **Écarts d'accessibilité laissés ouverts, hors lot** : les champs obligatoires n'ont ni `required` ni
-  `aria-required` — le « (obligatoire) » est du texte visuel seulement ; `.champ__erreur` n'a pas `role="alert"`,
-  donc une erreur qui apparaît n'est pas annoncée ; le focus n'est pas déplacé ni annoncé après une erreur serveur.
-  Ces trois points sont consignés ici pour ne pas disparaître, et ne sont pas corrigés par ce lot.
+- **Décision d'accessibilité (LOT 18) — les obligations sont déclarées, pas seulement écrites** : `required` **et**
+  `aria-required="true"` sur les deux champs de connexion (email, mot de passe) et sur nom, prénom, email, téléphone
+  et mot de passe à l'inscription. Le téléphone est inclus parce que le composant le valide réellement avec
+  `Validators.required`, non par convention ; le `fieldset` des rôles **ne porte pas** `required` (son contrôle a déjà
+  `Validators.required` et le `legend` dit « (obligatoire) »). Les deux champs conditionnels portent les deux
+  attributs **à l'intérieur** de leur branche `@if`, donc uniquement quand ils sont affichés et validés. `novalidate`
+  reste sur les deux `<form>` : aucune bulle native, le message reste décidé par Angular — `required` n'apporte ici
+  qu'une information sémantique.
+- **Focus après un envoi refusé** : `focusSurPremierChampInvalide()` parcourt une liste **ordonnée comme le DOM**
+  (`{ nom de contrôle, sélecteur }`) et pose **un seul** focus sur le premier champ que `invalide()` déclare fautif.
+  Deux déclencheurs : l'échec de la validation locale (`markAllAsTouched()` puis `return`) et le retour du backend
+  avec un objet `erreurs` non vide — chemin propre à l'inscription, `Connexion` ne mappe jamais d'erreur par champ.
+  Le mécanisme est celui déjà joué dans le dépôt (`ElementRef` + `nativeElement.querySelector(...)`, comme
+  `prix-marche.ts:198` et `recoltes-admin.ts:149`) : aucune dépendance nouvelle, pas de `viewChildren` par champ,
+  rien de différé — la cible est rendue en permanence, donc le focus est synchrone et ne peut ni piéger ni boucler.
+  La cible est cherchée **à travers `invalide()`** et non par `querySelector('[aria-invalid="true"]')` : les bindings
+  ne sont à jour qu'au cycle de détection suivant, un DOM lu en synchronie serait périmé.
+- **Une erreur générale ne déplace pas le focus** : sans objet `erreurs` du backend (ou sur un 401 de connexion
+  refusée), aucun champ n'est invalide et rien n'est cherché ; la bannière `.message--erreur`, déjà en `role="alert"`
+  (§39.2), porte seule l'annonce.
+- **`.champ__erreur` reste sans `role="alert"`, et c'est voulu** : ces paragraphes naissent et disparaissent à chaque
+  frappe, et `role="alert"` est une zone live `aria-live="assertive"` — chaque apparition interromprait la lecture en
+  cours, soit « Ce champ est obligatoire. » répété à chaque caractère sur un formulaire de sept champs. La perception
+  d'une erreur de champ passe désormais par le focus qui y est posé : le lecteur d'écran lit le libellé,
+  l'obligation via `aria-required`, l'état `aria-invalid` et le message visé par `aria-describedby`.
+- **Limite consignée** : le `fieldset` du groupe de rôles ne porte ni `id`, ni `aria-describedby`, ni `aria-invalid`
+  (le lot interdit d'y toucher) ; le focus posé sur son premier radio annonce donc le groupe et son état, mais pas le
+  texte de l'erreur. À reprendre si l'obligation d'un `aria-describedby` sur ce groupe est décidée un jour.
+- **Tests du LOT 18** : le filet a d'abord été rejoué vert sur les gabarits intacts (**26/26**), puis après
+  l'ajout des attributs (**26/26**) — **aucune** assertion existante n'a été modifiée, supprimée ni assouplie. Les
+  nouveaux comportements n'ont que des tests nouveaux : connexion 13 → 18, inscription 13 → 21, soit **+13**
+  (attributs par écran, champ conditionnel marqué seulement quand il est rendu, focus sur le premier champ invalide
+  de l'ordre du DOM, focus sur le champ conditionnel en dernier, focus sur le champ signalé par le backend, focus
+  immobile sur erreur générale seule, absence de `role="alert"` sur les erreurs de champ rendues). Suite complète :
+  **834 tests / 42 fichiers** (baseline 821). **Non vérifié** :
+  le rendu réel par un lecteur d'écran (NVDA, VoiceOver) et le comportement en navigateur — jsdom ne constate que
+  `document.activeElement`.
 - **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366 et le centrage effectif du
   plafond — jsdom ne rend pas la cascade SCSS. Les colonnes utiles ci-dessus sont des **calculs**.
