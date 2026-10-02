@@ -1611,9 +1611,9 @@ reste simulé (§34), les modes de réception et les moyens de paiement restent 
   n'existait. À ce lot, les trois largeurs locales encore non centrées — `detail-recolte` (46 rem),
   `formulaire-recolte` et `profil-producteur` (44 rem) — ne sont pas touchées. Les deux formulaires
   producteur (**§41.2**) puis la fiche récolte (**§41.4**) ont été alignés depuis et sortent de la liste de
-  suivi, rejoints par les deux pages d'erreur (**§41.5**, LOT 16) : **toute largeur locale plafonnée passe
-  désormais par un `.conteneur` centré, sauf `connexion` et `inscription`, dont la classe `.auth` plafonne et
-  centre hors de ce patron jusqu'au LOT 17**.
+  suivi, rejoints par les deux pages d'erreur (**§41.5**, LOT 16) puis par `connexion` et `inscription`
+  (**§41.6**, LOT 17) : **toute largeur locale plafonnée passe désormais par un `.conteneur` centré — il ne
+  reste plus une seule largeur locale non centrée dans l'application**.
 - **États conservés, notices sans changement de type** : `.etat[aria-busy]` de chargement, bannière
   d'erreur avec son bouton « Réessayer » (elle reste bannière, §39.2 : cible de focus et porte l'action),
   écran de succès de la commande, bannière §28 « aucune transaction réelle » rendue hors des branches d'état,
@@ -1830,3 +1830,58 @@ locale **sans centrage**. Leur `<section class="page-interieure">` appliquait `m
 - **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366, le centrage effectif du plafond
   et la tenue réelle des deux boutons de la 403 — jsdom ne rend pas la cascade SCSS. La colonne utile ci-dessus est
   un **calcul**, pas une mesure de rendu.
+
+### 41.6 Écrans d'authentification — colonne étroite centrée dans le conteneur (LOT 17)
+
+`/connexion` (`Connexion`) et `/inscription` (`Inscription`) : les deux derniers écrans à plafonner et centrer leur
+colonne **hors** du patron `.conteneur`. Chacun portait sa largeur sur la `<section class="auth">` de racine
+(`max-width` + `margin: 0 auto` dans sa feuille de composant), sans conteneur intermédiaire.
+
+- **Règle — les deux écrans appliquent « colonne étroite centrée dans le conteneur »** (§41, §41.2, §41.5) : le
+  contenu de la `<section>` est enveloppé dans `<div class="conteneur">`, et le plafond passe de `.auth` sur
+  `.auth .conteneur`. Le centrage vient du socle `.conteneur` (`styles/_base.scss`, `margin: 0 auto`) ;
+  `margin-inline: auto` **n'a pas été ajouté**, il ferait doublon. La spécificité scopée du composant
+  (`.auth .conteneur[_ngcontent-…]`, 0,3,0) bat la règle globale (0,1,0), c'est ce qui fait foi pour le plafond.
+- **Les deux largeurs sont conservées, aucune largeur nouvelle** : `26rem` pour connexion, `30rem` pour inscription
+  (§41, arbitrage des largeurs locales — on reprend la valeur déjà présente, on ne la décrète pas). L'écart de
+  4 rem entre les deux écrans vient de leur contenu réel : connexion n'a que deux champs, alors que l'inscription
+  porte le `fieldset` des rôles, cinq champs d'identité et un champ conditionnel (filière ou type d'acheteur), donc
+  une carte plus haute et une colonne un peu plus généreuse. `.auth` reste la classe de la `<section>` et n'est
+  portée **que** par ces deux écrans (vérifié : aucun autre gabarit, aucune règle globale).
+- **Duplication assumée** : les deux feuilles `.scss` restent distinctes et partaient de la même racine. Après le
+  lot, **18 déclarations byte-identiques réparties sur 8 sélecteurs partagés** (`.auth__marque` et son `:hover`,
+  `.auth h1`, `.auth__intro`, `.auth .message`, `.auth__formulaire`, `.auth__formulaire .champ:last-of-type`,
+  `.auth__alternative`) ; la seule règle qui diffère en valeur est le plafond (`26rem` / `30rem`). L'inscription
+  ajoute en plus 3 sélecteurs et 10 déclarations propres (`.auth__roles`, `.auth__roles legend`, `.auth__choix`).
+  Avant le lot le compte était de 19 : le `margin: 0 auto`, jusqu'ici identique dans les deux feuilles, a
+  disparu des deux au profit du socle. **Consolider ces règles dans un partial partagé est un refactor, hors
+  campagne de design** : le lot ne demandait aucun mouvement de code, seulement aucun mouvement visuel.
+- **Largeurs utiles mesurées** — 1 rem = 16 px, `box-sizing: border-box` global, donc les gouttières du conteneur
+  sont **comprises** dans le plafond : connexion **368 px** à 1366 px (`416 − 2 × --espace-5`) et **311 px** à 375 px ;
+  inscription **432 px** à 1366 px (`480 − 48`) et **311 px** à 375 px (à 375 px le plafond ne sature pas, c'est la
+  largeur disponible qui borne). Par rapport à l'état d'avant le lot la colonne perd 48 px en desktop et 32 px en
+  mobile, exactement l'effet mesuré sur les pages d'erreur (**§41.5**). Dans la carte (`.carte` à
+  `padding: --espace-5`), le champ fait 320 px (connexion) ou 384 px (inscription) à 1366 px, et 263 px à 375 px.
+  **Condition d'arrêt non déclenchée** : `.champ__saisie` est en `width: 100%` sans `min-width` et `.bouton--large`
+  aussi, avec `.bouton` à `min-height: 44px`, `padding: 0 --espace-5` et `font-size: --taille-md` (16 px) ; les
+  libellés « Se connecter » (≈148 px) et « Créer mon compte » (≈183 px) tiennent dans 263 px. Rien ne déborde.
+- **Rien d'autre ne change** : rythme vertical intact (les `margin-bottom` par bloc restent, rien n'a été déplacé
+  vers un `gap`), boutons `--large`, liens de bascule `.auth__alternative`, `.carte`, `.champ__*`, radios et
+  `fieldset`/`legend` du groupe de rôles, icônes Material Symbols, bannière de session expirée (§39.2), et **tous**
+  les ids, `autocomplete`, `maxlength`, `aria-describedby`, `[attr.aria-invalid]`, `[disabled]` + `aria-busy`,
+  libellés et chaînes d'erreur. Les `.ts`, services, guards, `app.routes.ts`, `ToastService`, backend, autres
+  écrans et `styles/_composants.scss` ne sont pas touchés.
+- **Tests** : le filet a été écrit **avant** le restylage, sur les gabarits intacts — 4 tests dans
+  `connexion.spec.ts` et 3 dans `inscription.spec.ts` (`h1` unique et son libellé, un seul `<form>`, formulaire sous
+  le **même parent** que le titre, bannières sous le même parent que le formulaire quand elles s'affichent :
+  `role="status"` pour la session expirée, `role="alert"` pour l'erreur, côté inscription via un 500 sans `erreurs`
+  — seul un 401 purge la session, et seul un 500 atteint `erreurGenerale()`), exécuté vert **24/24** avant tout
+  changement. Après le lot, **un** test de conteneur par écran (connexion 8 → 13, inscription 9 → 13). **Aucune
+  assertion existante n'a été modifiée, supprimée ni assouplie.** Suite complète : 821 tests / 42 fichiers (baseline
+  812 + 9 nouveaux).
+- **Écarts d'accessibilité laissés ouverts, hors lot** : les champs obligatoires n'ont ni `required` ni
+  `aria-required` — le « (obligatoire) » est du texte visuel seulement ; `.champ__erreur` n'a pas `role="alert"`,
+  donc une erreur qui apparaît n'est pas annoncée ; le focus n'est pas déplacé ni annoncé après une erreur serveur.
+  Ces trois points sont consignés ici pour ne pas disparaître, et ne sont pas corrigés par ce lot.
+- **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366 et le centrage effectif du
+  plafond — jsdom ne rend pas la cascade SCSS. Les colonnes utiles ci-dessus sont des **calculs**.

@@ -202,4 +202,64 @@ describe('Connexion', () => {
     const message = element<HTMLElement>(fixture.nativeElement, '.message--info');
     expect(message.textContent).toContain('Votre session a expiré');
   });
+
+  it('porte un titre h1 unique et un seul formulaire', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+
+    const titres = Array.from(racine.querySelectorAll<HTMLElement>('h1'));
+    expect(titres).toHaveLength(1);
+    expect((titres[0].textContent ?? '').trim()).toBe('Connexion');
+    expect(racine.querySelectorAll('form')).toHaveLength(1);
+  });
+
+  it('place le formulaire sous le même parent que le titre', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+
+    expect(element(racine, 'form').parentElement).toBe(element(racine, 'h1').parentElement);
+  });
+
+  it('place la bannière de session expirée sous le même parent que le formulaire', () => {
+    const fixture = creer({ sessionExpiree: '1' });
+    const racine = fixture.nativeElement as HTMLElement;
+
+    const banniere = element<HTMLElement>(racine, '.message--info');
+    expect(banniere.getAttribute('role')).toBe('status');
+    expect(banniere.parentElement).toBe(element(racine, 'form').parentElement);
+  });
+
+  it('place la bannière d’erreur sous le même parent que le formulaire', () => {
+    const fixture = creer();
+    identifier(fixture);
+
+    soumettre(fixture);
+    http
+      .expectOne(`${API}/auth/connexion`)
+      .flush(
+        {
+          statut: 401,
+          message: 'Email ou mot de passe incorrect.',
+          timestamp: '2026-01-01T10:00:00',
+        },
+        { status: 401, statusText: 'Unauthorized' },
+      );
+    fixture.detectChanges();
+
+    const racine = fixture.nativeElement as HTMLElement;
+    const banniere = element<HTMLElement>(racine, '.message--erreur');
+    expect(banniere.getAttribute('role')).toBe('alert');
+    expect(banniere.parentElement).toBe(element(racine, 'form').parentElement);
+  });
+
+  it('centre son contenu dans le conteneur unique de la section', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+
+    const section = element<HTMLElement>(racine, '.auth');
+    expect(section.children).toHaveLength(1);
+    const conteneur = element<HTMLElement>(racine, '.conteneur');
+    expect(conteneur.parentElement).toBe(section);
+    expect(element(racine, 'h1').parentElement).toBe(conteneur);
+  });
 });
