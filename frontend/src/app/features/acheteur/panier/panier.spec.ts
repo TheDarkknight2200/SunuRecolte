@@ -228,6 +228,69 @@ describe('Panier', () => {
     });
   });
 
+  describe('structure alignée sur le tiroir', () => {
+    it('plafonne la liste et le récapitulatif dans le conteneur global (§20)', () => {
+      ouvrir([ligne()]);
+
+      const conteneur = element(racine, '.conteneur');
+      expect(conteneur.contains(element(racine, '.panier__liste'))).toBe(true);
+      expect(conteneur.contains(element(racine, '.panier__total'))).toBe(true);
+    });
+
+    it('plafonne aussi l’état vide dans le conteneur global', () => {
+      ouvrir();
+
+      expect(element(racine, '.conteneur').contains(element(racine, '.etat'))).toBe(true);
+    });
+
+    it('habille la ligne en carte globale et son retrait en action lien', () => {
+      ouvrir([ligne()]);
+
+      const carte0 = carte();
+      expect(carte0.classList.contains('carte')).toBe(true);
+      expect(texteDe(element(carte0, '.carte__titre'))).toBe('Tomate');
+
+      const retirer = element<HTMLButtonElement>(carte0, '.panier__retirer');
+      expect(retirer.classList.contains('lien-action')).toBe(true);
+      expect(retirer.classList.contains('bouton')).toBe(false);
+    });
+
+    it('ne dessine aucune image de récolte : le snapshot du panier n’a pas d’imageUrl', () => {
+      ouvrir([ligne(), ligne({ recolteId: 102, produit: 'Oignon' })]);
+
+      expect(elements(racine, '.panier__ligne img')).toHaveLength(0);
+    });
+
+    it('réunit les montants et la saisie de quantité dans le même bloc de la ligne', () => {
+      ouvrir([ligne()]);
+
+      const detail = element(racine, '.panier__detail');
+      expect(detail.contains(element(racine, '.panier__montants'))).toBe(true);
+      expect(detail.contains(element(racine, '#quantite-101'))).toBe(true);
+    });
+
+    it('pose le motif de la ligne bloquée en role="status", comme la mention du tiroir', () => {
+      ouvrir([ligne({ statut: 'EPUISEE' })]);
+
+      const motif = element(racine, '.panier__motif');
+      expect(motif.getAttribute('role')).toBe('status');
+      expect(texteDe(motif)).toBe('Cette récolte n’est plus disponible. Retirez-la du panier.');
+      expect(texteDe(element(racine, '.panier__aide'))).toBe(
+        'Récolte non disponible : quantité à laisser telle quelle.',
+      );
+    });
+
+    it('donne au récapitulatif la carte globale et son action principale pleine largeur', () => {
+      ouvrir([ligne()]);
+
+      expect(element(racine, '.panier__total').classList.contains('carte')).toBe(true);
+
+      const action = element<HTMLAnchorElement>(racine, '#lien-commander');
+      expect(action.classList.contains('bouton--primaire')).toBe(true);
+      expect(action.classList.contains('bouton--large')).toBe(true);
+    });
+  });
+
   describe('quantité', () => {
     it('une saisie valide est transmise au service et reprise dans le total', () => {
       ouvrir([ligne({ quantite: 3, prixUnitaire: 500 })]);

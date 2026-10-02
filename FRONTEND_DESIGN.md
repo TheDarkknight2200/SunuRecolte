@@ -620,10 +620,24 @@ Toute nouvelle règle visuelle transverse doit d'abord être ajoutée à ce docu
 - **Compteur de lignes dans l'en-tête** : `.badge` compact (`--taille-xs`, 600) en pastille d'angle du **bouton
   sac** rond (§10.5) ; au-delà de 99, le compteur affiche `99+`. Le badge reste non cliquable (§10.7) : c'est le
   bouton qui l'est, et son `aria-label` reprend le même compte.
-- **Ligne de panier** : produit à gauche, quantité au centre, sous-total à droite, séparateur 1 px,
-  pas de zébrage (§10.6).
+- **Ligne de panier** : même vocabulaire qu'une ligne du panier latéral (§39) — produit à gauche,
+  montants et quantité groupés au centre, « Retirer » à droite, séparateur 1 px, pas de zébrage (§10.6).
+  Sous `$point-tablette`, la ligne reprend la carte-ligne de §32 avec la classe globale `.carte`.
+  Le nom de la récolte est porté par `.carte__titre` (classe globale) avec la typographie éditoriale
+  d'une ligne du tiroir (`--police-titre`, `--taille-xl`) ; producteur, stock connu et aide de saisie
+  sont en `--taille-xs`, couleur secondaire. « Retirer » est une `.lien-action`, pas un bouton secondaire.
+- **Aucun visuel de récolte sur une ligne** : `LignePanier` est un snapshot local qui ne porte **pas**
+  `imageUrl` (§25) — la page n'affiche donc ni photo ni emplacement réservé (§38.4, §15).
+- **Mention d'une ligne** : le motif rendu par `motifLigne()` (récolte non disponible, ou totalité du
+  stock connu déjà au panier) porte le traitement de la mention du tiroir — `--taille-xs`, couleur
+  secondaire, `role="status"` — et jamais une couleur seule : le texte dit ce que l'acheteur peut faire.
+- **Récapitulatif** : une `.carte` globale, total en chiffre dominant (`--police-titre`, `--taille-xl`)
+  et action principale pleine largeur (`.bouton--large`). Il est **à droite** de la liste à partir de
+  `$point-desktop` et **sous la liste** en dessous ; la page est plafonnée et centrée par `.conteneur` (§20).
 - **Quantité** : champ numérique + deux boutons `.bouton--compact` portant chacun un `aria-label`
-  explicite (« Augmenter la quantité de … », « Diminuer la quantité de … ») (§9).
+  explicite (« Augmenter la quantité de … », « Diminuer la quantité de … ») (§9). Le champ prend la
+  pilule de §39.1, ses chiffres restent tabulaires ; un champ désactivé l'est par `disabled`, avec son
+  aide « Récolte non disponible : quantité à laisser telle quelle. ».
 - **Total** : toujours accompagné de la mention « total indicatif, confirmé au serveur » en `--taille-xs`,
   couleur secondaire. Le frontend n'est la source ni du prix, ni du stock, ni de la disponibilité.
 - **Ligne indisponible** : une ligne épuisée, retirée du catalogue ou introuvable n'est **jamais**

@@ -1,6 +1,7 @@
 @use 'points-rupture' as pr;
 
-.panier {
+/* Le rythme vertical est porté par le conteneur global de page (§20), pas par la section. */
+.panier .conteneur {
   display: flex;
   flex-direction: column;
   gap: var(--espace-5);
@@ -33,7 +34,9 @@
   font-size: var(--taille-sm);
 }
 
-/* === Lignes du panier (§32) : cartes-lignes sur mobile === */
+/* === Lignes du panier (§32) : le vocabulaire d'une ligne du tiroir ===
+   `carte` (règle globale) habille la carte-ligne sur mobile ; au-dessus de $point-tablette la ligne
+   redevient une ligne séparée par un filet, comme dans le tiroir. */
 
 .panier__liste {
   margin: 0;
@@ -47,11 +50,8 @@
 .panier__ligne {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: var(--espace-4);
-  padding: var(--espace-4);
-  border: 1px solid var(--couleur-bordure);
-  border-radius: var(--rayon-md);
-  background-color: var(--couleur-surface);
 }
 
 .panier__produit {
@@ -61,25 +61,59 @@
   gap: var(--espace-2);
 }
 
+/* Le nom de la récolte est le titre de la ligne : `.carte__titre` reste la classe globale, la
+   typographie éditoriale est celle de `.tiroir__nom`. */
 .panier__produit .carte__titre {
   margin: 0;
+  font-family: var(--police-titre);
+  font-size: var(--taille-xl);
+  line-height: 1.2;
 }
 
 .panier__producteur,
-.panier__stock {
+.panier__stock,
+.panier__aide {
   margin: 0;
   color: var(--couleur-texte-secondaire);
-  font-size: var(--taille-sm);
+  font-size: var(--taille-xs);
 }
 
+/* Mention sous la ligne, au traitement de `.tiroir__mention--aide` : secondaire, `--taille-xs`. */
 .panier__motif {
-  margin: 0;
-  color: var(--couleur-avertissement);
-  font-size: var(--taille-sm);
-  font-weight: 600;
+  margin: var(--espace-2) 0 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
 }
 
-/* === Quantité (§25) : champ numérique encadré de deux boutons === */
+.panier__detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--espace-4) var(--espace-5);
+}
+
+.panier__montants {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espace-3);
+  margin: 0;
+}
+
+.panier__montants dt {
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.panier__montants dd {
+  margin: var(--espace-1) 0 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* === Quantité (§25) : champ numérique encadré de deux boutons, inchangé fonctionnellement === */
 
 .panier__quantite {
   display: flex;
@@ -101,40 +135,12 @@
   line-height: 1;
 }
 
+/* §39.1 : la pilule habille les champs de quantité ; les chiffres restent tabulaires. */
 .panier__champ {
   flex: none;
   width: 7rem;
+  border-radius: var(--rayon-pilule);
   text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.panier__aide {
-  margin: 0;
-  color: var(--couleur-texte-secondaire);
-  font-size: var(--taille-xs);
-}
-
-/* === Montants : textes à gauche, chiffres à droite === */
-
-.panier__montants {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--espace-3);
-  margin: 0;
-  padding-top: var(--espace-3);
-  border-top: 1px solid var(--couleur-bordure);
-}
-
-.panier__montants dt {
-  color: var(--couleur-texte-secondaire);
-  font-size: var(--taille-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.panier__montants dd {
-  margin: var(--espace-1) 0 0;
   font-variant-numeric: tabular-nums;
 }
 
@@ -142,13 +148,18 @@
   align-self: flex-start;
 }
 
-/* === Total indicatif === */
+/* === Récapitulatif : `carte` globale, total en chiffre dominant comme au pied du tiroir === */
+
+.panier__corps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-5);
+}
 
 .panier__total {
-  padding: var(--espace-4);
-  border: 1px solid var(--couleur-bordure);
-  border-radius: var(--rayon-md);
-  background-color: var(--couleur-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
 }
 
 .panier__total-ligne {
@@ -165,14 +176,15 @@
 
 .panier__total-valeur {
   margin: 0;
-  font-size: var(--taille-lg);
+  font-family: var(--police-titre);
+  font-size: var(--taille-xl);
   font-weight: 600;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
 .panier__total-mention {
-  margin: var(--espace-2) 0 0;
+  margin: 0;
   color: var(--couleur-texte-secondaire);
   font-size: var(--taille-xs);
 }
@@ -181,7 +193,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--espace-3);
-  margin-top: var(--espace-4);
 }
 
 /* === Modale de confirmation (§31) : motif global .voile / .modale / .modale__actions ===
@@ -192,7 +203,7 @@
   font-size: var(--taille-lg);
 }
 
-/* === Tablette et desktop : ligne à plat, séparateur 1 px, pas de zébrage (§25) === */
+/* === Tablette : ligne à plat, séparateur 1 px, pas de zébrage (§25) === */
 
 @media (min-width: pr.$point-tablette) {
   .panier__entete {
@@ -207,12 +218,12 @@
 
   .panier__ligne {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
     align-items: start;
     gap: var(--espace-5);
-    padding: var(--espace-4) 0;
+    padding: var(--espace-5) 0;
     border: 0;
-    border-bottom: 1px solid var(--couleur-bordure);
+    border-bottom: 1px solid var(--couleur-filet);
     border-radius: 0;
     background-color: transparent;
   }
@@ -228,16 +239,21 @@
 
   .panier__montants {
     grid-template-columns: 1fr;
-    border-top: 0;
-    padding-top: 0;
   }
 
   .panier__retirer {
     justify-self: end;
     align-self: center;
   }
+}
 
-  .panier__total-actions {
-    align-items: flex-end;
+/* === Desktop : le récapitulatif prend la colonne de droite, sous la liste en dessous === */
+
+@media (min-width: pr.$point-desktop) {
+  .panier__corps {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--espace-6);
   }
 }
