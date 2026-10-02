@@ -806,6 +806,201 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   consultation, annulation et **paiement simulé** **faits** ; les notifications, d'abord **volontairement
   hors périmètre**, ont été livrées ensuite en **5.5.9** (écran transversal et compteur d'en-tête)
 
+## Phases 5.10 et 5.11 — alignement visuel puis refonte (détail réel)
+
+> **Ce que couvre cette section** : les deux campagnes frontend menées après 5.9-bis, consignées d'après
+> `git log` (messages, dates et fichiers des commits), les briefs de lots et `FRONTEND_DESIGN.md` §38 à §41.
+> « 5.10 » et « 5.11 » sont des **repères de consignes de travail**, dans le même esprit que l'avertissement de
+> numérotation de la section « Sous-phases 5.2 → 5.9 » : 5.10 correspond à §38 du document de design, les LOT
+> 1 → 18 à §39 à §41 (le document intitule ces deux campagnes « Phase 5.11 » en §40 et §41).
+>
+> **Porte de validation de ces deux campagnes** : specs Vitest/jsdom, `npx tsc -p tsconfig.spec.json --noEmit`
+> et `npm run build`. **Aucun écran de cette section n'a été observé dans un navigateur réel** — ni parcours
+> cliqué, ni mesure de rendu. Les quatre largeurs de contrôle 375 / 768 / 1024 / 1366 (§38.5) n'ont été
+> jouées sur aucun de ces écrans, comme cela avait déjà été consigné en clôture de 5.5.7, 5.5.8 et 5.5.9. Les
+> largeurs « utiles » citées par §41.2 à §41.6 sont des **calculs**, pas des mesures.
+
+### 5.10 — Alignement sur les trois maquettes validées (`FRONTEND_DESIGN.md` §38)
+
+- [x] Socle documentaire posé le **2026-09-30** (§38.1 à §38.6, puis `_tokens.scss` et `_composants.scss`) :
+  trois maquettes MagicPath (Catalogue des récoltes, Détail commande, Administration) validées comme références
+  **visuelles** seulement ; **hiérarchie d'encre** et non nouvelle palette (`--couleur-encre` + `.bouton--encre`
+  portent l'action principale des trois écrans maîtres), vert de marque, accents et couleurs d'état conservés,
+  `.page--surface` réservé à ces trois écrans ; dates au format livré (`14/09/2024 à 14:30`, §30) **non** alignées
+  sur la maquette — écart **voulu et documenté** (§38.2)
+- [x] Catalogue et détail de commande alignés le même jour : le catalogue passe en **table dense à sept
+  colonnes** et le détail conserve statut, réception, lignes, total, annulation et modale. Aucun élément de
+  maquette inventé et aucune donnée retirée (§38.4) — les trois éléments que le contrat ne porte pas (frais de
+  livraison, sous-total de marchandises séparé, producteur par ligne) **ne sont pas implémentés**, preuve à
+  l'appui dans le tableau de §38.4
+- [x] Administration alignée le même jour sur la **navigation partagée** : composant `partage/admin-navigation`
+  en `.onglets` (`routerLinkActive` + `ariaCurrentWhenActive`), les **trois routes non fusionnées**, le composant
+  purement présentation et navigation (aucun service, aucun DTO, aucune logique d'autorisation) ; `espace-admin`,
+  `utilisateurs`, `recoltes-admin` et `prix-marche` reprennent les filets sur blanc et **toutes** les colonnes
+  réellement retournées par chaque endpoint (§38.3)
+- [x] Règle de responsive consignée et appliquée : sous `$point-tablette`, une table dense passe en
+  `.tableau--empile` — un bloc par ligne, en-tête masqué porté par `data-libelle`, `<table>` et `th scope="col"`
+  conservés dans le DOM pour que le lecteur d'écran garde l'association cellule / en-tête ; `overflow-x` global
+  exclu (§38.5)
+- [x] Quatre écrans encore hors patron traités le même jour, après les quatre étapes de §38.6 : `/acheteur/panier`
+  et `/producteur/recoltes` (leurs modales migrées sur `.voile` / `.modale` / `.modale__actions` du §31), puis
+  `/notifications` et `/acheteur/commandes` (conteneur et plafond §20)
+
+### 5.11 — Campagne de refonte visuelle, LOT 1 → 18 (`FRONTEND_DESIGN.md` §39 à §41)
+
+> Vingt-deux commits sur `refonte-design` entre le **2026-10-01** et le **2026-10-02** : quatre engagements
+> préliminaires non numérotés en LOT (ils rédigent §39 au fur et à mesure), puis dix-huit LOT. Chaque LOT est un
+> commit unique, à message imposé, à périmètre annoncé avant écriture, et **aucun n'a touché au backend** : sur
+> l'ensemble des vingt-deux commits, le seul fichier hors `frontend/` est `FRONTEND_DESIGN.md` (aucun service,
+> aucune route, aucun guard, aucun DTO modifié).
+
+- [x] **Engagements préliminaires (2026-10-01)** — accueil, en-tête, pied de page et **panier latéral**
+  (`partage/panier-tiroir`) composés sur la maquette Figma (§39 rédigé avec le code) ; tokens, voiles, rayons et
+  survols alignés et consignés dans la table §39.1 (`--voile`, `--voile-tiroir`, `--flou-voile`,
+  `--rayon-surface` 3 px, `--rayon-pilule`, `--ombre-elevation`, `--ombre-carte-survol`, `--ombre-toast`,
+  `--z-toast` 70) ; catalogue converti de la table dense à la **grille de cartes** de l'accueil ; **notice de
+  retour d'action** créée (`ToastService` + `partage/toast`, §39.2) avec l'ajout rapide `+` au panier
+- [x] **LOT 1 — parcours acheteur vers la notice (2026-10-01)** : `/acheteur/panier` (refus), `/recoltes` et
+  `/recoltes/:id` (succès et refus du bouton texte comme du `+`), `/acheteur/commandes/:id` (succès
+  d'annulation). Décision §39.2 : sur un écran migré, **le signal du composant reste la source du texte**, mot
+  pour mot — `ToastService` n'écrit aucun libellé et n'est jamais l'autorité d'un succès
+- [x] **LOT 2 — parcours producteur vers la notice (2026-10-01)** : `/producteur/commandes` (refus de
+  transition, `messageErreurApi()` du `PATCH` repris mot pour mot) et `/producteur/profil` (succès
+  « Profil mis à jour. »). Décision : un refus **déjà au panier** dans le tiroir ne devient **jamais** une notice
+  globale — il reste porté par la ligne (`role="status"` relié au « + » par `aria-describedby`) ; la phrase vient
+  de `messageRefusQuantite()`, **source unique** partagée avec `/acheteur/panier`
+- [x] **LOT 3 — tiroir du panier aligné sur le blocage des lignes non disponibles (2026-10-01)** : `+` en
+  `aria-disabled` (jamais `disabled`), « − » et « Retirer » restent utilisables, rien n'est masqué ni retiré
+  automatiquement ; règle `estLigneBloquee()` et phrase `messageLigneBloquee()` migrées en **source unique** dans
+  `core/utilitaires/panier-affichage.ts` ; quand statut bloqué et plafond de stock se cumulent, **le statut
+  prime** (une seule mention). **Aucune notice n'est rendue pendant que le tiroir est ouvert** : elle est mise en
+  attente (`suspendre()` / `reprendre()`), donc rendue une seule fois, jamais perdue ni dupliquée
+- [x] **LOT 4 — suppression de récolte vers la notice (2026-10-01)** : « « X » a été supprimée du catalogue. »
+  en notice sur `/producteur/recoltes`, `.html` **non touché** — le `messageSucces()` d'arrivée (`?recolteCreee` /
+  `?recolteModifiee`) **reste une bannière** : la bannière partagée n'est pas scindée (tableau d'exclusion §39.2)
+- [x] **LOT 5 — en-tête refait (2026-10-01)** : trois actions rondes en pilule 44 × 44 px — **sac** (acheteur),
+  **cloche** (tout rôle connecté), **burger** (sous 1100 px) — liens repliés en navigation disclosure sous
+  `--point-desktop` ; les comptes deviennent des `.badge` en pastille d'angle, jamais des surfaces cliquables
+  (§39, §10.5)
+- [x] **LOT 6 — fiche récolte `/recoltes/:id` sur la maquette produit (2026-10-01)** : la route reste une
+  **page** (lien partageable, aucun piège de focus) et non une modale, deux colonnes dès `$point-tablette`,
+  statut posé **sur la photo** et revenant au `.badge` du titre sans photo — **un seul indicateur à la fois** ;
+  récolte non ajoutable = bouton **focusable** en `aria-disabled="true"` avec son motif en `role="status"`
+- [x] **LOT 7 — catalogue achevé (2026-10-01)** : barre de filtres en **pastilles** (`aria-pressed`, « Toutes »
+  et « Tous » portent l'absence de critère) qui notent le critère sans **lancer aucune requête** — la recherche
+  part toujours du bouton « Rechercher » avec les mêmes paramètres d'URL ; puce de statut `.recolte__statut`
+  **promue à l'identique** dans `styles/_composants.scss` et ses **trois copies locales supprimées** ; bloc
+  d'image rendu **seulement** quand `RecolteResponse.imageUrl` est non nul, ni filière ni catégorie sur la carte
+  (§38.4)
+- [x] **LOT 8 — page `/acheteur/panier` sur le vocabulaire du tiroir (2026-10-02)** : plafond §20 porté par un
+  `<div class="conteneur">` **imbriqué** dans la `<section>`, deux colonnes dès `$point-desktop`
+  (`.panier__corps`) — proportions et motif repris tels quels par le tunnel au LOT 10 (§41)
+- [x] **LOT 9 — `/tableau-de-bord` sur le vocabulaire commun (2026-10-02, §40)** : `.conteneur` imbriqué (jamais
+  `.tableau-de-bord.conteneur`), rythme vertical `--espace-5` porté par `.tableau-de-bord .conteneur`,
+  `max-width: 36rem` local **retiré**, champs d'identité en `dl` une colonne / deux à `$point-tablette`.
+  Décisions : **pas de `.page--surface`** (réservé aux trois écrans maîtres) ; **aucun bloc ni raccourci par
+  rôle** ajouté — le rôle n'agit que sur le libellé du badge et le `href` d'« Accéder à mon espace » ; la
+  bannière `?compteCree=1` reste bannière (§39.2). `tableau-de-bord.spec.ts` : 17 tests
+- [x] **LOT 10 — `/acheteur/commande` et `/acheteur/paiement/:id` (2026-10-02, §41)** : `.conteneur` sur les
+  deux écrans, paiement porté de `--espace-4` à `--espace-5`, nouveau `.commande__corps` en deux colonnes dès
+  `$point-desktop`, cinq titres de carte ramenés sur la classe globale `.carte__titre`, total et montant à payer
+  en `--police-titre` + `--taille-xl`. **Décision — arbitrage des largeurs locales** : un plafond existant se
+  **conserve** et se centre (`commande.scss` garde ses `32rem`), un écran sans largeur locale n'en reçoit
+  **aucune** (`paiement.scss`) — le plafond ne se décrète pas écran par écran. Notices d'erreur du tunnel
+  conservées en bannière (elles portent le focus et l'action). `commande.spec.ts` 34 → 38, `paiement.spec.ts`
+  51 → 55, **une seule** assertion re-ciblée, avec la même chaîne
+- [x] **LOT 11 — `/acheteur/commandes` et `/acheteur/commandes/:id` (2026-10-02, §41.1)** : les deux écrans
+  portaient **déjà** le plafond §20 ; ajustements limités au rythme `--espace-5` du détail, au total en chiffre
+  dominant et aux capitules des `dt`. Décisions : les lignes du détail **restent un `<table>`**
+  `.tableau.tableau--maitre.tableau--empile` lié par `aria-labelledby` (§38.5) — trois tests de protection écrits
+  **avant** le restylage, toute conversion en cartes doit d'abord révoquer §38.5 dans `FRONTEND_DESIGN.md` ;
+  **aucun bloc paiement** sur ce détail, `CommandeResponse` n'exposant aucun champ de paiement et
+  `detail-commande.ts` n'émettant aucun appel de paiement. `.ts` et `.html` des deux écrans inchangés
+- [x] **LOT 12 — formulaires producteur (2026-10-02, §41.2)** : `/producteur/recoltes/nouvelle`,
+  `/producteur/recoltes/:id/modifier` et `/producteur/profil` reçoivent la règle **« colonne étroite centrée dans
+  le conteneur »** — le `44rem` **existant** passe de la racine de section sur `.conteneur`, `margin-inline: auto`
+  **non ajouté** (le socle porte déjà `margin: 0 auto`). Filet de structure écrit **avant** le restylage sur le
+  gabarit intact, specs portées à 27 et 35 tests, **aucune assertion existante retouchée**
+- [x] **LOT 13 — listes producteur (2026-10-02, §41.3)** : `/producteur/recoltes` et `/producteur/commandes`
+  prennent le plafond global **sans largeur nouvelle** (aucun `max-width` local à aligner) ; capitules,
+  `tabular-nums`, total de « Commandes reçues » en chiffre dominant, rayon de `.commandes-recues__ligne` passé à
+  `--rayon-surface`. Décisions : la **modale de suppression reste hors du `.conteneur`** (`.voile` est en position
+  fixe, §31 — un test l'épingle) ; **les lignes de « Commandes reçues » restent une grille** et leur conversion en
+  `table.tableau--maitre` est un **point de suivi**, pas une omission
+- [x] **LOT 14 — `/recoltes/:id` centré (2026-10-02, §41.4)** : dernier écran à largeur locale non centrée,
+  `46rem` **existant** déplacé de la `<section>` sur `.detail-recolte .conteneur`. Décision consignée : le rythme
+  vertical **n'a pas** été déplacé vers un `gap` (la racine ne portait que `max-width`), divergence assumée avec
+  la formule des autres écrans ; filet écrit avant restylage (26/26 sur le gabarit intact), **un** test de
+  conteneur ajouté (27)
+- [x] **LOT 15 — deux arbitrages §38.1 consignés (2026-10-02)** : lot **de documentation seule**, aucun fichier
+  frontend modifié — `/admin` **ne porte pas** `.page--surface` (page d'entrée à trois cartes, aucune table donc
+  aucun filet à faire lire sur blanc ; le fond crème reste voulu, ce n'est pas un écart) et **une confirmation
+  destructive reste `.bouton--danger`** (§31, §5 : la hiérarchie d'encre ne repeint pas la désactivation d'un
+  compte, non plus que « Retirer le prix »). Ces deux arbitrages **closent les derniers écarts ouverts de §38.1**
+- [x] **LOT 16 — pages d'erreur centrées (2026-10-02, §41.5)** : `/acces-interdit` et `/**` (`PageIntrouvable`)
+  — le `32rem` **existant** de `.page-interieure` passe de `styles/_composants.scss` sur
+  `.page-interieure .conteneur` ; bordure pointillée et patron §20 conservés volontairement. Ces deux écrans
+  n'avaient **aucune** spec : filet écrit avant restylage (5 tests par écran sur le gabarit intact, 6 après,
+  12 au total), donc **aucune assertion existante n'a été modifiée — il n'y en avait pas**
+- [x] **LOT 17 — écrans d'authentification centrés (2026-10-02, §41.6)** : `/connexion` et `/inscription` —
+  `.auth` perd son `margin: 0 auto`, les plafonds **conservés** (`26rem` / `30rem`) passent sur
+  `.auth .conteneur` ; l'écart de 4 rem entre les deux vient du contenu réel (cinq champs et un `fieldset` d'un
+  côté, deux de l'autre). Décisions : la **duplication** des deux feuilles `.scss` est **assumée** (18
+  déclarations byte-identiques sur 8 sélecteurs partagés) et sa consolidation est un **refactor hors campagne**.
+  Par suite de ce lot, **toute largeur locale plafonnée de l'application passe par un `.conteneur` centré** — il
+  ne reste plus une seule largeur locale non centrée
+- [x] **LOT 18 — accessibilité des formulaires d'authentification (2026-10-02, §41.6)** : premier lot **de
+  comportement** de la campagne, **aucun fichier de style touché** — `required` **et** `aria-required="true"` sur
+  les champs réellement validés (le téléphone l'est parce que le composant le valide avec `Validators.required`),
+  les deux champs conditionnels déclarés **à l'intérieur** de leur branche `@if`, donc seulement quand ils sont
+  affichés ; `focusSurPremierChampInvalide()` parcourt une liste **ordonnée comme le DOM** et pose **un seul**
+  focus, après un échec de validation locale **et** après un objet `erreurs` du backend ; une erreur **générale**
+  seule ne déplace rien (sa bannière est déjà en `role="alert"`). Décisions : **pas** de `role="alert"` sur
+  `.champ__erreur` (zone live `assertive` qui interromprait la lecture à chaque frappe — la perception passe par
+  le focus, `aria-required`, `aria-invalid` et `aria-describedby`) ; `novalidate` conservé, donc **aucune bulle
+  native**. **Limite consignée** : le `fieldset` du groupe de rôles ne porte ni `id`, ni `aria-describedby`, ni
+  `aria-invalid` ; le focus posé sur son premier radio annonce le groupe, pas le texte de l'erreur
+- [x] **5.11 — Validation de la campagne** : au terme du LOT 18, suite complète **834 tests dans 42 fichiers**,
+  `npx tsc -p tsconfig.spec.json --noEmit` et `tsc` applicatif **sans erreur**, `npm run build` **réussi sans
+  aucun avertissement** (ni budget dépassé). Le filet de structure de chaque LOT a été écrit **sur le gabarit
+  alors non modifié** et rejoué vert avant tout restylage ; les suites des écrans non touchés sont restées
+  inchangées. **Aucune de ces portes n'est une validation en navigateur** : rien dans ces deux campagnes n'a été
+  observé rendu, ni mesuré, ni lu par un lecteur d'écran réel
+
+### Décisions d'arbitrage consignées (renvoi, pas de recopiage)
+
+- §38.1 hiérarchie d'encre sans nouvelle palette, `.page--surface` réservé, et les **deux arbitrages LOT 15**
+  (surface de `/admin`, couleur du bouton de confirmation destructive)
+- §38.2 format des dates livré conservé malgré la maquette — écart **voulu**
+- §38.3 navigation partagée au lieu de routes fusionnées
+- §38.4 « une maquette n'autorise ni à inventer une donnée, ni à en supprimer une » + tableau des trois éléments
+  absents du contrat
+- §38.5 « une table dense n'est pas une table transportée » (`.tableau--empile`, quatre largeurs de contrôle)
+- §39 / §39.1 refonte visuelle, tokens autorisés et **périmètre de la maquette** (`figma-reference/` ne couvre
+  que l'accueil)
+- §39.2 notice = mécanisme unique de retour d'action **et son tableau d'exclusion** : ce qui reste bannière, écran
+  par écran, avec le motif
+- §40 tableau de bord (conteneur imbriqué, pas de surface blanche, aucun bloc par rôle)
+- §41 arbitrage des largeurs locales, §41.1 lignes du détail en `<table>` et absence de bloc paiement,
+  §41.2 à §41.6 « colonne étroite centrée dans le conteneur », §41.3 grille de « Commandes reçues » conservée,
+  §41.6 décisions d'accessibilité du LOT 18 et limite du groupe de rôles
+
+### Reste à faire à la fin de la campagne
+
+- [ ] **QA navigateur réelle des quatre largeurs 375 / 768 / 1024 / 1366** : jamais jouée sur ces deux campagnes
+  (§38.5, et rappelé écran par écran en §40 et §41.1 à §41.6) — ni parcours cliqué, ni mesure de centrage, ni
+  rendu des capitules et du chiffre dominant vérifiés visuellement
+- [ ] **Lignes de `/producteur/commandes` en grille contre table** : point de suivi ouvert (§41.3), la conversion
+  en `table.tableau--maitre` étant ce qu'impose §38.5 pour une liste dense ; la grille actuelle est **assumée** et
+  ne doit pas être « corrigée » par un alignement implicite
+- [ ] **Erreur du groupe de rôles non annoncée à l'inscription** : `fieldset` sans `id`, sans
+  `aria-describedby` ni `aria-invalid` (§41.6) ; à traiter si l'obligation d'un `aria-describedby` sur ce groupe
+  est décidée un jour
+- [ ] **Consolidation des deux feuilles `.auth`** : duplication byte-identique assumée (§41.6) ; refactor **hors
+  campagne de design**, à décider séparément
+- [ ] **Décision de fusion de `refonte-design`** : la branche porte les vingt-deux commits des deux campagnes ;
+  rien n'a été fusionné dans `main`, et cette décision appartient à l'auteur du projet
+
 ## Phase 10 — Intégration
 - [ ] Angular ↔ backend
 - [ ] Flux Producteur → Récolte
