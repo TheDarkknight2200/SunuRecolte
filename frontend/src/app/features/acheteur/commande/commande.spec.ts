@@ -304,7 +304,7 @@ describe('Commande (tunnel acheteur)', () => {
 
       expect(elements(racine, 'h1').map(texteDe)).toEqual(['Commande']);
       expect(elements(racine, '.commande__recap .commande__ligne')).toHaveLength(3);
-      expect(texteDe(element(racine, '.commande__zone-titre'))).toBe('Récapitulatif');
+      expect(texteDe(element(racine, '.commande__recap .carte__titre'))).toBe('Récapitulatif');
     });
 
     it('représent l’identité de l’acheteur sans aucun champ à saisir', () => {
@@ -315,6 +315,48 @@ describe('Commande (tunnel acheteur)', () => {
       expect(racine.querySelector('[formcontrolname="acheteurId"]')).toBeNull();
       expect(racine.querySelector('#acheteurId')).toBeNull();
       expect(elements(racine, 'form')).toHaveLength(1);
+    });
+  });
+
+  describe('structure de l’écran', () => {
+    it('loge tout le tunnel dans un unique conteneur centré', () => {
+      ouvrir();
+      profilOk();
+
+      expect(elements(racine, '.commande > .conteneur')).toHaveLength(1);
+      expect(racine.querySelector('.conteneur > .commande__entete')).not.toBeNull();
+      expect(racine.querySelector('.conteneur > .commande__corps > .commande__recap')).not.toBeNull();
+    });
+
+    it('habille le récapitulatif et la réception sur la carte globale', () => {
+      ouvrir();
+      profilOk();
+
+      const recap = element(racine, '.commande__recap');
+      expect(recap.classList.contains('carte')).toBe(true);
+      const zone = element<HTMLFormElement>(racine, 'form.commande__zone');
+      expect(zone.classList.contains('carte')).toBe(true);
+      expect(elements(racine, '.commande__corps .carte__titre').map(texteDe)).toEqual([
+        'Récapitulatif',
+        'Réception',
+      ]);
+    });
+
+    it('garde un seul titre d’écran et un titre de carte par carte', () => {
+      ouvrir();
+      profilOk();
+
+      expect(elements(racine, 'h1').map(texteDe)).toEqual(['Commande']);
+      expect(elements(racine, '.commande h2').map(texteDe)).toEqual(['Récapitulatif', 'Réception']);
+      expect(racine.querySelector('.commande__zone-titre')).toBeNull();
+    });
+
+    it('rend les états dans le même conteneur que le tunnel', () => {
+      ouvrir();
+
+      expect(racine.querySelector('.conteneur > .etat')).not.toBeNull();
+      expect(racine.querySelector('.conteneur > .commande__corps')).toBeNull();
+      http.expectOne(MOI).flush(acheteur());
     });
   });
 

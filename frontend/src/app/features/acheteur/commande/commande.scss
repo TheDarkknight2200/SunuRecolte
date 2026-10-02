@@ -1,14 +1,17 @@
 @use 'points-rupture' as pr;
 
-/* Trois empilements verticaux, seuls les respirations diffèrent (§20). */
-.commande,
+/* Le socle global fournit .conteneur (§20 : largeur --largeur-contenu, centrage, gouttières) :
+   c'est lui qui porte la colonne verticale, comme au panier et au tableau de bord. */
+.commande .conteneur,
+.commande__corps,
 .commande__entete,
 .commande__succes {
   display: flex;
   flex-direction: column;
 }
 
-.commande {
+.commande .conteneur,
+.commande__corps {
   gap: var(--espace-5);
 }
 
@@ -60,7 +63,9 @@
   font-weight: 600;
 }
 
-/* === Zones du tunnel (§26) : titre de zone en --taille-lg 600 === */
+/* === Zones du tunnel (§26) ===
+   Les titres de carte portent la classe globale `.carte__titre` : ne reste ici que l'intitulé
+   d'une zone à l'intérieur d'une carte (les lignes de la commande confirmée). */
 
 .commande__zone-titre {
   margin: 0 0 var(--espace-3);
@@ -130,8 +135,10 @@
   font-weight: 600;
 }
 
+/* Le total de la carte est le chiffre dominant, à la même écriture qu'au pied du panier (§30). */
 .commande__total-valeur {
-  font-size: var(--taille-lg);
+  font-family: var(--police-titre);
+  font-size: var(--taille-xl);
 }
 
 .commande__mention {
@@ -293,8 +300,20 @@
   }
 }
 
+/* === Desktop : récapitulatif et réception en deux colonnes, comme au panier ===
+   Sous ce seuil, `.commande__corps` reste la colonne verticale du mobile : rien n'empile de nouveau. */
+
 @media (min-width: pr.$point-desktop) {
+  .commande__corps {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--espace-6);
+  }
+
+  /* Le formulaire garde sa colonne étroite existante (32 rem), désormais centrée dans sa carte. */
   .commande__champs .champ {
     max-width: 32rem;
+    margin-inline: auto;
   }
 }

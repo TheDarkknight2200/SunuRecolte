@@ -1548,3 +1548,49 @@ par rôle n'existe et n'est ajouté : le rôle n'agit que sur deux rendus exista
   serveur, les trois destinations, la bannière d'arrivée, les trois chemins d'erreur et la structure nouvelle
   (conteneur unique, `h1` unique, états dans le conteneur). **Non observé en navigateur réel** : les quatre
   largeurs 375 / 768 / 1024 / 1366 restent à contrôler (§38.5).
+
+## 41. Parcours de commande acheteur (Phase 5.11, LOT 10)
+
+`/acheteur/commande` et `/acheteur/paiement/:id` — les deux dernières étapes du tunnel, sans maquette : seule
+compte l'alignement sur le vocabulaire déjà refait (panier §25, tableau de bord §40). Aucune logique n'est
+modifiée : les montants restent lus sur la commande du serveur, jamais sur le panier local (§2), le paiement
+reste simulé (§34), les modes de réception et les moyens de paiement restent exactement ceux d'avant.
+
+- **Plafond §20 sur les deux écrans** : le contenu est enveloppé dans `<div class="conteneur">` **imbriqué**
+  dans `<section class="commande">` et `<section class="paiement">`, comme au panier et au tableau de bord —
+  jamais `.commande.conteneur`. Le rythme vertical est porté par `.commande .conteneur` et
+  `.paiement .conteneur` (`flex-direction: column`, `gap: --espace-5`) ; l'unité de rythme fait passer le
+  paiement de `--espace-4` à `--espace-5`, la commande l'avait déjà.
+- **Deux colonnes dès `$point-desktop`, comme au panier** : le nouveau `<div class="commande__corps">`
+  enveloppe le récapitulatif et la zone de réception, et passe en `grid` à
+  `minmax(0, 1.8fr) minmax(0, 1fr)` avec `gap: --espace-6` et `align-items: start` — les mêmes proportions
+  que `.panier__corps`. En dessous de 1100 px, les deux blocs s'empilent. Le paiement reste une colonne
+  unique : il n'a qu'un résumé et un formulaire, et rien n'est ajouté pour l'élargir.
+- **Titres de carte sur la classe globale** : les cinq titres de carte (`Récapitulatif`, les deux `Réception`,
+  `Commande`, le titre de résultat du paiement) portent `.carte__titre` (§10.4) et non plus leur classe
+  locale : la règle globale leur est byte-identique, aucune promotion n'a donc été nécessaire dans
+  `_composants.scss`. Ne reste en classe locale que `.commande__zone-titre`, l'intitulé d'une zone **à
+  l'intérieur** d'une carte (« Lignes de la commande »). Le `outline: none` du titre de résultat-focus
+  (`tabindex="-1"`) est repris en `.paiement .carte__titre:focus`.
+- **Chiffre dominant (§30)** : le total du récapitulatif (`.commande__total-valeur`) et le montant à payer
+  (`.paiement__total`) passent en `--police-titre` + `--taille-xl`, comme le pied du panier — `tabular-nums`
+  et le poids 600 sont conservés.
+- **Arbitrage des largeurs locales — formulaire = colonne étroite centrée dans le conteneur**. Le `max-width`
+  d'un formulaire ne se décrète pas écran par écran : il reprend la **valeur déjà présente** sur l'écran et se
+  centre dans sa carte (`margin-inline: auto`), sans jamais en inventer une. `commande.scss` conserve donc son
+  `32rem` existant et ajoute le centrage ; `paiement.scss` n'ajoute **aucune** largeur, puisqu'aucune
+  n'existait. Les trois largeurs locales encore non centrées — `detail-recolte` (46 rem),
+  `formulaire-recolte` et `profil-producteur` (44 rem) — sont **à aligner sur cette règle dans un lot
+  ultérieur** et ne sont pas touchées ici.
+- **États conservés, notices sans changement de type** : `.etat[aria-busy]` de chargement, bannière
+  d'erreur avec son bouton « Réessayer » (elle reste bannière, §39.2 : cible de focus et porte l'action),
+  écran de succès de la commande, bannière §28 « aucune transaction réelle » rendue hors des branches d'état,
+  refus de paiement et fieldset « Moyen de paiement » inchangés. `h1` unique par écran, aucune hiérarchie
+  modifiée là où elle était déjà correcte.
+- **Aucune teinte, aucun rayon, aucune police, aucune largeur nouveaux.**
+- **Tests** : `commande.spec.ts` passe de 34 à 38, `paiement.spec.ts` de 51 à 55 — les quatre ajouts par écran
+  portent sur la structure nouvelle (conteneur unique, cartes globales, `h1` unique, états dans le
+  conteneur). Une seule assertion existante a été re-ciblée, **avec la même chaîne** : le titre
+  « Récapitulatif » est lu via `.commande__recap .carte__titre` au lieu de `.commande__zone-titre`. Aucune
+  assertion supprimée ni assouplie. **Non observé en navigateur réel** : les quatre largeurs
+  375 / 768 / 1024 / 1366 restent à contrôler (§38.5).
