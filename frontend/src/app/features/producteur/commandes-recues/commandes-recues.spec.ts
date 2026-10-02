@@ -483,6 +483,74 @@ describe('CommandesRecues — commandes reçues du producteur', () => {
     // La requête d’ouverture a été consommée par `charger` : aucune autre n’est en attente.
     expect(http.match(() => true)).toHaveLength(0);
   });
+
+  describe('structure de page', () => {
+    /**
+     * Filet écrit avant tout restylage : un état est bien rendu s’il partage le parent de
+     * l’en-tête. La assertion reste vraie quel que soit ce parent — c’est lui qui est testé
+     * ailleurs, pas son nom.
+     */
+    function memeParentQueLEntete(selecteur: string): void {
+      expect(element(racine, selecteur).parentElement).toBe(
+        element(racine, '.commandes-recues__entete').parentElement,
+      );
+    }
+
+    function parentDe(selecteur: string): Element | null {
+      return element(racine, selecteur).parentElement;
+    }
+
+    it('n’a qu’un seul h1, porté par l’en-tête de page', () => {
+      ouvrir();
+      charger([commande(512)]);
+
+      const titres = elements(racine, 'h1');
+      expect(titres).toHaveLength(1);
+      expect(texteDe(titres[0])).toBe('Commandes reçues');
+      expect(titres[0].closest('.commandes-recues__entete')).not.toBeNull();
+    });
+
+    it('rend le chargement et la liste dans le parent de l’en-tête', () => {
+      ouvrir();
+
+      memeParentQueLEntete('.etat');
+      charger([commande(512)]);
+      memeParentQueLEntete('.commandes-recues__liste');
+    });
+
+    it('rend l’erreur puis la liste vide dans le parent de l’en-tête', () => {
+      ouvrir();
+      demandeListe().flush(
+        { message: 'Une erreur interne est survenue. Veuillez réessayer.', timestamp: 'x' },
+        { status: 500, statusText: 'Internal Server Error' },
+      );
+      fixture.detectChanges();
+
+      memeParentQueLEntete('.message--erreur');
+      element<HTMLButtonElement>(racine, '#commandes-recues-reessayer').click();
+      fixture.detectChanges();
+      demandeListe().flush([]);
+      fixture.detectChanges();
+
+      memeParentQueLEntete('.etat');
+      expect(texteDe(element(racine, '.etat'))).toContain('Aucune commande reçue pour le moment.');
+    });
+
+    it('place toute la colonne de page dans un .conteneur unique (§20)', () => {
+      ouvrir();
+      expect(racine.querySelectorAll('.conteneur')).toHaveLength(1);
+
+      const conteneur = element<HTMLElement>(racine, '.conteneur');
+      expect(conteneur.parentElement).toBe(element(racine, 'section.commandes-recues'));
+      expect(conteneur.querySelector('h1')).not.toBeNull();
+      expect(parentDe('.etat')).toBe(conteneur);
+
+      charger([commande(512)]);
+      expect(parentDe('.commandes-recues__liste')).toBe(conteneur);
+      // Les cartes restent sous la liste : le conteneur englobe la page, pas chaque commande.
+      expect(parentDe('.commandes-recues__carte')).toBe(element(racine, '.commandes-recues__liste'));
+    });
+  });
 });
 
 /**

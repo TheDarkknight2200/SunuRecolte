@@ -1,7 +1,9 @@
 @use "points-rupture" as pr;
 
-/* Racine : un seul rythme vertical, aucune marge enfantine à annuler. */
-.mes-recoltes {
+/* Le socle global fournit .conteneur (§20 : plafond, centrage, gouttières). La colonne verticale est
+   portée par ce conteneur, pas par la section ; aucun max-width propre — un écran de liste prend le
+   plafond global, il n'invente pas une largeur de formulaire. */
+.mes-recoltes .conteneur {
   display: flex;
   flex-direction: column;
   gap: var(--espace-5);
@@ -69,10 +71,14 @@
   color: var(--couleur-texte-secondaire);
   font-size: var(--taille-xs);
   font-weight: 600;
+  /* Capitules, au même traitement que `.commandes__champs dt` (§41). */
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .mes-recoltes__mesures dd {
   margin: var(--espace-1) 0 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .mes-recoltes__actions {

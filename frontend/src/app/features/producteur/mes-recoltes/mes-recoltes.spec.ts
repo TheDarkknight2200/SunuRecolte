@@ -405,6 +405,81 @@ describe('MesRecoltes', () => {
     expect(localStorage.getItem(CLE_UTILISATEUR)).not.toBeNull();
   });
 
+  describe('structure de page', () => {
+    /**
+     * Filet écrit avant tout restylage : un état est bien rendu s’il partage le parent de
+     * l’en-tête. La assertion reste vraie quel que soit ce parent — c’est lui qui est testé
+     * ailleurs, pas son nom.
+     */
+    function memeParentQueLEntete(selecteur: string): void {
+      expect(element(racine, selecteur).parentElement).toBe(
+        element(racine, '.mes-recoltes__entete').parentElement,
+      );
+    }
+
+    function parentDe(selecteur: string): Element | null {
+      return element(racine, selecteur).parentElement;
+    }
+
+    it('n’a qu’un seul h1, porté par l’en-tête de page', () => {
+      ouvrir();
+      charger([produit(1)]);
+
+      const titres = elements(racine, 'h1');
+      expect(titres).toHaveLength(1);
+      expect(texteDe(titres[0])).toBe('Mes récoltes');
+      expect(titres[0].closest('.mes-recoltes__entete')).not.toBeNull();
+    });
+
+    it('rend le chargement et la liste dans le parent de l’en-tête', () => {
+      ouvrir();
+
+      memeParentQueLEntete('.etat');
+      charger([produit(1)]);
+      memeParentQueLEntete('.mes-recoltes__liste');
+    });
+
+    it('rend l’erreur puis la liste vide dans le parent de l’en-tête', () => {
+      ouvrir();
+      profilFactice().flush(profilProducteur());
+      fixture.detectChanges();
+      listeEnAttente().flush(
+        { statut: 500, message: 'Le service est temporairement indisponible.', timestamp: 'x' },
+        { status: 500, statusText: 'Erreur' },
+      );
+      fixture.detectChanges();
+
+      memeParentQueLEntete('.message--erreur');
+      cliquer('#erreur-reessayer');
+      profilFactice().flush(profilProducteur());
+      fixture.detectChanges();
+      listeEnAttente().flush([]);
+      fixture.detectChanges();
+
+      memeParentQueLEntete('.etat');
+      expect(texteDe(element(racine, '.etat'))).toContain('Vous n’avez encore aucune récolte.');
+    });
+
+    it('place toute la colonne de page dans un .conteneur unique (§20), la modale hors de lui', () => {
+      ouvrir();
+      expect(racine.querySelectorAll('.conteneur')).toHaveLength(1);
+
+      const conteneur = element<HTMLElement>(racine, '.conteneur');
+      const section = element(racine, 'section.mes-recoltes');
+      expect(conteneur.parentElement).toBe(section);
+      expect(conteneur.querySelector('h1')).not.toBeNull();
+      expect(parentDe('.etat')).toBe(conteneur);
+
+      charger([produit(1)]);
+      expect(parentDe('.mes-recoltes__liste')).toBe(conteneur);
+
+      // `.voile` est en position fixe et couvre l'écran entier (§31) : elle reste enfant de la section.
+      ouvrirModale();
+      expect(parentDe('.voile')).toBe(section);
+      escape();
+    });
+  });
+
   describe('suppression', () => {
     beforeEach(() => {
       ouvrir();

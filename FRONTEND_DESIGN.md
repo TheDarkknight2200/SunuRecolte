@@ -1663,3 +1663,60 @@ centrage**, la colonne restait collée à la gouttière gauche.
   l'état de chargement et le formulaire. **Aucune assertion existante n'a été modifiée, supprimée ni assouplie.**
 - **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366, et le centrage effectif du
   plafond — jsdom ne rend pas la cascade SCSS.
+
+### 41.3 Listes producteur (LOT 13)
+
+`/producteur/recoltes` (`mes-recoltes`) et `/producteur/commandes` (`commandes-recues`) : les deux derniers
+écrans sans `.conteneur` de l'espace producteur. Ils portaient déjà le rythme `--espace-5`, les `.carte` et les
+`.badge` globaux, mais leur racine appliquait `display: flex` directement sur la `<section>`, pleine largeur.
+
+- **Règle — un écran de liste prend le plafond global, sans inventer de largeur** : le contenu de la `<section>`
+  est enveloppé dans `<div class="conteneur">` et la règle de racine est supprimée, recréée en
+  `.mes-recoltes .conteneur` et `.commandes-recues .conteneur` avec `display: flex`, `flex-direction: column` et
+  `gap: var(--espace-5)`. **Aucun `max-width`** : contrairement aux formulaires (§41.2), ces deux écrans
+  n'avaient aucune largeur locale, il n'y a donc **rien à aligner dans la liste de suivi des largeurs** — le
+  plafond vient seul du socle global (`--largeur-contenu`, §20).
+- **La modale de suppression reste hors du conteneur** : `.voile` est en position fixe et couvre l'écran entier
+  (§31) ; l'insérer dans une colonne centrée à gouttières ne changerait rien visuellement et casserait le motif
+  global. Un test l'épingle : `parentDe('.voile')` reste la `<section>`.
+- **Capitules (§41)** : `.mes-recoltes__mesures dt` et `.commandes-recues__champs dt` reçoivent
+  `text-transform: uppercase` et `letter-spacing: 0.02em`, aux mêmes déclarations que `.commandes__champs dt`.
+  Les surtitres de page gardent leur `0.08em` (§41) : deux traitements, deux rôles.
+- **`tabular-nums`** : `.mes-recoltes__mesures dd` le reçoit, comme `.commandes-recues__champs dd` qui le portait
+  déjà — les quantités et les prix de la carte s'alignent entre les lignes.
+- **Chiffre dominant (§30)** : `.commandes-recues__total` passe en `--police-titre` + `--taille-xl`, poids 600
+  conservé, `tabular-nums` déjà porté par le `dd` parent — même écriture que `.commandes__total` (§41.1), le pied
+  du panier et le total du tunnel. **Mes récoltes n'a aucun total** : aucune valeur dominante n'a été inventée
+  pour sa carte, ses mesures restent quatre `dt`/`dd` de poids égal.
+- **Rayon (§39.1)** : `.commandes-recues__ligne` passe de `--rayon-md` (6 px, les champs de saisie) à
+  `--rayon-surface` (3 px, les surfaces de même nature qu'une carte). Seul changement visuel de cet élément ; la
+  version ≥ tablette écrase déjà le rayon à `0` et la bordure, elle n'est pas touchée.
+- **Décision — les lignes de « Commandes reçues » restent une grille.** `commandes-recues.html` garde
+  `ul.commandes-recues__lignes > li.commandes-recues__ligne` en `display: grid` (quatre paragraphes, deux
+  colonnes en mobile, quatre en desktop). La conversion en `table.tableau--maitre` — ce que §38.5 impose au
+  détail d'une commande — est un **point de suivi**, pas une omission : ici la carte porte déjà ses quatre champs
+  en `dl`, l'écran est une **liste de commandes** et non le détail d'une seule, et la grille empile produit puis
+  sous-total en pleine largeur sans perdre de libellé. L'asymétrie avec `detail-commande` est donc assumée et
+  documentée ; elle ne doit pas être « corrigée » par un alignement implicite.
+- **Rien d'autre ne change** : tous les ids, classes et attributs assertés sont inchangés
+  (`#commande-{id}-etape`, `#commandes-recues-reessayer`, `#erreur-reessayer`, `#lien-mes-recoltes`,
+  `#lien-notifications-producteur`, `__carte`, `__liste`, `__ligne`, `__champs dd`, `__total`, `__notice`,
+  `__mesures`, `__actions`, `.badge` et ses variantes, `.etat`, `.voile` / `.modale` / `.modale__actions`,
+  `#suppression-titre`, `#suppression-annuler`, `#suppression-confirmer`, `aria-busy`, `aria-label`, `[disabled]`
+  de l'action d'étape). `.mes-recoltes__actions` — mutualisé par l'en-tête, la bannière d'erreur et chaque carte —
+  n'a pas été renommé ni redéfini. Les focus (`#zoneSucces` `tabindex="-1"`, piège de la modale, Échap, retour
+  du focus après suppression) et les bannières §39.2 sont intacts. Aucun token, aucune teinte, aucune police
+  nouveaux ; `styles/_composants.scss`, les `.ts`, services, routes, guards et backend non touchés.
+- **États conservés** : `.etat[aria-busy]` de chargement, bannière d'erreur avec « Réessayer » (elle reste
+  bannière, §39.2), état vide avec son lien d'action, liste de cartes, bannière `messageSucces()` de mes récoltes
+  et notice de succès par carte de commandes reçues — tous rendus dans la même colonne que l'en-tête de page.
+- **Tests** : le filet de structure a été écrit **avant** le restylage, sur les gabarits alors non modifiés —
+  `mes-recoltes.spec.ts` 39 → 42 et `commandes-recues.spec.ts` 37 → 40 (`h1` unique et son libellé ; chargement,
+  erreur, liste et liste vide rendus sous le **même parent que l'en-tête** — l'assertion porte sur le parent, pas
+  sur son nom, donc elle survit au conteneur), exécuté vert **82/82** avant tout changement de gabarit. Après le
+  restylage, **un** test de conteneur par écran (42 → 43, 40 → 41 ; **84/84**). Aucune assertion existante n'a été
+  modifiée, supprimée ni assouplie ; **aucune re-ciblage nécessaire** — les deux specs ne regardaient ni la
+  classe de la `<section>` ni un combinator `>`, et le texte du total (`'12 345 FCFA'`) comme
+  `document.activeElement` sur `#zoneSucces` sont passés tels quels.
+- **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366, le centrage effectif du
+  plafond, le rendu des capitules et du chiffre dominant — jsdom ne rend pas la cascade SCSS.
