@@ -561,7 +561,8 @@ Sont interdits, sans exception :
   `--largeur-contenu` (1140 px) et centrer.
 - **Pattern `.page-interieure`** : page avec un `<h1>` et un bloc `.etat` contenant un `.etat__icone`
   (icône Material Symbols à 40 px), un titre et une description. Largeur max 32 rem. Utilisé pour les
-  pages coquilles (espace producteur, acheteur, admin) et les pages d'erreur (403, 404).
+  pages d'erreur (403, 404) **uniquement** : les espaces producteur, acheteur et admin ne portent pas cette
+  classe (ils utilisent le patron `.conteneur` des écrans alignés, §41).
 
 ## 21. Section hero (Phase 4.1)
 
@@ -1610,7 +1611,9 @@ reste simulé (§34), les modes de réception et les moyens de paiement restent 
   n'existait. À ce lot, les trois largeurs locales encore non centrées — `detail-recolte` (46 rem),
   `formulaire-recolte` et `profil-producteur` (44 rem) — ne sont pas touchées. Les deux formulaires
   producteur (**§41.2**) puis la fiche récolte (**§41.4**) ont été alignés depuis et sortent de la liste de
-  suivi : **il ne reste plus aucune largeur locale non centrée dans l'application**.
+  suivi, rejoints par les deux pages d'erreur (**§41.5**, LOT 16) : **toute largeur locale plafonnée passe
+  désormais par un `.conteneur` centré, sauf `connexion` et `inscription`, dont la classe `.auth` plafonne et
+  centre hors de ce patron jusqu'au LOT 17**.
 - **États conservés, notices sans changement de type** : `.etat[aria-busy]` de chargement, bannière
   d'erreur avec son bouton « Réessayer » (elle reste bannière, §39.2 : cible de focus et porte l'action),
   écran de succès de la commande, bannière §28 « aucune transaction réelle » rendue hors des branches d'état,
@@ -1790,3 +1793,40 @@ gouttière gauche.
 - **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366 et le centrage effectif du
   plafond — jsdom ne rend pas la cascade SCSS. La colonne utile ci-dessus est un **calcul**, pas une mesure de
   rendu.
+
+### 41.5 Pages d'erreur — colonne étroite centrée dans le conteneur (LOT 16)
+
+`/acces-interdit` (`AccesInterdit`) et `/**` (`PageIntrouvable`) : les deux derniers écrans à porter une largeur
+locale **sans centrage**. Leur `<section class="page-interieure">` appliquait `max-width: 32rem` dans
+`styles/_composants.scss`, sans aucune marge : la colonne restait collée à la gouttière gauche.
+
+- **Règle — les deux pages appliquent « colonne étroite centrée dans le conteneur »** (§41, §41.2) : le contenu de
+  la `<section>` est enveloppé dans `<div class="conteneur">`, et le `32rem` **existant** passe de
+  `.page-interieure` sur `.page-interieure .conteneur`. **Aucune largeur nouvelle.** Le centrage vient du socle
+  `.conteneur` (`styles/_base.scss`, `margin: 0 auto`) ; `margin-inline: auto` **n'a pas été ajouté**, il ferait
+  doublon. `.page-interieure` reste la classe de la `<section>` — elle n'est portée par aucun autre écran (§20).
+- **Largeur utile mesurée** — 1 rem = 16 px et `box-sizing: border-box` global, donc les gouttières du conteneur
+  sont **comprises** dans les 32 rem : **464 px** à 1366 px (`512 − 2 × --espace-5` ; le plafond de 512 px borne
+  bien avant `--largeur-contenu` de 1140 px) et **311 px** à 375 px (`375 − 2 × 16` de `.contenu-principal` = 343,
+  moins `2 × 16` de gouttières). La colonne perd 48 px en desktop et 32 px en mobile par rapport à l'état d'avant
+  le lot (512 px / 343 px). Les deux boutons de la 403 tiennent dans 311 px (`Tableau de bord` ≈ 168 px +
+  `Accueil` ≈ 104 px + `gap: --espace-3`, `.bouton` à `padding: 0 --espace-5` et `font-size: --taille-md` = 16 px),
+  et `.page-interieure__actions` dispose déjà de `flex-wrap: wrap`.
+- **Rien d'autre ne change** : le rythme vertical (`h1` en `--taille-2xl` avec son `margin-bottom: --espace-4`
+  global, `.page-interieure__etat { margin-top: --espace-5 }`), le bloc `.etat` et sa **bordure pointillée** — c'est
+  le patron §20, conservé volontairement sur ces deux écrans —, `.etat__icone` à 40 px avec son
+  `aria-hidden="true"`, `--rayon-surface`, `.bouton--secondaire` et `.bouton--discret`, l'absence de `h2`, et
+  **tous** les ids, classes, libellés et attributs. Les `.ts`, `app.routes.ts` (y compris le `title` de `**`),
+  `roleGuard`, services, `ToastService`, backend et autres écrans non touchés ; aucun token, aucune teinte, aucun
+  rayon, aucune police nouveaux.
+- **Tests** : ces deux écrans n'avaient **aucune** spec. Le filet a été écrit **avant** le restylage, sur le
+  gabarit alors intact — `acces-interdit.spec.ts` et `page-introuvable.spec.ts`, 5 tests par écran (`h1` unique et
+  son libellé, les deux libellés exacts de l'état, les `href` des liens de sortie, l'icône `aria-hidden`, et l'état
+  sous le **même parent** que le titre — assertion portée sur le parent et non sur son nom, donc insensible au
+  conteneur), exécuté vert **10/10** avant tout changement de gabarit. Après le restylage, **un seul** test de
+  conteneur par écran (10 → 12) vérifie que le `.conteneur` est l'unique enfant de la `<section>` et qu'il porte le
+  `h1`. **Aucune assertion existante n'a été modifiée : il n'y en avait pas.** La cible `/acces-interdit` reste
+  verrouillée par `role.guard.spec.ts`, non touchée ; ni le `title` de route ni le `roleGuard` ne sont testés ici.
+- **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366, le centrage effectif du plafond
+  et la tenue réelle des deux boutons de la 403 — jsdom ne rend pas la cascade SCSS. La colonne utile ci-dessus est
+  un **calcul**, pas une mesure de rendu.

@@ -464,8 +464,9 @@ textarea.champ__saisie {
   color: var(--couleur-texte-secondaire);
 }
 
-/* Page intérieure : section avec titre h1 + état centré */
-.page-interieure {
+/* Page intérieure : section avec titre h1 + état centré. Le plafond est porté par le conteneur,
+   seul élément à recevoir `margin: 0 auto` ; `box-sizing: border-box` inclut les gouttières dans 32 rem. */
+.page-interieure .conteneur {
   max-width: 32rem;
 }
 
