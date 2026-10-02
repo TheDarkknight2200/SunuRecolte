@@ -166,8 +166,9 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 
 ## Sous-phases 5.2 → 5.9-bis (détail réel)
 
-> **Avertissement de numérotation** : « 5.2 », « 5.3 », « 5.4 », « 5.5 », « 5.6 », « 5.7 », « 5.8 » et « 5.9 »
-> sont les repères des consignes de travail, pas les phases de ce fichier. Les cinq premiers et les deux derniers
+> **Avertissement de numérotation** : « 5.2 », « 5.3 », « 5.4 », « 5.5 », « 5.6 », « 5.7 », « 5.8 »,
+> « 5.9 » et « 5.9-bis » sont les repères des consignes de travail, pas les phases de ce fichier. Les cinq
+> premiers et les deux derniers
 > portent sur le frontend Angular (Phase 9) et n'ont aucun rapport avec la « Phase 5 — Acheteur » ni avec la
 > « Phase 4 — Producteur » décrites plus haut. **5.7 fait exception : elle est purement backend** (Phase 7 —
 > Notifications), sans aucune ligne de frontend modifiée. **5.9 est les deux à la fois** : backend (Phase 8 —
@@ -806,8 +807,8 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [x] Le travail est **commité au fur et à mesure** jusqu'à 5.8 : chaque sous-phase achevée a son checkpoint Git,
   et le dépôt distant est à jour de ces checkpoints. **5.9 et 5.9-bis ont été commitées le 2026-09-29**, dans le
   même checkpoint que la correction de navigation ci-dessus (« feat: finalize admin and functional integration »),
-  et le dépôt distant les porte (le brief de cette sous-phase interdisait commit et push ; cette interdiction a été
-  levée depuis — corrigé le 2026-10-02)
+  et le dépôt distant les porte (le brief de cette sous-phase interdisait commit et push ; le commit existe et
+  `main` le porte — corrigé le 2026-10-02)
 - [ ] Le projet n'est **pas terminé** : la QA navigateur de l'espace administrateur (5.9) et celle de 5.6 restent
   à faire, l'intégration de bout en bout (Phase 10) et la finalisation (Phase 11) sont devant. L'espace admin,
   dernier bloc fonctionnel du périmètre approuvé, est **livré et testé** ; la phase de *redesign premium* a été
@@ -1010,8 +1011,9 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   est décidée un jour
 - [ ] **Consolidation des deux feuilles `.auth`** : duplication byte-identique assumée (§41.6) ; refactor **hors
   campagne de design**, à décider séparément
-- [ ] **Décision de fusion de `refonte-design`** : la branche porte les vingt-deux commits des deux campagnes ;
-  rien n'a été fusionné dans `main`, et cette décision appartient à l'auteur du projet
+- [ ] **Décision de fusion de `refonte-design`** : la branche porte les commits de conception (quatre préliminaires
+  et les lots 1 à 18) et deux lots documentaires ; rien n'a été fusionné dans `main`, et cette décision appartient à
+  l'auteur du projet
 
 ## Phase 10 — Intégration
 - [ ] Angular ↔ backend
