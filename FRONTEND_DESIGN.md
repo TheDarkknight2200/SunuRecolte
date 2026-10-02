@@ -1518,3 +1518,33 @@ aucun libellé et n'est jamais l'autorité d'un succès.
   | **états de chargement** | les 17 bannières rendues à la place du contenu | ce ne sont pas des retours d'action : la notice ne remplace jamais un état d'écran |
 
   Un `erreurStockage()` rendu en `message--avertissement` (panier) n'est pas concerné par le LOT 1.
+
+## 40. Tableau de bord (Phase 5.11, LOT 9)
+
+`/tableau-de-bord` — écran d'arrivée d'un compte connecté (`authGuard`), tous rôles. Aucun bloc ni raccourci
+par rôle n'existe et n'est ajouté : le rôle n'agit que sur deux rendus existants, le libellé du badge et le
+`href` de « Accéder à mon espace » (`espaceParRole()` : `/producteur`, `/acheteur/commandes`, `/admin`).
+
+- **Plafond §20** : le contenu est enveloppé dans `<div class="conteneur">` **imbriqué** dans
+  `<section class="tableau-de-bord">`, comme sur les écrans déjà alignés — jamais
+  `.tableau-de-bord.conteneur`. `.conteneur` apporte `--largeur-contenu` (1140 px), le centrage et les
+  gouttières ; le rythme vertical est porté par `.tableau-de-bord .conteneur` (`flex-direction: column`,
+  `gap: --espace-5`), donc `h1` et les bannières portent `margin: 0`. L'ancien `max-width: 36rem` local,
+  non centré, est **retiré** : la carte ne contraint plus sa largeur elle-même et prend celle du conteneur.
+- **Carte** : `class="carte tableau-de-bord__carte"` — fond, bordure, `--rayon-surface` et `padding: --espace-5`
+  viennent du global §10.4 ; `__carte` n'ajoute que son rythme interne (`flex`, `gap: --espace-4`) et le
+  `margin: 0` de `.carte__titre`.
+- **Champs d'identité** : `dl` en grille **une colonne**, deux à partir de `$point-tablette`
+  (`repeat(2, minmax(0, 1fr))`), `gap: --espace-3`. `dt` en `--taille-xs`, 600,
+  `--couleur-texte-secondaire`, majuscules, `letter-spacing: 0.02em` ; `dd` en `margin-top: --espace-1` avec
+  `font-variant-numeric: tabular-nums` — vocabulaire identique à la fiche récolte (§39) et aux champs de
+  commande (§33).
+- **États inchangés** : `.etat[aria-busy]` pendant le chargement, `.message--erreur` avec son bouton
+  « Réessayer » (message du backend repris tel quel, texte générique sinon, aucune requête quand la session
+  locale est absente), `.message--succes` `role="status"` pour `?compteCree=1` — cette bannière reste en
+  bannière, §39.2 l'y autorise. Pas de `.page--surface` : §38.1 réserve ce fond aux trois écrans maîtres.
+- **Aucune teinte, aucun rayon, aucune police, aucune largeur nouveaux.**
+- **Tests** : `tableau-de-bord.spec.ts` (17 tests) couvre l'identité des cinq champs, le rôle lu depuis le
+  serveur, les trois destinations, la bannière d'arrivée, les trois chemins d'erreur et la structure nouvelle
+  (conteneur unique, `h1` unique, états dans le conteneur). **Non observé en navigateur réel** : les quatre
+  largeurs 375 / 768 / 1024 / 1366 restent à contrôler (§38.5).

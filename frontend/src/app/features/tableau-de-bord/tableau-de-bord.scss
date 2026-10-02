@@ -1,15 +1,39 @@
-.tableau-de-bord .message {
-  margin-bottom: var(--espace-5);
+@use "points-rupture" as pr;
+
+/* Le socle global fournit .conteneur (§20 : largeur --largeur-contenu, centrage, gouttières) :
+   c'est lui qui porte la colonne verticale, comme sur les écrans déjà alignés. */
+.tableau-de-bord .conteneur {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-5);
 }
 
+/* Le rythme vertical vient du gap du conteneur : le titre ne l'ajoute pas deux fois. */
+.tableau-de-bord h1 {
+  margin: 0;
+}
+
+/* La carte garde le rythme global .carte (§21) et porte son rythme interne en flex. */
 .tableau-de-bord__carte {
-  max-width: 36rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
 }
 
+.tableau-de-bord__carte .carte__titre {
+  margin: 0;
+}
+
+/* Champs d'identité : un par ligne sur mobile, deux au-dessus du point de rupture (§20). */
 .tableau-de-bord__identite {
   display: grid;
+  grid-template-columns: 1fr;
   gap: var(--espace-3);
-  margin: 0 0 var(--espace-5);
+  margin: 0;
+
+  @media (min-width: pr.$point-tablette) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .tableau-de-bord__identite dt {
@@ -22,6 +46,7 @@
 
 .tableau-de-bord__identite dd {
   margin: var(--espace-1) 0 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .tableau-de-bord__lien {
