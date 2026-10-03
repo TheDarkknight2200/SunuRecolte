@@ -52,7 +52,7 @@ class PaiementApiTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.commandeId").value(commande.id()))
                 .andExpect(jsonPath("$.montant").value(900.00))
                 .andExpect(jsonPath("$.moyenPaiement").value("WAVE"))
-                .andExpect(jsonPath("$.statut").value("EN_ATTENTE"))
+                .andExpect(jsonPath("$.statut").value("REUSSI"))
                 .andExpect(jsonPath("$.referenceTransaction").value(startsWith("SIMU-")));
     }
 
@@ -161,9 +161,10 @@ class PaiementApiTest extends IntegrationTestSupport {
         assertThat(recues).hasSize(1);
         assertThat(recues.get(0).getMessage())
                 .contains("commande n° " + commande.id())
-                .contains("EN_ATTENTE")
+                .contains("REUSSI")
+                .contains("réussite simulée")
                 .contains("aucune transaction réelle")
-                .doesNotContain("réussi", "REUSSI", "ECHOUE", "payé");
+                .doesNotContain("a été payé", "paiement reçu", "ECHOUE");
         assertThat(recues.get(0).isLu()).isFalse();
     }
 
@@ -278,14 +279,14 @@ class PaiementApiTest extends IntegrationTestSupport {
 
     // --- Fabriques locales -------------------------------------------------
 
-    /** Paiement simulé accepté : la réponse reste EN_ATTENTE, seul statut que l'API sache écrire. */
+    /** Paiement simulé accepté : la réponse porte REUSSI, statut que l'API sait écrire en simulation. */
     private void payerSimule(Acheteur acheteur, Long commandeId) throws Exception {
         mockMvc.perform(post("/api/paiements")
                         .with(avecJetonDe(acheteur.getUtilisateur()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandeId\": " + commandeId + ", \"moyenPaiement\": \"WAVE\"}"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.statut").value("EN_ATTENTE"));
+                .andExpect(jsonPath("$.statut").value("REUSSI"));
     }
 
     private List<Notification> notificationsDePaiement(Utilisateur utilisateur) {
@@ -338,6 +339,11 @@ class PaiementApiTest extends IntegrationTestSupport {
         return objectMapper.readValue(reponse, CommandeResponse.class);
     }
 
+    /**
+     * Écriture directe en EN_ATTENTE : l'API ne produit plus ce statut (un paiement initié
+     * est REUSSI en simulation), mais la consultation doit rester exacte pour les lignes
+     * déjà en base.
+     */
     private Paiement creerPaiementEnAttente(Acheteur acheteur) throws Exception {
         CommandeResponse commande = creerCommande(acheteur, "2.00");
 
