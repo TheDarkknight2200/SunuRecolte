@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend — tests, types, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Tests unitaires (Vitest)
+        run: npm test -- --no-watch
+
+      - name: Typage des specs
+        run: npx tsc -p tsconfig.spec.json --noEmit
+
+      - name: Typage de l'application
+        run: npx tsc -p tsconfig.app.json --noEmit
+
+      - name: Build de production
+        run: npm run build
+
+  backend:
+    name: Backend — tests sur PostgreSQL
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sunurecolte-backend
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: sunurecolte
+          POSTGRES_PASSWORD: ci-mot-de-passe-postgres-factif
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sunurecolte"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Les tests d'intégration tournent contre PostgreSQL réel (aucune base
+      # embarquée, aucun mock) : la base et ces deux valeurs viennent du service
+      # ci-dessus, jamais d'application-local.properties, absent du dépôt.
+      SPRING_DATASOURCE_PASSWORD: ci-mot-de-passe-postgres-factif
+      # Secret de test fictif (> 32 octets, minimum HS256), en aucun cas un vrai.
+      JWT_SECRET: ci-secret-jwt-factif-pour-tests-0123456789abcdef
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer le JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # mvnw est versionné sans bit exécutable (mode 100644).
+      - name: Rendre le wrapper exécutable
+        run: chmod +x ./mvnw
+
+      - name: ./mvnw test
+        run: ./mvnw test
