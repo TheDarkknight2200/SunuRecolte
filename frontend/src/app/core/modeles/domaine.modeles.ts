@@ -195,6 +195,14 @@ export interface CommandeResponse {
   /** Commande.instructions_livraison : colonne sans nullable = false. */
   instructionsLivraison: string | null;
   lignes: LigneCommandeResponse[];
+  /**
+   * Paiement de la commande : `CommandeService.versResponse` rend le statut du paiement
+   * lorsqu'il existe, `null` quand aucun paiement n'a été enregistré. L'API n'invente
+   * jamais de paiement pour une commande.
+   */
+  statutPaiement: StatutPaiement | null;
+  /** Moyen choisi à la demande de paiement, conservé après un remboursement ; `null` sans paiement. */
+  moyenPaiement: MoyenPaiement | null;
 }
 
 /** Ligne d'une CommandeResponse. */

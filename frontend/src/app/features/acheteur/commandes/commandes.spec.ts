@@ -51,6 +51,8 @@ function commande(id: number, surcharge: Partial<CommandeResponse> = {}): Comman
     telephoneLivraison: null,
     instructionsLivraison: null,
     lignes: [ligne(900, 41)],
+    statutPaiement: null,
+    moyenPaiement: null,
     ...surcharge,
   };
 }

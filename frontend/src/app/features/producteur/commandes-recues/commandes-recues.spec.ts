@@ -19,6 +19,14 @@ import { CommandesRecues } from './commandes-recues';
 
 const URL_COMMANDES = 'http://localhost:8080/api/commandes';
 
+/**
+ * Les deux phrases de `CommandeService.verifierPaiementAvantConfirmation`, apostrophe droite
+ * comme dans la source Java. Elles sont recopiées ici et non importées de l'utilitaire : un
+ * test qui vérifierait une fonction contre elle-même ne prouverait rien.
+ */
+const MESSAGE_CONFIRMEE = "Une commande en livraison doit être payée avant d'être confirmée.";
+const MESSAGE_PRETE = "Une commande en livraison doit être payée avant d'être marquée prête.";
+
 const SESSION: SessionUtilisateur = {
   utilisateurId: 4,
   nom: 'Diop',
@@ -56,6 +64,9 @@ function commande(id: number, surcharge: Partial<CommandeResponse> = {}): Comman
     telephoneLivraison: null,
     instructionsLivraison: null,
     lignes: [ligne(900)],
+    /** Le serveur rend `null` tant qu'aucun paiement n'existe : la fixture fait de même. */
+    statutPaiement: null,
+    moyenPaiement: null,
     ...surcharge,
   };
 }
@@ -265,6 +276,149 @@ describe('CommandesRecues — commandes reçues du producteur', () => {
     expect(elements(racine, '.commandes-recues__carte button')).toHaveLength(0);
   });
 
+  // === Paiement rendu par le serveur et règle « livraison payée avant confirmation » ===
+
+  it('rend sur la carte le paiement envoyé par le serveur : moyen et statut', () => {
+    ouvrir();
+    charger([
+      commande(512, {
+        modeReception: 'LIVRAISON',
+        statutPaiement: 'REUSSI',
+        moyenPaiement: 'ORANGE_MONEY',
+      }),
+    ]);
+
+    expect(elements(racine, '.commandes-recues__champs dd').map(texteDe)).toContain(
+      'Orange Money — Réussi',
+    );
+  });
+
+  it('rend « Aucun paiement » quand le serveur n’en envoie aucun, jamais un statut inventé', () => {
+    ouvrir();
+    charger([commande(512)]);
+
+    const carte = element(racine, '.commandes-recues__carte');
+    expect(texteDe(element(carte, '.commandes-recues__champs'))).toContain('Aucun paiement');
+    expect(texteDe(carte)).not.toContain('Réussi');
+  });
+
+  it('REMBOURSE se lit « Remboursé (simulé) » : la simulation reste nommée', () => {
+    ouvrir();
+    charger([
+      commande(512, {
+        statut: 'ANNULEE',
+        modeReception: 'LIVRAISON',
+        statutPaiement: 'REMBOURSE',
+        moyenPaiement: 'WAVE',
+      }),
+    ]);
+
+    expect(elements(racine, '.commandes-recues__champs dd').map(texteDe)).toContain(
+      'Wave — Remboursé (simulé)',
+    );
+  });
+
+  it.each([
+    ['EN_ATTENTE', 'Confirmer la commande', MESSAGE_CONFIRMEE],
+    ['CONFIRMEE', 'Marquer comme prête', MESSAGE_PRETE],
+  ] as const)(
+    'livraison sans paiement : %s neutralise « %s » sans la faire disparaître',
+    (statut, libelle, attendu) => {
+      ouvrir();
+      charger([commande(512, { statut, modeReception: 'LIVRAISON' })]);
+
+      const bouton = element<HTMLButtonElement>(racine, '#commande-512-etape');
+      expect(texteDe(bouton)).toBe(libelle);
+      expect(bouton.getAttribute('aria-disabled')).toBe('true');
+      // `aria-disabled` et non `disabled` : l'action reste au clavier, seul son effet est retiré.
+      expect(bouton.disabled).toBe(false);
+      expect(bouton.getAttribute('aria-describedby')).toBe('commande-512-paiement-requis');
+
+      const motif = element(racine, '#commande-512-paiement-requis');
+      expect(motif.getAttribute('role')).toBe('status');
+      expect(texteDe(motif)).toBe(attendu);
+    },
+  );
+
+  it.each(['EN_ATTENTE', 'ECHOUE', 'ANNULE', 'REMBOURSE'] as const)(
+    'un paiement %s ne débloque pas la confirmation d’une livraison',
+    (statutPaiement) => {
+      ouvrir();
+      charger([
+        commande(512, { modeReception: 'LIVRAISON', statutPaiement, moyenPaiement: 'WAVE' }),
+      ]);
+
+      expect(element<HTMLButtonElement>(racine, '#commande-512-etape').getAttribute('aria-disabled')).toBe(
+        'true',
+      );
+    },
+  );
+
+  it('le clic sur une action neutralisée n’émet aucune requête', () => {
+    ouvrir();
+    charger([commande(512, { modeReception: 'LIVRAISON' })]);
+
+    element<HTMLButtonElement>(racine, '#commande-512-etape').click();
+    fixture.detectChanges();
+
+    expect(http.match(() => true)).toHaveLength(0);
+  });
+
+  it('une livraison payée retrouve son action pleine : ni aria-disabled, ni motif, PATCH normal', () => {
+    ouvrir();
+    charger([
+      commande(512, { modeReception: 'LIVRAISON', statutPaiement: 'REUSSI', moyenPaiement: 'WAVE' }),
+    ]);
+
+    const bouton = element<HTMLButtonElement>(racine, '#commande-512-etape');
+    expect(bouton.getAttribute('aria-disabled')).toBeNull();
+    expect(bouton.getAttribute('aria-describedby')).toBeNull();
+    expect(racine.querySelector('#commande-512-paiement-requis')).toBeNull();
+
+    const requete = demander(512);
+    expect(requete.request.body).toEqual({ statut: 'CONFIRMEE' });
+    requete.flush(
+      commande(512, {
+        statut: 'CONFIRMEE',
+        modeReception: 'LIVRAISON',
+        statutPaiement: 'REUSSI',
+        moyenPaiement: 'WAVE',
+      }),
+    );
+  });
+
+  it('en retrait, la règle ne change rien : aucune mention de blocage et l’action est envoyée', () => {
+    ouvrir();
+    charger([commande(512)]);
+
+    const bouton = element<HTMLButtonElement>(racine, '#commande-512-etape');
+    expect(bouton.getAttribute('aria-disabled')).toBeNull();
+    expect(racine.querySelector('#commande-512-paiement-requis')).toBeNull();
+
+    const requete = demander(512);
+    expect(requete.request.urlWithParams).toBe(`${URL_COMMANDES}/512/statut`);
+    requete.flush(commande(512, { statut: 'CONFIRMEE' }));
+  });
+
+  it('vue périmée : un 400 de refus de paiement du serveur va dans la notice, avec les mêmes mots', () => {
+    ouvrir();
+    charger([
+      commande(512, { modeReception: 'LIVRAISON', statutPaiement: 'REUSSI', moyenPaiement: 'WAVE' }),
+    ]);
+
+    const requete = demander(512);
+    requete.flush(
+      { statut: 400, message: MESSAGE_CONFIRMEE, timestamp: 'x' },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    fixture.detectChanges();
+
+    expect(notice()?.type).toBe('erreur');
+    expect(notice()?.message).toBe(MESSAGE_CONFIRMEE);
+    expect(texteDe(element(racine, '.badge'))).toBe('En attente');
+    expect(racine.querySelector('.message--erreur')).toBeNull();
+  });
+
   it('« Confirmer la commande » envoie PATCH /api/commandes/{id}/statut avec pour seul corps le statut', () => {
     ouvrir();
     charger([commande(512)]);
@@ -449,7 +603,12 @@ describe('CommandesRecues — commandes reçues du producteur', () => {
     expect(elements(racine, '.commandes-recues__carte')).toHaveLength(1);
   });
 
-  it('ne propose aucune annulation ni aucun vocabulaire de paiement', () => {
+  /**
+   * Reciblé au LOT P2b : l'écran parle désormais du paiement, puisque l'API l'envoie. Ce qui
+   * reste interdit est l'invention — une référence, un prestataire, un paiement passé — et
+   * l'annulation, qui n'est pas une action du producteur ici.
+   */
+  it('ne propose aucune annulation et ne parle que du paiement envoyé par le serveur', () => {
     ouvrir();
     charger([commande(512), commande(511, { statut: 'CONFIRMEE' }), commande(510, { statut: 'PRETE' })]);
 
@@ -459,8 +618,10 @@ describe('CommandesRecues — commandes reçues du producteur', () => {
       expect(texteDe(bouton)).not.toContain('Annuler');
     }
 
+    // Ces trois commandes sont en retrait et sans paiement : le seul mot autorisé est le constat.
     const texte = texteDe(racine).toLowerCase();
-    for (const terme of ['annul', 'payé', 'paiement', 'transaction', 'wave', 'orange money', 'simu-']) {
+    expect(texte).toContain('aucun paiement');
+    for (const terme of ['annul', 'payé', 'transaction', 'wave', 'orange money', 'simu-']) {
       expect(texte).not.toContain(terme);
     }
   });

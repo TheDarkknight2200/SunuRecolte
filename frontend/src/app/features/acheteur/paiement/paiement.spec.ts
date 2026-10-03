@@ -60,13 +60,18 @@ function commande(surcharge: Partial<CommandeResponse> = {}): CommandeResponse {
         sousTotal: 4500,
       },
     ],
+    statutPaiement: null,
+    moyenPaiement: null,
     ...surcharge,
   };
 }
 
 /**
- * Fixture de paiement : `EN_ATTENTE` et référence `SIMU-…`, c'est-à-dire ce que le
- * backend produit réellement. Aucun numéro financier véritable n'apparaît ici.
+ * Fixture de paiement : référence `SIMU-…`, jamais un numéro financier véritable. Le statut
+ * par défaut reste `EN_ATTENTE`, que l'API n'écrit pourtant plus depuis la règle « paiement
+ * avant confirmation » (POST /api/paiements rend `REUSSI`) : les tests qui l'utilisent
+ * vérifient la phrase de ce statut, et les tests des statuts réellement produits le nomment
+ * explicitement.
  */
 function paiement(surcharge: Partial<PaiementResponse> = {}): PaiementResponse {
   return {
@@ -682,6 +687,41 @@ describe('Paiement — écran de paiement simulé', () => {
     expect(valeurFiche('Statut du paiement')).toBe('Annulé');
     expect(texteDe(racine)).not.toContain('Réussi');
   });
+
+  it('REUSSI — le statut que l’API produit réellement — dit la simulation, jamais un encaissement', () => {
+    sansPaiement();
+    reponseServeur(paiement({ statut: 'REUSSI' }));
+
+    expect(texteDe(element(racine, '#paiement-resultat-titre'))).toBe(
+      'Paiement simulé enregistré : aucune transaction réelle n’a été effectuée.',
+    );
+    expect(valeurFiche('Statut du paiement')).toBe('Réussi');
+    expect(texteDe(racine)).toContain(
+      'Paiement simulé — aucune transaction réelle n’est effectuée.',
+    );
+  });
+
+  it('REMBOURSE : libellé et phrase nomment un remboursement simulé', () => {
+    sansPaiement();
+    reponseServeur(paiement({ statut: 'REMBOURSE' }));
+
+    expect(valeurFiche('Statut du paiement')).toBe('Remboursé (simulé)');
+    expect(texteDe(element(racine, '#paiement-resultat-titre'))).toBe(
+      'Remboursement simulé : aucune transaction réelle n’a été remboursée.',
+    );
+  });
+
+  it.each(['REUSSI', 'REMBOURSE'] as const)(
+    '%s : aucune phrase de résultat ne parle d’argent encaissé ou reversé pour de vrai',
+    (statut) => {
+      sansPaiement();
+      reponseServeur(paiement({ statut }));
+
+      const phrase = texteDe(element(racine, '#paiement-resultat-titre'));
+      expect(phrase).toContain('simul');
+      expect(phrase).toContain('aucune transaction réelle');
+    },
+  );
 
   it('conserve toutes les valeurs de PaiementResponse, y compris le moyen choisi', () => {
     sansPaiement();

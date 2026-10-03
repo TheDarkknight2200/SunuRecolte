@@ -38,13 +38,18 @@ const STATUTS_PAYABLES: readonly StatutCommande[] = ['EN_ATTENTE', 'CONFIRMEE', 
  * Paiement **simulé** d'une commande (POST /api/paiements).
  *
  * Aucun paiement réel n'est effectué et aucune API Wave ou Orange Money n'est appelée :
- * le backend enregistre une intention, lui reprend le montant du total de la commande,
- * et renvoie toujours un paiement `EN_ATTENTE` portant une référence `SIMU-…`. Cet écran
- * affiche ce statut sans jamais l'interpréter : il n'existe dans l'application aucun
- * chemin produisant `REUSSI` ou `ECHOUE`.
+ * le backend enregistre une intention, lui reprend le montant du total de la commande et
+ * renvoie un paiement `REUSSI` portant une référence `SIMU-…`. La réussite fait partie de
+ * la simulation (`PaiementService.appliquerLaReussiteSimulee`, seul endroit qui écrit
+ * `REUSSI`) ; la date de confirmation est un horodatage local du serveur, pas le retour
+ * d'un opérateur. À l'annulation de la commande, ce statut devient `REMBOURSE`
+ * (`CommandeService.rembourserOuAnnulerPaiement`). `ECHOUE` est dans l'enum sans chemin
+ * d'API qui l'écrive aujourd'hui.
  *
- * Le montant provient de `CommandeResponse.total` (serveur), jamais du panier local ;
- * l'identifiant de commande envoyé est celui renvoyé par le serveur, pas celui de l'URL.
+ * Cet écran affiche le statut renvoyé sans jamais l'interpréter ni le fabriquer : chaque
+ * phrase de résultat dit la simulation, et le montant vient de `CommandeResponse.total`
+ * (serveur), jamais du panier local ; l'identifiant de commande envoyé est celui renvoyé
+ * par le serveur, pas celui de l'URL.
  */
 @Component({
   selector: 'app-paiement',
@@ -204,10 +209,11 @@ export class Paiement {
   }
 
   /**
-   * Phrase de résultat reprise du statut **renvoyé par le serveur**. Le backend actuel
-   * n'écrit que `EN_ATTENTE` (création) et `ANNULE` (annulation de la commande liée) ;
-   * `REUSSI` et `ECHOUE` sont mappés pour que l'écran dise vrai si un jour le serveur
-   * les produit, sans jamais les fabriquer ici.
+   * Phrase de résultat reprise du statut **renvoyé par le serveur**. Le backend écrit
+   * `REUSSI` dès l'enregistrement (réussite simulée) et solde ce paiement en `REMBOURSE`
+   * quand la commande est annulée ; `EN_ATTENTE` comme `ECHOUE` restent mappés alors
+   * qu'aucun chemin d'API ne les écrit aujourd'hui. Aucune phrase ne laisse croire à un
+   * encaissement réel : là où le statut affirme une réussite, la simulation est dite.
    */
   protected phraseResultat(paiement: PaiementResponse): string {
     switch (paiement.statut) {
@@ -216,9 +222,11 @@ export class Paiement {
       case 'ANNULE':
         return 'Paiement annulé : la commande a été annulée.';
       case 'REUSSI':
-        return 'Simulation de paiement terminée.';
+        return 'Paiement simulé enregistré : aucune transaction réelle n’a été effectuée.';
       case 'ECHOUE':
         return 'Le serveur a enregistré un échec de paiement.';
+      case 'REMBOURSE':
+        return 'Remboursement simulé : aucune transaction réelle n’a été remboursée.';
     }
   }
 

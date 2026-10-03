@@ -27,12 +27,14 @@ export type ModeReception = 'RETRAIT' | 'LIVRAISON';
 
 /**
  * Statut d'un paiement (paiement/entity/StatutPaiement.java).
- * Le backend n'écrit que EN_ATTENTE (création) et ANNULE (annulation de la commande
- * liée, CommandeService.annulerPaiementEnAttente) : REUSSI et ECHOUE existent dans
- * l'enum et dans la contrainte de base mais aucun chemin applicatif ne les produit,
- * le paiement restant simulé.
+ *
+ * Le backend écrit `REUSSI` à l'enregistrement du paiement (réussite **simulée**, aucune
+ * transaction réelle) et solde un paiement `REUSSI` en `REMBOURSE` quand la commande est
+ * annulée (`CommandeService.rembourserOuAnnulerPaiement`) ; un paiement encore `EN_ATTENTE`
+ * devient `ANNULE`. `ECHOUE` reste dans l'enum et dans la contrainte de base sans chemin
+ * applicatif qui l'écrive aujourd'hui.
  */
-export type StatutPaiement = 'EN_ATTENTE' | 'REUSSI' | 'ECHOUE' | 'ANNULE';
+export type StatutPaiement = 'EN_ATTENTE' | 'REUSSI' | 'ECHOUE' | 'ANNULE' | 'REMBOURSE';
 
 /** Moyen de paiement (paiement/entity/MoyenPaiement.java) — moyens simulés. */
 export type MoyenPaiement = 'WAVE' | 'ORANGE_MONEY';
@@ -64,6 +66,7 @@ export const STATUTS_PAIEMENT: readonly StatutPaiement[] = [
   'REUSSI',
   'ECHOUE',
   'ANNULE',
+  'REMBOURSE',
 ];
 
 export const MOYENS_PAIEMENT: readonly MoyenPaiement[] = ['WAVE', 'ORANGE_MONEY'];
@@ -129,12 +132,16 @@ export const VARIANTES_BADGE_COMMANDE: Record<StatutCommande, string> = {
  * « confirmé » dans l'interface, seul le nom de l'état réel est repris.
  * « Annulé » qualifie le paiement, « Annulée » la commande : les deux enums
  * n'ont pas la même orthographe côté Java (ANNULE / ANNULEE).
+ * « (simulé) » accompagne « Remboursé » : un remboursement s'entend d'un argent
+ * réellement reversé, ce que l'application n'a jamais fait — la qualification porte
+ * l'honnêteté de l'état, pas seulement celle de la phrase de résultat.
  */
 export const LIBELLES_STATUT_PAIEMENT: Record<StatutPaiement, string> = {
   EN_ATTENTE: 'En attente',
   REUSSI: 'Réussi',
   ECHOUE: 'Échoué',
   ANNULE: 'Annulé',
+  REMBOURSE: 'Remboursé (simulé)',
 };
 
 export const LIBELLES_MOYEN_PAIEMENT: Record<MoyenPaiement, string> = {

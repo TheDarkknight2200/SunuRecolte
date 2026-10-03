@@ -79,6 +79,8 @@ function commande(partiels: Partial<CommandeResponse> = {}): CommandeResponse {
     telephoneLivraison: null,
     instructionsLivraison: null,
     lignes: [ligneCommande()],
+    statutPaiement: null,
+    moyenPaiement: null,
     ...partiels,
   };
 }
