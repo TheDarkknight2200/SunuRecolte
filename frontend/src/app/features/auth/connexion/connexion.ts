@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, ElementRef, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Role } from '../../../core/modeles/referentiels';
@@ -9,6 +9,8 @@ import {
   MESSAGE_DOMAINE_INCOMPLET,
   domaineEmailComplet,
 } from '../../../core/utilitaires/validation-email';
+
+type ChampConnexion = 'email' | 'motDePasse';
 
 /** Connexion : POST /api/auth/connexion puis redirection selon le rôle renvoyé. */
 @Component({
@@ -22,6 +24,13 @@ export class Connexion {
   private readonly auth = inject(AuthService);
   private readonly routeur = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly element: ElementRef<HTMLElement> = inject(ElementRef);
+
+  /** Ordre du DOM : un envoi refusé donne le focus au premier champ invalide. */
+  private readonly champsDansOrdreDuDom: readonly { nom: ChampConnexion; selecteur: string }[] = [
+    { nom: 'email', selecteur: '#connexion-email' },
+    { nom: 'motDePasse', selecteur: '#connexion-mot-de-passe' },
+  ];
 
   protected readonly formulaire = this.fb.group({
     email: [
@@ -37,12 +46,12 @@ export class Connexion {
     this.route.snapshot.queryParamMap.has('sessionExpiree'),
   );
 
-  protected invalide(nom: 'email' | 'motDePasse'): boolean {
+  protected invalide(nom: ChampConnexion): boolean {
     const controle = this.formulaire.controls[nom];
     return controle.invalid && controle.touched;
   }
 
-  protected messageChamp(nom: 'email' | 'motDePasse'): string {
+  protected messageChamp(nom: ChampConnexion): string {
     const controle = this.formulaire.controls[nom];
     if (controle.hasError('required')) {
       return 'Ce champ est obligatoire.';
@@ -62,6 +71,7 @@ export class Connexion {
   protected soumettre(): void {
     if (this.formulaire.invalid) {
       this.formulaire.markAllAsTouched();
+      this.focusSurPremierChampInvalide();
       return;
     }
 
@@ -80,6 +90,15 @@ export class Connexion {
         );
       },
     });
+  }
+
+  /** Un seul focus, sur la cible déjà présente dans le DOM : rien n'est piègé ni différé. */
+  private focusSurPremierChampInvalide(): void {
+    const cible = this.champsDansOrdreDuDom.find((champ) => this.invalide(champ.nom));
+    if (cible === undefined) {
+      return;
+    }
+    this.element.nativeElement.querySelector<HTMLElement>(cible.selecteur)?.focus();
   }
 
   private cibleApresConnexion(role: Role): string {

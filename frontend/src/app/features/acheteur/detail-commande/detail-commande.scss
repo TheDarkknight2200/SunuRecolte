@@ -5,10 +5,11 @@
    .bouton--encre, .lien-action et la modale .voile / .modale : ce fichier ne règle que la
    composition de cette page (en-tête, résumé, densité du tableau de lignes). */
 
+/* Le rythme vertical de la colonne est celui des écrans déjà refaits (§41 : --espace-5 partout). */
 .detail-commande .conteneur {
   display: flex;
   flex-direction: column;
-  gap: var(--espace-4);
+  gap: var(--espace-5);
 }
 
 /* === Titre de page === */

@@ -6,6 +6,7 @@ import {
 } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
+import { vi } from 'vitest';
 import { routes } from '../../../app.routes';
 import { authGuard } from '../../../core/guards/auth.guard';
 import { roleGuard } from '../../../core/guards/role.guard';
@@ -13,6 +14,7 @@ import { authInterceptor } from '../../../core/intercepteurs/auth.interceptor';
 import { SessionUtilisateur } from '../../../core/modeles/auth.modeles';
 import { CommandeResponse } from '../../../core/modeles/domaine.modeles';
 import { CLE_JETON, CLE_UTILISATEUR } from '../../../core/services/auth.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { CommandesRecues } from './commandes-recues';
 
 const URL_COMMANDES = 'http://localhost:8080/api/commandes';
@@ -126,6 +128,11 @@ describe('CommandesRecues — commandes reçues du producteur', () => {
     element<HTMLButtonElement>(racine, `#commande-${id}-etape`).click();
     fixture.detectChanges();
     return http.expectOne(`${URL_COMMANDES}/${id}/statut`);
+  }
+
+  /** La notice globale émise par l'écran : le refus de transition n'a plus de bannière. */
+  function notice(): ReturnType<ToastService['notice']> {
+    return TestBed.inject(ToastService).notice();
   }
 
   afterEach(() => {
@@ -337,9 +344,9 @@ describe('CommandesRecues — commandes reçues du producteur', () => {
     fixture.detectChanges();
 
     const carte = element(racine, '.commandes-recues__carte');
-    expect(texteDe(element(carte, '.message--erreur p'))).toBe(
-      'Transition de statut interdite : PRETE vers CONFIRMEE.',
-    );
+    expect(notice()?.type).toBe('erreur');
+    expect(notice()?.message).toBe('Transition de statut interdite : PRETE vers CONFIRMEE.');
+    expect(carte.querySelector('.message--erreur')).toBeNull();
     expect(texteDe(element(carte, '.badge'))).toBe('Prête');
     expect(element<HTMLButtonElement>(racine, '#commande-512-etape').disabled).toBe(false);
   });
@@ -355,7 +362,8 @@ describe('CommandesRecues — commandes reçues du producteur', () => {
     );
     fixture.detectChanges();
 
-    expect(texteDe(element(racine, '.message--erreur'))).toContain('déjà au statut CONFIRMEE');
+    expect(notice()?.message).toContain('déjà au statut CONFIRMEE');
+    expect(racine.querySelector('.message--erreur')).toBeNull();
     expect(texteDe(element(racine, '.badge'))).toBe('En attente');
     expect(racine.querySelector('.message--succes')).toBeNull();
   });
@@ -385,9 +393,29 @@ describe('CommandesRecues — commandes reçues du producteur', () => {
     fixture.detectChanges();
 
     const carte = elements(racine, '.commandes-recues__carte')[0];
-    expect(texteDe(element(carte, '.message--erreur'))).toContain('serveur est injoignable');
+    expect(notice()?.message).toContain('serveur est injoignable');
+    expect(carte.querySelector('.message--erreur')).toBeNull();
     expect(elements(racine, '.commandes-recues__carte')).toHaveLength(2);
     expect(element<HTMLButtonElement>(racine, '#commande-512-etape').disabled).toBe(false);
+  });
+
+  it('confie le refus de transition à la notice : aucune bannière dans la carte', () => {
+    ouvrir();
+    charger([commande(512, { statut: 'PRETE' })]);
+
+    const espion = vi.spyOn(TestBed.inject(ToastService), 'afficher');
+    demander(512).flush(
+      { statut: 400, message: 'Transition de statut interdite : PRETE vers CONFIRMEE.', timestamp: 'x' },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    fixture.detectChanges();
+
+    expect(espion).toHaveBeenCalledWith(
+      'Transition de statut interdite : PRETE vers CONFIRMEE.',
+      'erreur',
+    );
+    const carte = element(racine, '.commandes-recues__carte');
+    expect(carte.querySelector('.message--erreur')).toBeNull();
   });
 
   it('propose le catalogue… et les récoltes quand aucune commande n’est reçue', () => {
@@ -454,6 +482,74 @@ describe('CommandesRecues — commandes reçues du producteur', () => {
 
     // La requête d’ouverture a été consommée par `charger` : aucune autre n’est en attente.
     expect(http.match(() => true)).toHaveLength(0);
+  });
+
+  describe('structure de page', () => {
+    /**
+     * Filet écrit avant tout restylage : un état est bien rendu s’il partage le parent de
+     * l’en-tête. La assertion reste vraie quel que soit ce parent — c’est lui qui est testé
+     * ailleurs, pas son nom.
+     */
+    function memeParentQueLEntete(selecteur: string): void {
+      expect(element(racine, selecteur).parentElement).toBe(
+        element(racine, '.commandes-recues__entete').parentElement,
+      );
+    }
+
+    function parentDe(selecteur: string): Element | null {
+      return element(racine, selecteur).parentElement;
+    }
+
+    it('n’a qu’un seul h1, porté par l’en-tête de page', () => {
+      ouvrir();
+      charger([commande(512)]);
+
+      const titres = elements(racine, 'h1');
+      expect(titres).toHaveLength(1);
+      expect(texteDe(titres[0])).toBe('Commandes reçues');
+      expect(titres[0].closest('.commandes-recues__entete')).not.toBeNull();
+    });
+
+    it('rend le chargement et la liste dans le parent de l’en-tête', () => {
+      ouvrir();
+
+      memeParentQueLEntete('.etat');
+      charger([commande(512)]);
+      memeParentQueLEntete('.commandes-recues__liste');
+    });
+
+    it('rend l’erreur puis la liste vide dans le parent de l’en-tête', () => {
+      ouvrir();
+      demandeListe().flush(
+        { message: 'Une erreur interne est survenue. Veuillez réessayer.', timestamp: 'x' },
+        { status: 500, statusText: 'Internal Server Error' },
+      );
+      fixture.detectChanges();
+
+      memeParentQueLEntete('.message--erreur');
+      element<HTMLButtonElement>(racine, '#commandes-recues-reessayer').click();
+      fixture.detectChanges();
+      demandeListe().flush([]);
+      fixture.detectChanges();
+
+      memeParentQueLEntete('.etat');
+      expect(texteDe(element(racine, '.etat'))).toContain('Aucune commande reçue pour le moment.');
+    });
+
+    it('place toute la colonne de page dans un .conteneur unique (§20)', () => {
+      ouvrir();
+      expect(racine.querySelectorAll('.conteneur')).toHaveLength(1);
+
+      const conteneur = element<HTMLElement>(racine, '.conteneur');
+      expect(conteneur.parentElement).toBe(element(racine, 'section.commandes-recues'));
+      expect(conteneur.querySelector('h1')).not.toBeNull();
+      expect(parentDe('.etat')).toBe(conteneur);
+
+      charger([commande(512)]);
+      expect(parentDe('.commandes-recues__liste')).toBe(conteneur);
+      // Les cartes restent sous la liste : le conteneur englobe la page, pas chaque commande.
+      expect(parentDe('.commandes-recues__carte')).toBe(element(racine, '.commandes-recues__liste'));
+    });
   });
 });
 

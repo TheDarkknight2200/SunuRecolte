@@ -458,6 +458,47 @@ describe('Paiement — écran de paiement simulé', () => {
     expect(http.match((requete) => requete.method === 'POST')).toHaveLength(0);
   });
 
+  // === Structure de l'écran ===
+
+  it('loge tout l’écran dans un unique conteneur centré', () => {
+    sansPaiement();
+
+    expect(elements(racine, '.paiement > .conteneur')).toHaveLength(1);
+    expect(racine.querySelector('.conteneur > .paiement__titre')).not.toBeNull();
+    expect(racine.querySelector('.conteneur > .message--info')).not.toBeNull();
+    expect(racine.querySelector('.conteneur > .carte')).not.toBeNull();
+  });
+
+  it('habille la commande et le formulaire sur la carte globale', () => {
+    sansPaiement();
+
+    const cartes = elements(racine, '.paiement .carte');
+    expect(cartes).toHaveLength(2);
+    expect(texteDe(element(cartes[0], '.carte__titre'))).toBe('Commande');
+    expect(cartes[1].tagName).toBe('FORM');
+    expect(texteDe(element(racine, '.paiement__legende'))).toBe('Moyen de paiement');
+    expect(elements(racine, '.paiement h1').map(texteDe)).toHaveLength(1);
+  });
+
+  it('rend le montant à payer dans la carte de la commande, jamais dans le formulaire', () => {
+    sansPaiement(commande({ total: 4500 }));
+
+    const carte = element(racine, '.paiement .carte');
+    expect(texteDe(carte)).toContain('Total à payer');
+    expect(texteDe(element(carte, '.paiement__total'))).toBe('4 500 FCFA');
+    expect(racine.querySelector('form .paiement__total')).toBeNull();
+  });
+
+  it('rend les états dans le même conteneur que les cartes', () => {
+    ouvrir();
+
+    expect(racine.querySelector('.conteneur > .etat')).not.toBeNull();
+    lireCommande(commande());
+    lirePaiement(null);
+    expect(racine.querySelector('.conteneur > .etat')).toBeNull();
+    expect(racine.querySelector('.conteneur > .carte')).not.toBeNull();
+  });
+
   // === Le moyen de paiement ===
 
   it('propose exactement Wave et Orange Money, en radios d’un même groupe', () => {

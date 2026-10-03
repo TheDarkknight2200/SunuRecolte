@@ -1,6 +1,6 @@
-.auth {
+/* Colonne étroite conservée (30 rem), le plafond et le centrage venant du socle .conteneur. */
+.auth .conteneur {
   max-width: 30rem;
-  margin: 0 auto;
 }
 
 .auth__marque {

@@ -202,4 +202,136 @@ describe('Connexion', () => {
     const message = element<HTMLElement>(fixture.nativeElement, '.message--info');
     expect(message.textContent).toContain('Votre session a expiré');
   });
+
+  it('déclare les deux champs comme obligatoires pour les lecteurs d’écran', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+
+    for (const selecteur of ['#connexion-email', '#connexion-mot-de-passe']) {
+      const champ = element<HTMLInputElement>(racine, selecteur);
+      expect(champ.required).toBe(true);
+      expect(champ.getAttribute('aria-required')).toBe('true');
+    }
+  });
+
+  it('donne le focus au premier champ invalide quand le formulaire vide est envoyé', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+
+    soumettre(fixture);
+
+    expect(document.activeElement).toBe(element(racine, '#connexion-email'));
+    expect(document.activeElement).not.toBe(element(racine, 'button[type="submit"]'));
+  });
+
+  it('donne le focus au premier champ invalide de l’ordre du DOM, pas au premier champ', () => {
+    const fixture = creer();
+    saisir(fixture.nativeElement, '#connexion-email', 'awa.diop@example.sn');
+    fixture.detectChanges();
+
+    soumettre(fixture);
+
+    expect(document.activeElement).toBe(element(fixture.nativeElement, '#connexion-mot-de-passe'));
+  });
+
+  it('ne déplace pas le focus quand seule l’erreur générale s’affiche', () => {
+    const fixture = creer();
+    identifier(fixture);
+
+    soumettre(fixture);
+    const champ = element<HTMLInputElement>(fixture.nativeElement, '#connexion-email');
+    champ.focus();
+    expect(document.activeElement).toBe(champ);
+
+    http
+      .expectOne(`${API}/auth/connexion`)
+      .flush(
+        {
+          statut: 500,
+          message: 'Le serveur n’a pas répondu.',
+          timestamp: '2026-01-01T10:00:00',
+        },
+        { status: 500, statusText: 'Internal Server Error' },
+      );
+    fixture.detectChanges();
+
+    expect(element<HTMLElement>(fixture.nativeElement, '.message--erreur').getAttribute('role')).toBe(
+      'alert',
+    );
+    expect(document.activeElement).toBe(champ);
+  });
+
+  it('ne déclare aucune erreur de champ comme une alerte', () => {
+    const fixture = creer();
+
+    soumettre(fixture);
+
+    const messages = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.champ__erreur'),
+    );
+    expect(messages).toHaveLength(2);
+    for (const message of messages) {
+      expect(message.getAttribute('role')).toBeNull();
+    }
+  });
+
+  it('porte un titre h1 unique et un seul formulaire', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+
+    const titres = Array.from(racine.querySelectorAll<HTMLElement>('h1'));
+    expect(titres).toHaveLength(1);
+    expect((titres[0].textContent ?? '').trim()).toBe('Connexion');
+    expect(racine.querySelectorAll('form')).toHaveLength(1);
+  });
+
+  it('place le formulaire sous le même parent que le titre', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+
+    expect(element(racine, 'form').parentElement).toBe(element(racine, 'h1').parentElement);
+  });
+
+  it('place la bannière de session expirée sous le même parent que le formulaire', () => {
+    const fixture = creer({ sessionExpiree: '1' });
+    const racine = fixture.nativeElement as HTMLElement;
+
+    const banniere = element<HTMLElement>(racine, '.message--info');
+    expect(banniere.getAttribute('role')).toBe('status');
+    expect(banniere.parentElement).toBe(element(racine, 'form').parentElement);
+  });
+
+  it('place la bannière d’erreur sous le même parent que le formulaire', () => {
+    const fixture = creer();
+    identifier(fixture);
+
+    soumettre(fixture);
+    http
+      .expectOne(`${API}/auth/connexion`)
+      .flush(
+        {
+          statut: 401,
+          message: 'Email ou mot de passe incorrect.',
+          timestamp: '2026-01-01T10:00:00',
+        },
+        { status: 401, statusText: 'Unauthorized' },
+      );
+    fixture.detectChanges();
+
+    const racine = fixture.nativeElement as HTMLElement;
+    const banniere = element<HTMLElement>(racine, '.message--erreur');
+    expect(banniere.getAttribute('role')).toBe('alert');
+    expect(banniere.parentElement).toBe(element(racine, 'form').parentElement);
+  });
+
+  it('centre son contenu dans le conteneur unique de la section', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+
+    const section = element<HTMLElement>(racine, '.auth');
+    expect(section.children).toHaveLength(1);
+    const conteneur = element<HTMLElement>(racine, '.conteneur');
+    expect(conteneur.parentElement).toBe(section);
+    expect(element(racine, 'h1').parentElement).toBe(conteneur);
+  });
 });

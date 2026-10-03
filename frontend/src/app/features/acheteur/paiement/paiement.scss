@@ -1,9 +1,11 @@
 @use "points-rupture" as pr;
 
-.paiement {
+/* Le socle global fournit .conteneur (§20) : c'est lui qui porte la colonne verticale,
+   au même rythme que la page de commande et que le panier. */
+.paiement .conteneur {
   display: flex;
   flex-direction: column;
-  gap: var(--espace-4);
+  gap: var(--espace-5);
 }
 
 .paiement__titre h1 {
@@ -24,13 +26,10 @@
   margin: 0;
 }
 
-.paiement__zone-titre {
-  margin: 0 0 var(--espace-3);
-  font-size: var(--taille-lg);
-  font-weight: 600;
-}
-
-.paiement__zone-titre:focus {
+/* Le titre de carte est porté par la classe globale `.carte__titre` (§10.4). Ne reste ici que
+   l'exception du focus posé par le composant sur le titre du résultat : un titre n'est pas
+   un élément interactif, l'anneau lui serait inutile. */
+.paiement .carte__titre:focus {
   outline: none;
 }
 
@@ -45,6 +44,8 @@
   color: var(--couleur-texte-secondaire);
   font-size: var(--taille-xs);
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .paiement__champs dd {
@@ -54,7 +55,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Le montant à payer est le chiffre dominant de l'écran, à la même écriture qu'au panier (§30). */
 .paiement__total {
+  font-family: var(--police-titre);
+  font-size: var(--taille-xl);
   font-weight: 600;
 }
 

@@ -280,4 +280,177 @@ describe('Inscription', () => {
     );
     expect(fixture.nativeElement.querySelector('.message--erreur')).toBeNull();
   });
+
+  it('déclare les cinq champs d’identité comme obligatoires', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+
+    // `telephone` est ici parce que le composant le valide avec `Validators.required`.
+    for (const selecteur of [
+      '#inscription-nom',
+      '#inscription-prenom',
+      '#inscription-email',
+      '#inscription-telephone',
+      '#inscription-mot-de-passe',
+    ]) {
+      const champ = element<HTMLInputElement>(racine, selecteur);
+      expect(champ.required).toBe(true);
+      expect(champ.getAttribute('aria-required')).toBe('true');
+    }
+  });
+
+  it('déclare la filière obligatoire quand le producteur la voit, et personne d’autre', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+    choisirRole(racine, 'PRODUCTEUR');
+    fixture.detectChanges();
+
+    const filiere = element<HTMLSelectElement>(racine, '#inscription-filiere');
+    expect(filiere.required).toBe(true);
+    expect(filiere.getAttribute('aria-required')).toBe('true');
+    expect(racine.querySelector('#inscription-type-acheteur')).toBeNull();
+  });
+
+  it('déclare le type d’acheteur obligatoire quand l’acheteur le voit, et personne d’autre', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+    choisirRole(racine, 'ACHETEUR');
+    fixture.detectChanges();
+
+    const type = element<HTMLSelectElement>(racine, '#inscription-type-acheteur');
+    expect(type.required).toBe(true);
+    expect(type.getAttribute('aria-required')).toBe('true');
+    expect(racine.querySelector('#inscription-filiere')).toBeNull();
+  });
+
+  it('donne le focus au premier champ invalide quand le formulaire vide est envoyé', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+
+    soumettre(fixture);
+
+    expect(document.activeElement).toBe(element(racine, '.auth__roles input[type="radio"]'));
+    expect(document.activeElement).not.toBe(element(racine, 'button[type="submit"]'));
+  });
+
+  it('donne le focus au champ conditionnel invalide en dernier', () => {
+    const fixture = creer();
+    choisirRole(fixture.nativeElement, 'PRODUCTEUR');
+    remplirIdentite(fixture);
+
+    soumettre(fixture);
+
+    expect(document.activeElement).toBe(element(fixture.nativeElement, '#inscription-filiere'));
+  });
+
+  it('donne le focus au champ signalé par le backend', () => {
+    const fixture = creer();
+    choisirRole(fixture.nativeElement, 'PRODUCTEUR');
+    remplirIdentite(fixture);
+    choisirOption(fixture.nativeElement, '#inscription-filiere', 'Maraîchage');
+
+    soumettre(fixture);
+    http
+      .expectOne(`${API}/auth/inscription`)
+      .flush(
+        {
+          statut: 400,
+          message: 'Données invalides.',
+          erreurs: { email: 'Cette adresse email est déjà utilisée.' },
+          timestamp: '2026-01-01T10:00:00',
+        },
+        { status: 400, statusText: 'Bad Request' },
+      );
+    fixture.detectChanges();
+
+    expect(document.activeElement).toBe(element(fixture.nativeElement, '#inscription-email'));
+  });
+
+  it('ne déplace pas le focus quand seule l’erreur générale s’affiche', () => {
+    const fixture = creer();
+    choisirRole(fixture.nativeElement, 'PRODUCTEUR');
+    remplirIdentite(fixture);
+    choisirOption(fixture.nativeElement, '#inscription-filiere', 'Maraîchage');
+
+    soumettre(fixture);
+    const champ = element<HTMLInputElement>(fixture.nativeElement, '#inscription-nom');
+    champ.focus();
+    expect(document.activeElement).toBe(champ);
+
+    http
+      .expectOne(`${API}/auth/inscription`)
+      .flush(
+        { statut: 500, message: 'Le serveur n’a pas répondu.', timestamp: '2026-01-01T10:00:00' },
+        { status: 500, statusText: 'Internal Server Error' },
+      );
+    fixture.detectChanges();
+
+    expect(element<HTMLElement>(fixture.nativeElement, '.message--erreur').getAttribute('role')).toBe(
+      'alert',
+    );
+    expect(document.activeElement).toBe(champ);
+  });
+
+  it('ne déclare aucune erreur de champ comme une alerte', () => {
+    const fixture = creer();
+
+    soumettre(fixture);
+
+    const messages = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.champ__erreur'),
+    );
+    expect(messages).toHaveLength(6);
+    for (const message of messages) {
+      expect(message.getAttribute('role')).toBeNull();
+    }
+  });
+
+  it('porte un titre h1 unique et un seul formulaire', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+
+    const titres = Array.from(racine.querySelectorAll<HTMLElement>('h1'));
+    expect(titres).toHaveLength(1);
+    expect((titres[0].textContent ?? '').trim()).toBe('Créer un compte');
+    expect(racine.querySelectorAll('form')).toHaveLength(1);
+  });
+
+  it('place le formulaire sous le même parent que le titre', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+
+    expect(element(racine, 'form').parentElement).toBe(element(racine, 'h1').parentElement);
+  });
+
+  it('place la bannière d’erreur générale sous le même parent que le formulaire', () => {
+    const fixture = creer();
+    choisirRole(fixture.nativeElement, 'PRODUCTEUR');
+    remplirIdentite(fixture);
+    choisirOption(fixture.nativeElement, '#inscription-filiere', 'Maraîchage');
+
+    soumettre(fixture);
+    http
+      .expectOne(`${API}/auth/inscription`)
+      .flush(
+        { statut: 500, message: 'Le serveur n’a pas répondu.', timestamp: '2026-01-01T10:00:00' },
+        { status: 500, statusText: 'Internal Server Error' },
+      );
+    fixture.detectChanges();
+
+    const racine = fixture.nativeElement as HTMLElement;
+    const banniere = element<HTMLElement>(racine, '.message--erreur');
+    expect(banniere.getAttribute('role')).toBe('alert');
+    expect(banniere.parentElement).toBe(element(racine, 'form').parentElement);
+  });
+
+  it('centre son contenu dans le conteneur unique de la section', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+
+    const section = element<HTMLElement>(racine, '.auth');
+    expect(section.children).toHaveLength(1);
+    const conteneur = element<HTMLElement>(racine, '.conteneur');
+    expect(conteneur.parentElement).toBe(section);
+    expect(element(racine, 'h1').parentElement).toBe(conteneur);
+  });
 });

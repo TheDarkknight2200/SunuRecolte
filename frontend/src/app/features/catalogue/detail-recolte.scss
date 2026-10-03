@@ -1,6 +1,11 @@
 @use "points-rupture" as pr;
 
-.detail-recolte {
+/* Le socle global fournit .conteneur (§20 : centrage, gouttières). La fiche garde sa largeur
+   étroite propre — 46rem, valeur préexistante reprise ici, aucune largeur nouvelle — mais ne la
+   porte plus sur sa racine : c'est le conteneur qui la reçoit, donc il est centré. La règle de
+   racine est supprimée, comme sur les écrans déjà alignés (§41.2, §41.3). Le rythme vertical reste
+   porté par les marges des blocs (retour, états, description) et n'est pas déplacé ici. */
+.detail-recolte .conteneur {
   max-width: 46rem;
 }
 
@@ -19,6 +24,40 @@
   margin: 0;
 }
 
+/* === Fiche : le visuel à gauche, les informations et les actions à droite === */
+
+.detail-recolte__fiche {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: var(--espace-5);
+
+  @media (min-width: pr.$point-tablette) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Aucune photo : la colonne d'informations reprend toute la largeur. */
+.detail-recolte__fiche > :only-child {
+  grid-column: 1 / -1;
+}
+
+.detail-recolte__visuel {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1.13;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-surface);
+  background-color: var(--couleur-fond-image);
+}
+
+.detail-recolte__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .detail-recolte__entete {
   display: flex;
   flex-wrap: wrap;
@@ -30,13 +69,6 @@
 
 .detail-recolte__entete h1 {
   margin: 0;
-}
-
-.detail-recolte__image {
-  display: block;
-  margin-bottom: var(--espace-5);
-  border: 1px solid var(--couleur-bordure);
-  border-radius: var(--rayon-lg);
 }
 
 .detail-recolte__description {

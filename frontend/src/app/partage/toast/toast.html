@@ -1,0 +1,38 @@
+<div
+  class="toast__zone"
+  (mouseenter)="suspendre()"
+  (mouseleave)="reprendre()"
+  (focusin)="suspendre()"
+  (focusout)="reprendre()"
+>
+  <div class="toast__region" role="status" aria-live="polite" aria-atomic="true">
+    @if (polie(); as n) {
+      <div
+        class="toast"
+        [class.toast--succes]="n.type === 'succes'"
+        [class.toast--info]="n.type === 'info'"
+        [class.toast--sortie]="enSortie()"
+      >
+        <span class="materiel-icone toast__icone" aria-hidden="true">{{ glyphe(n) }}</span>
+        <p class="toast__texte">{{ n.message }}</p>
+      </div>
+    }
+  </div>
+
+  <div class="toast__region" role="alert" aria-live="assertive" aria-atomic="true">
+    @if (grave(); as n) {
+      <div class="toast toast--erreur" [class.toast--sortie]="enSortie()">
+        <span class="materiel-icone toast__icone" aria-hidden="true">{{ glyphe(n) }}</span>
+        <p class="toast__texte">{{ n.message }}</p>
+        <button
+          type="button"
+          class="toast__fermer"
+          aria-label="Fermer la notification"
+          (click)="masquer()"
+        >
+          <span class="toast__croix" aria-hidden="true">&times;</span>
+        </button>
+      </div>
+    }
+  </div>
+</div>

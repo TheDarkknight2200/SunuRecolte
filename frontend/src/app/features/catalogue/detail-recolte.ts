@@ -6,6 +6,7 @@ import { LIBELLES_STATUT_RECOLTE, StatutRecolte } from '../../core/modeles/refer
 import { AuthService } from '../../core/services/auth.service';
 import { PanierService } from '../../core/services/panier.service';
 import { RecolteService } from '../../core/services/recolte.service';
+import { ToastService } from '../../core/services/toast.service';
 import { messageErreurApi } from '../../core/utilitaires/erreurs-api';
 import { formaterDate, formaterMontant, formaterQuantite } from '../../core/utilitaires/formatage';
 import {
@@ -31,6 +32,7 @@ export class DetailRecolte {
   private readonly recoltes = inject(RecolteService);
   private readonly auth = inject(AuthService);
   private readonly panier = inject(PanierService);
+  private readonly toast = inject(ToastService);
 
   protected readonly recolte = signal<RecolteResponse | null>(null);
   protected readonly chargement = signal(true);
@@ -38,8 +40,15 @@ export class DetailRecolte {
   protected readonly introuvable = signal(false);
   protected readonly imageCassee = signal(false);
 
+  /** Le statut se pose sur la photo ; sans photo affichée, il reste dans le titre. */
+  protected readonly photoAffichee = computed(() => {
+    const recolte = this.recolte();
+    return recolte !== null && recolte.imageUrl !== null && !this.imageCassee();
+  });
+
   /** Réglage d'usage : la fiche reste consultable par tout le monde. */
   protected readonly acheteur = computed(() => this.auth.role() === 'ACHETEUR');
+  /** Source des textes de la notice (§39.2) : aucune bannière ne les rend plus. */
   protected readonly succesPanier = signal<string | null>(null);
   protected readonly refusPanier = signal<string | null>(null);
 
@@ -114,14 +123,21 @@ export class DetailRecolte {
 
   /** La récolte est transmise telle quelle au service : aucune règle métier ici. */
   protected ajouterAuPanier(recolte: RecolteResponse): void {
-    if (this.panier.ajouter(recolte, QUANTITE_INITIALE)) {
-      this.refusPanier.set(null);
-      this.succesPanier.set(
-        `Récolte ajoutée au panier : ${recolte.produit} (${quantiteAjoutee(recolte)}).`,
-      );
+    // Un bouton en `aria-disabled` reste cliquable : la garde bloque l'ajout, pas le focus.
+    if (!estAjoutPossible(recolte)) {
       return;
     }
+    this.toast.masquer();
+    if (this.panier.ajouter(recolte, QUANTITE_INITIALE)) {
+      const message = `${recolte.produit} ajouté au panier`;
+      this.refusPanier.set(null);
+      this.succesPanier.set(message);
+      this.toast.afficher(message, 'succes');
+      return;
+    }
+    const motif = messageRefusAjout(recolte);
     this.succesPanier.set(null);
-    this.refusPanier.set(messageRefusAjout(recolte));
+    this.refusPanier.set(motif);
+    this.toast.afficher(motif, 'erreur');
   }
 }

@@ -13,6 +13,7 @@ import { RecolteResponse } from '../../core/modeles/domaine.modeles';
 import { AuthService } from '../../core/services/auth.service';
 import { PanierService } from '../../core/services/panier.service';
 import { CriteresRechercheRecolte, RecolteService } from '../../core/services/recolte.service';
+import { ToastService } from '../../core/services/toast.service';
 import { messageErreurApi } from '../../core/utilitaires/erreurs-api';
 import { formaterDate, formaterMontant, formaterQuantite } from '../../core/utilitaires/formatage';
 import {
@@ -41,6 +42,7 @@ export class Catalogue {
   private readonly recoltes = inject(RecolteService);
   private readonly auth = inject(AuthService);
   private readonly panier = inject(PanierService);
+  private readonly toast = inject(ToastService);
 
   protected readonly formulaire = this.fb.group({
     recherche: [''],
@@ -58,6 +60,7 @@ export class Catalogue {
 
   /** Réglage d'usage, pas une règle de sécurité : le catalogue reste public. */
   protected readonly acheteur = computed(() => this.auth.role() === 'ACHETEUR');
+  /** Source des textes de la notice (§39.2) : aucune bannière ne les rend plus. */
   protected readonly succesPanier = signal<string | null>(null);
   protected readonly refusPanier = signal<string | null>(null);
 
@@ -156,14 +159,41 @@ export class Catalogue {
    * fusion, plafond du stock connu et persistance appartiennent à `PanierService`.
    */
   protected ajouterAuPanier(recolte: RecolteResponse): void {
-    if (this.panier.ajouter(recolte, QUANTITE_INITIALE)) {
-      this.refusPanier.set(null);
-      this.succesPanier.set(
-        `Récolte ajoutée au panier : ${recolte.produit} (${quantiteAjoutee(recolte)}).`,
-      );
+    // Un bouton en `aria-disabled` reste cliquable : la garde bloque l'ajout, pas le focus.
+    if (!estAjoutPossible(recolte)) {
       return;
     }
+    if (this.panier.ajouter(recolte, QUANTITE_INITIALE)) {
+      const message = `${recolte.produit} ajouté au panier`;
+      this.refusPanier.set(null);
+      this.succesPanier.set(message);
+      this.toast.afficher(message, 'succes');
+      return;
+    }
+    const motif = messageRefusAjout(recolte);
     this.succesPanier.set(null);
-    this.refusPanier.set(messageRefusAjout(recolte));
+    this.refusPanier.set(motif);
+    this.toast.afficher(motif, 'erreur');
+  }
+
+  /**
+   * Ajout rapide (« + ») : mêmes garde, même quantité initiale et même refus que le bouton
+   * texte, et notice dans les deux cas (§39.2). Le « + » exige en plus que la persistance
+   * locale ait réussi, ce que le bouton texte ne vérifiait déjà pas.
+   */
+  protected ajouterRapide(recolte: RecolteResponse): void {
+    if (!estAjoutPossible(recolte)) {
+      return;
+    }
+    if (!this.panier.ajouter(recolte, QUANTITE_INITIALE)) {
+      this.toast.afficher(messageRefusAjout(recolte), 'erreur');
+      return;
+    }
+    const echecStockage = this.panier.erreurStockage();
+    if (echecStockage !== null) {
+      this.toast.afficher(echecStockage, 'erreur');
+      return;
+    }
+    this.toast.afficher(`${recolte.produit} ajouté au panier`, 'succes');
   }
 }

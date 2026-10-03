@@ -1,6 +1,15 @@
-<header class="entete">
+<!--
+  En-tête de la maquette (§10.5, §25, §29) : marque à gauche, liens d'espace à droite, et une
+  pile d'actions toujours visible — sac rond, cloche, et sous `--point-desktop` le burger qui
+  déplie les liens. Le compteur de non-lues vit dans la cloche, qui EST le lien vers
+  /notifications ; le compteur du panier vit dans le sac, qui ouvre le tiroir.
+-->
+<header class="entete" [class.entete--menu-ouvert]="menuOuvert()">
+  <p class="entete__bandeau">
+    Une autre façon de cultiver le lien entre nous <span aria-hidden="true">·</span> Dakar, Sénégal
+  </p>
   <div class="conteneur entete__contenu">
-    <a class="entete__marque" routerLink="/">
+    <a class="entete__marque" routerLink="/" (click)="fermerMenu()">
       <img
         class="entete__logo"
         src="logo-sunu-recolte.svg"
@@ -8,10 +17,53 @@
         width="28"
         height="28"
       />
-      <span>SunuRecolte</span>
+      <span class="entete__nom">Sunu<em>Recolte</em></span>
     </a>
 
-    <nav class="entete__navigation" aria-label="Navigation principale">
+    <div class="entete__actions">
+      @if (session()) {
+        <a
+          class="entete__notifications"
+          routerLink="/notifications"
+          aria-live="polite"
+          [attr.aria-label]="libelleNotifications()"
+        >
+          <span class="materiel-icone" aria-hidden="true">&#xe7f5;</span>
+          @if (compteurNotifications(); as compteur) {
+            <span class="badge entete__notifications-compteur">{{ compteur }}</span>
+          }
+        </a>
+      }
+      @if (acheteur()) {
+        <button
+          type="button"
+          class="entete__panier"
+          [attr.aria-label]="libelleSac()"
+          (click)="ouvrirPanier()"
+        >
+          <span class="materiel-icone" aria-hidden="true">&#xe8cc;</span>
+          <span class="badge entete__panier-compteur">{{ compteurPanier() }}</span>
+        </button>
+      }
+      <button
+        type="button"
+        class="entete__menu"
+        #boutonMenu
+        [attr.aria-expanded]="menuOuvert()"
+        aria-controls="navigation-principale"
+        [attr.aria-label]="menuOuvert() ? 'Fermer le menu' : 'Ouvrir le menu'"
+        (click)="basculerMenu()"
+      >
+        <span class="materiel-icone" aria-hidden="true">&#xe5d2;</span>
+      </button>
+    </div>
+
+    <nav
+      class="entete__navigation"
+      id="navigation-principale"
+      aria-label="Navigation principale"
+      (click)="fermerMenu()"
+    >
       <a
         class="entete__lien"
         routerLink="/recoltes"
@@ -37,33 +89,9 @@
         >
           {{ libelleEspace() }}
         </a>
-        @if (acheteur()) {
-          <a
-            class="entete__lien entete__panier"
-            routerLink="/acheteur/panier"
-            routerLinkActive="entete__lien--actif"
-            [routerLinkActiveOptions]="{ exact: true }"
-            ariaCurrentWhenActive="page"
-          >
-            <span class="materiel-icone entete__panier-icone" aria-hidden="true">&#xe8cc;</span>
-            Panier
-            <span class="badge entete__panier-compteur">{{ compteurPanier() }}</span>
-          </a>
-        }
         <span class="entete__identite">
           <span class="entete__identite-nom">{{ utilisateur.prenom }} {{ utilisateur.nom }}</span>
           <span class="badge entete__identite-role">{{ libelleRole() }}</span>
-        </span>
-        <!--
-          Compteur de notifications non lues (§29) : badge **non cliquable**, jamais un lien,
-          jamais une cinquième entrée de navigation (§10.5). Le conteneur est poli pour
-          qu'un changement de nombre soit annoncé sans interrompre la navigation clavier.
-        -->
-        <span class="entete__notifications" aria-live="polite">
-          @if (compteurNotifications(); as compteur) {
-            <span class="badge entete__notifications-compteur">{{ compteur }}</span>
-            <span class="entete__notifications-legende">notifications non lues</span>
-          }
         </span>
         <button
           type="button"

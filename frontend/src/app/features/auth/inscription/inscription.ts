@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, ElementRef, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { InscriptionRequest } from '../../../core/modeles/auth.modeles';
@@ -45,6 +45,22 @@ export class Inscription {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly auth = inject(AuthService);
   private readonly routeur = inject(Router);
+  private readonly element: ElementRef<HTMLElement> = inject(ElementRef);
+
+  /**
+   * Ordre du DOM : un envoi refusé donne le focus au premier champ invalide. Le groupe de rôles
+   * est représenté par son premier radio, le champ conditionnel n'est dans la liste que rendu.
+   */
+  private readonly champsDansOrdreDuDom: readonly { nom: ChampInscription; selecteur: string }[] = [
+    { nom: 'role', selecteur: '.auth__roles input[type="radio"]' },
+    { nom: 'nom', selecteur: '#inscription-nom' },
+    { nom: 'prenom', selecteur: '#inscription-prenom' },
+    { nom: 'email', selecteur: '#inscription-email' },
+    { nom: 'telephone', selecteur: '#inscription-telephone' },
+    { nom: 'motDePasse', selecteur: '#inscription-mot-de-passe' },
+    { nom: 'filiere', selecteur: '#inscription-filiere' },
+    { nom: 'typeAcheteur', selecteur: '#inscription-type-acheteur' },
+  ];
 
   protected readonly rolesInscription = ROLES_INSCRIPTION;
   protected readonly filieres = FILIERES;
@@ -123,6 +139,7 @@ export class Inscription {
   protected soumettre(): void {
     if (this.formulaire.invalid) {
       this.formulaire.markAllAsTouched();
+      this.focusSurPremierChampInvalide();
       return;
     }
 
@@ -165,6 +182,7 @@ export class Inscription {
         this.erreursServeur.set(parChamp);
         if (Object.keys(parChamp).length > 0) {
           this.formulaire.markAllAsTouched();
+          this.focusSurPremierChampInvalide();
           return;
         }
         this.erreurGenerale.set(
@@ -172,6 +190,18 @@ export class Inscription {
         );
       },
     });
+  }
+
+  /**
+   * Un seul focus, jamais différé ni piégé. Une erreur générale sans champ invalide ne déplace
+   * rien : sa bannière `role="alert"` est déjà annoncée.
+   */
+  private focusSurPremierChampInvalide(): void {
+    const cible = this.champsDansOrdreDuDom.find((champ) => this.invalide(champ.nom));
+    if (cible === undefined) {
+      return;
+    }
+    this.element.nativeElement.querySelector<HTMLElement>(cible.selecteur)?.focus();
   }
 
   /** Filière et type d'acheteur ne sont exigés que par le rôle choisi (contrat backend). */

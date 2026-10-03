@@ -1,148 +1,158 @@
 <section class="detail-recolte">
-  @if (chargement()) {
-    <div class="etat detail-recolte__etat" aria-busy="true">
-      <p class="etat__texte">Chargement de la récolte…</p>
-    </div>
-  } @else if (introuvable()) {
-    <div class="etat detail-recolte__etat">
-      <p class="etat__titre">Récolte introuvable</p>
-      <p class="etat__texte">
-        Cette récolte n’existe plus ou n’a jamais été publiée. Elle a peut-être été retirée
-        par le producteur.
-      </p>
-      <a class="bouton bouton--secondaire" routerLink="/recoltes">Retour au catalogue</a>
-    </div>
-  } @else if (erreur(); as message) {
-    <div class="message message--erreur" role="alert">
-      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
-      <div>
-        <p>{{ message }}</p>
-        <p class="detail-recolte__actions">
-          <button type="button" class="bouton bouton--secondaire bouton--compact" (click)="reessayer()">
-            Réessayer
-          </button>
-          <a class="bouton bouton--discret bouton--compact" routerLink="/recoltes">
-            Retour au catalogue
-          </a>
+  <!-- Fiche à colonne étroite : le `.conteneur` global apporte le centrage et les gouttières (§20),
+       la règle SCSS locale y porte le plafond de 46 rem. -->
+  <div class="conteneur">
+    @if (chargement()) {
+      <div class="etat detail-recolte__etat" aria-busy="true">
+        <p class="etat__texte">Chargement de la récolte…</p>
+      </div>
+    } @else if (introuvable()) {
+      <div class="etat detail-recolte__etat">
+        <p class="etat__titre">Récolte introuvable</p>
+        <p class="etat__texte">
+          Cette récolte n’existe plus ou n’a jamais été publiée. Elle a peut-être été retirée
+          par le producteur.
         </p>
+        <a class="bouton bouton--secondaire" routerLink="/recoltes">Retour au catalogue</a>
       </div>
-    </div>
-  } @else if (recolte(); as recolte) {
-    <p class="detail-recolte__retour">
-      <a class="bouton bouton--discret bouton--compact" routerLink="/recoltes">
-        Retour au catalogue
-      </a>
-    </p>
-
-    <div class="detail-recolte__entete">
-      <h1>{{ recolte.produit }}</h1>
-      <span class="badge" [class.badge--succes]="recolte.statut === 'DISPONIBLE'">
-        {{ libelleStatut(recolte.statut) }}
-      </span>
-    </div>
-
-    @if (recolte.imageUrl && !imageCassee()) {
-      <img
-        class="detail-recolte__image"
-        [src]="recolte.imageUrl"
-        [alt]="recolte.produit"
-        loading="lazy"
-        (error)="imageCassee.set(true)"
-      />
-    }
-
-    @if (recolte.description) {
-      <p class="detail-recolte__description">{{ recolte.description }}</p>
-    }
-
-    <dl class="detail-recolte__mesures">
-      <div>
-        <dt>Prix unitaire</dt>
-        <dd>{{ formaterMontant(recolte.prixUnitaire) }} / {{ recolte.unite }}</dd>
+    } @else if (erreur(); as message) {
+      <div class="message message--erreur" role="alert">
+        <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+        <div>
+          <p>{{ message }}</p>
+          <p class="detail-recolte__actions">
+            <button type="button" class="bouton bouton--secondaire bouton--compact" (click)="reessayer()">
+              Réessayer
+            </button>
+            <a class="bouton bouton--discret bouton--compact" routerLink="/recoltes">
+              Retour au catalogue
+            </a>
+          </p>
+        </div>
       </div>
-      <div>
-        <dt>Quantité disponible</dt>
-        <dd>{{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }}</dd>
-      </div>
-      @if (recolte.quantiteMin !== null) {
-        <div>
-          <dt>Commande minimale</dt>
-          <dd>{{ formaterQuantite(recolte.quantiteMin, recolte.unite) }}</dd>
-        </div>
-      }
-      @if (recolte.quantiteMax !== null) {
-        <div>
-          <dt>Commande maximale</dt>
-          <dd>{{ formaterQuantite(recolte.quantiteMax, recolte.unite) }}</dd>
-        </div>
-      }
-      @if (recolte.dateDisponibilite) {
-        <div>
-          <dt>Disponible à partir du</dt>
-          <dd>{{ formaterDate(recolte.dateDisponibilite) }}</dd>
-        </div>
-      }
-      @if (recolte.localisation) {
-        <div>
-          <dt>Lieu de retrait</dt>
-          <dd>{{ recolte.localisation }}</dd>
-        </div>
-      }
-    </dl>
+    } @else if (recolte(); as recolte) {
+      <p class="detail-recolte__retour">
+        <a class="bouton bouton--discret bouton--compact" routerLink="/recoltes">
+          Retour au catalogue
+        </a>
+      </p>
 
-    @if (acheteur()) {
-      <div class="detail-recolte__achat">
-        @if (succesPanier(); as message) {
-          <div class="message message--succes" role="status">
-            <span class="materiel-icone message__icone" aria-hidden="true">&#xf0be;</span>
-            <p>{{ message }}</p>
-          </div>
-        } @else if (refusPanier(); as message) {
-          <div class="message message--erreur" role="alert">
-            <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
-            <p>{{ message }}</p>
+      <div class="detail-recolte__fiche">
+        @if (photoAffichee()) {
+          <div class="detail-recolte__visuel">
+            <img
+              class="detail-recolte__image"
+              [src]="recolte.imageUrl"
+              [alt]="recolte.produit"
+              loading="lazy"
+              (error)="imageCassee.set(true)"
+            />
+            <span
+              class="recolte__statut"
+              [class.recolte__statut--epuise]="recolte.statut !== 'DISPONIBLE'"
+            >
+              {{ libelleStatut(recolte.statut) }}
+            </span>
           </div>
         }
 
-        @if (estAjoutPossible(recolte)) {
-          <p class="detail-recolte__quantite">Quantité ajoutée : {{ quantiteAjoutee(recolte) }}</p>
-          <button
-            type="button"
-            class="bouton bouton--primaire"
-            id="detail-ajouter"
-            (click)="ajouterAuPanier(recolte)"
-          >
-            Ajouter au panier
-          </button>
-        } @else {
-          <p class="detail-recolte__motif" id="detail-motif">{{ messageRefusAjout(recolte) }}</p>
-          <button
-            type="button"
-            class="bouton bouton--secondaire"
-            id="detail-ajouter"
-            aria-describedby="detail-motif"
-            disabled
-          >
-            Ajouter au panier
-          </button>
-        }
+        <div class="detail-recolte__infos">
+          <div class="detail-recolte__entete">
+            <h1>{{ recolte.produit }}</h1>
+            @if (!photoAffichee()) {
+              <span class="badge" [class.badge--succes]="recolte.statut === 'DISPONIBLE'">
+                {{ libelleStatut(recolte.statut) }}
+              </span>
+            }
+          </div>
+
+          @if (recolte.description) {
+            <p class="detail-recolte__description">{{ recolte.description }}</p>
+          }
+
+          <dl class="detail-recolte__mesures">
+            <div>
+              <dt>Prix unitaire</dt>
+              <dd>{{ formaterMontant(recolte.prixUnitaire) }} / {{ recolte.unite }}</dd>
+            </div>
+            <div>
+              <dt>Quantité disponible</dt>
+              <dd>{{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }}</dd>
+            </div>
+            @if (recolte.quantiteMin !== null) {
+              <div>
+                <dt>Commande minimale</dt>
+                <dd>{{ formaterQuantite(recolte.quantiteMin, recolte.unite) }}</dd>
+              </div>
+            }
+            @if (recolte.quantiteMax !== null) {
+              <div>
+                <dt>Commande maximale</dt>
+                <dd>{{ formaterQuantite(recolte.quantiteMax, recolte.unite) }}</dd>
+              </div>
+            }
+            @if (recolte.dateDisponibilite) {
+              <div>
+                <dt>Disponible à partir du</dt>
+                <dd>{{ formaterDate(recolte.dateDisponibilite) }}</dd>
+              </div>
+            }
+            @if (recolte.localisation) {
+              <div>
+                <dt>Lieu de retrait</dt>
+                <dd>{{ recolte.localisation }}</dd>
+              </div>
+            }
+          </dl>
+
+          @if (acheteur()) {
+            <div class="detail-recolte__achat">
+              @if (estAjoutPossible(recolte)) {
+                <p class="detail-recolte__quantite">
+                  Quantité ajoutée : {{ quantiteAjoutee(recolte) }}
+                </p>
+                <button
+                  type="button"
+                  class="bouton bouton--primaire"
+                  id="detail-ajouter"
+                  (click)="ajouterAuPanier(recolte)"
+                >
+                  Ajouter au panier
+                </button>
+              } @else {
+                <p class="detail-recolte__motif" id="detail-motif" role="status">
+                  {{ messageRefusAjout(recolte) }}
+                </p>
+                <button
+                  type="button"
+                  class="bouton bouton--secondaire"
+                  id="detail-ajouter"
+                  aria-disabled="true"
+                  aria-describedby="detail-motif"
+                >
+                  Ajouter au panier
+                </button>
+              }
+            </div>
+          }
+
+          <div class="carte detail-recolte__producteur">
+            <h2 class="carte__titre">Producteur</h2>
+            <dl class="detail-recolte__identification">
+              <div>
+                <dt>Nom</dt>
+                <dd>{{ recolte.nomProducteur }}</dd>
+              </div>
+              @if (recolte.localisationProducteur) {
+                <div>
+                  <dt>Exploitation</dt>
+                  <dd>{{ recolte.localisationProducteur }}</dd>
+                </div>
+              }
+            </dl>
+          </div>
+        </div>
       </div>
     }
-
-    <div class="carte detail-recolte__producteur">
-      <h2 class="carte__titre">Producteur</h2>
-      <dl class="detail-recolte__identification">
-        <div>
-          <dt>Nom</dt>
-          <dd>{{ recolte.nomProducteur }}</dd>
-        </div>
-        @if (recolte.localisationProducteur) {
-          <div>
-            <dt>Exploitation</dt>
-            <dd>{{ recolte.localisationProducteur }}</dd>
-          </div>
-        }
-      </dl>
-    </div>
-  }
+  </div>
 </section>

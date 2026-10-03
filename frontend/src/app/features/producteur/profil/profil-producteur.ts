@@ -8,6 +8,7 @@ import {
 import { FILIERES, LIBELLES_FILIERE, type Filiere } from '../../../core/modeles/referentiels';
 import { AuthService } from '../../../core/services/auth.service';
 import { ProducteurService } from '../../../core/services/producteur.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { erreursParChamp, messageErreurApi } from '../../../core/utilitaires/erreurs-api';
 import {
   MESSAGE_DOMAINE_INCOMPLET,
@@ -61,6 +62,7 @@ export class ProfilProducteur {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly producteurs = inject(ProducteurService);
   private readonly auth = inject(AuthService);
+  private readonly toast = inject(ToastService);
 
   protected readonly filieres = FILIERES;
   protected readonly libelleFiliere = LIBELLES_FILIERE;
@@ -176,6 +178,7 @@ export class ProfilProducteur {
     this.erreurGenerale.set(null);
     this.succes.set(null);
     this.erreursServeur.set({});
+    this.toast.masquer();
 
     this.producteurs.modifierMonProfil(requete).subscribe({
       next: (profil) => {
@@ -190,7 +193,9 @@ export class ProfilProducteur {
           nom: profil.nom,
           email: profil.email,
         });
-        this.succes.set('Profil mis à jour.');
+        const message = 'Profil mis à jour.';
+        this.succes.set(message);
+        this.toast.afficher(message, 'succes');
       },
       error: (erreur: unknown) => {
         this.enCours.set(false);

@@ -1,7 +1,9 @@
 @use "points-rupture" as pr;
 
-/* Racine : un seul rythme vertical (§20), aucune marge à annuler. */
-.commandes-recues {
+/* Le socle global fournit .conteneur (§20 : plafond, centrage, gouttières). Le rythme vertical est
+   porté par ce conteneur, pas par la section ; aucun max-width propre — un écran de liste prend le
+   plafond global, il n'invente pas une largeur de formulaire. */
+.commandes-recues .conteneur {
   display: flex;
   flex-direction: column;
   gap: var(--espace-5);
@@ -70,6 +72,9 @@
   color: var(--couleur-texte-secondaire);
   font-size: var(--taille-xs);
   font-weight: 600;
+  /* Capitules, au même traitement que `.commandes__champs dt` (§41). */
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .commandes-recues__champs dd {
@@ -77,7 +82,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Le total est le chiffre dominant de la carte, à la même écriture qu'à « Mes commandes » (§30) :
+   `tabular-nums` est déjà porté par `.commandes-recues__champs dd` plus haut. */
 .commandes-recues__total {
+  font-family: var(--police-titre);
+  font-size: var(--taille-xl);
   font-weight: 600;
 }
 
@@ -98,13 +107,14 @@
   list-style: none;
 }
 
+/* Surface de même nature qu'une carte (§39.1) : `--rayon-surface`, pas le `--rayon-md` des champs. */
 .commandes-recues__ligne {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--espace-1) var(--espace-3);
   padding: var(--espace-3);
   border: 1px solid var(--couleur-bordure);
-  border-radius: var(--rayon-md);
+  border-radius: var(--rayon-surface);
 }
 
 /* §10.6 : textes à gauche, chiffres à droite, jamais de défilement horizontal. */

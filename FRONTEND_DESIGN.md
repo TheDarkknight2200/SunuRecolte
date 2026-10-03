@@ -96,6 +96,7 @@ l'état actif, exactement comme `--couleur-primaire-sombre` l'est pour `--couleu
 Règles :
 
 - les couleurs de la palette sont les seules autorisées ; aucune couleur « au jugé » dans un composant ;
+- les tokens ajoutés par la refonte (§39.1) complètent ce tableau : ce sont les seules autres couleurs autorisées ;
 - le vert primaire ne porte jamais de texte sur fond vert clair sans vérification de contraste ;
 - l'accent terre ne sert pas à signaler une action destructive (réservé à `--couleur-erreur`) ;
 - les états de survol/focus modifient la couleur du token voisin, jamais une couleur inventée ;
@@ -149,7 +150,8 @@ Règles :
 Implémentation : `frontend/src/styles/_tokens.scss` (custom properties CSS déclarées dans `:root`,
 importées par `styles.scss`). Ce fichier est la source exacte des valeurs ; l'extrait ci-dessous en
 donne la structure. Seuls les tokens définis là sont autorisés ; tout nouveau token doit d'abord être
-ajouté ici avant usage.
+ajouté ici avant usage. **L'extrait ci-dessous est structurel** : les valeurs de la palette et les tokens
+ajoutés par la refonte sont en §5 et §39.1, qui font foi.
 
 ```scss
 :root {
@@ -317,27 +319,46 @@ Angular ne redéfinit pas un bouton ou un champ, il réutilise ces classes.
 ### 10.5 Navigation
 
 - **En-tête public** : marque + nom, zone de liens à droite (Accueil, Connexion, Inscription).
-- **En-tête connecté** : marque + nom, lien vers l'espace du rôle, nom de l'utilisateur et rôle,
-  bouton discret « Se déconnecter ».
+- **En-tête connecté** : marque + nom, pile d'actions (cloche, sac, burger), liens d'espace à droite, nom de
+  l'utilisateur et rôle, bouton discret « Se déconnecter ».
 - L'en-tête est identique sur toutes les pages (un seul composant), hauteur minimale 64 px, fond
   surface, bordure basse 1 px, contenu contraint à `--largeur-contenu`.
 - La page active est signalée visuellement et par `aria-current="page"` (`ariaCurrentWhenActive`),
   jamais par une couleur criarde. Le lien « Accueil » utilise `routerLinkActiveOptions: { exact: true }`
   pour ne pas rester actif sur toutes les pages.
 - Le lien de l'espace d'un rôle est actif par **préfixe** : il reste marqué actif sur la liste et sur le
-  détail de ses commandes. Le lien « Panier » garde `exact: true`, et comme l'espace acheteur pointe sur
-  une page sœur (`/acheteur/commandes`) et non sur un parent, un seul lien porte `aria-current="page"` à la
-  fois.
-- Les liens **ne sont pas repliés** dans un menu : sous `--point-tablette` (768 px), ils passent simplement
-  à la ligne (`flex-wrap`), l'en-tête s'agrandissant en hauteur ; une seule ligne ne devient la règle qu'à
-  partir de ce point. Décision prise à l'implémentation : quatre liens au plus coexistent (l'en-tête acheteur
-  ajoute « Mes commandes » et le lien « Panier » avec son compteur, §25 et §33), un menu replié
-  (`<details>`) n'apportait rien et ajoutait un état à gérer, donc à tester. Le seuil a été relevé de 480 px
-  à 768 px après une QA réelle : à ~510 px, les quatre liens, l'identité et « Se déconnecter » ne tenaient
-  plus sur une ligne et l'en-tête débordait en scroll horizontal.
+  détail de ses commandes. Comme l'espace acheteur pointe sur une page sœur (`/acheteur/commandes`) et non
+  sur un parent, un seul lien porte `aria-current="page"` à la fois. Le sac n'est pas dans cette liste :
+  c'est un bouton (§25), il ne porte donc ni `routerLink` ni `aria-current`.
+- **Une seule ligne d'en-tête, à toutes les largeurs** : `.entete__contenu` est en `flex-wrap: nowrap`, la
+  marque et la pile d'actions en `flex: none`. Aucun contenu visible de cette ligne ne passe à la ligne ni ne
+  déborde à 375 px. Ce sont les **liens** qui cèdent la place, sous forme de panneau replié — la règle
+  ancienne (« les liens passent à la ligne sous `--point-tablette`, seuil relevé de 480 px à 768 px après une
+  QA réelle à ~510 px ») est **remplacée** par le burger ci-dessous.
+- **Menu burger (`.entete__menu`)** : sous `--point-desktop` (1100 px), les liens sont repliés derrière un
+  bouton rond de 44 × 44 px (§12), glyphe `menu`. Le motif est une **navigation disclosure, pas une modale** :
+  `aria-expanded` sur le bouton, `aria-controls="navigation-principale"` pointant sur le `<nav>`, **aucun**
+  `aria-modal`, **aucun** `aria-haspopup`, **aucun** piège de focus — les liens du panneau déplié restent dans
+  l'ordre de tabulation naturel. Échap ferme le panneau **et rend le focus au bouton** ; un clic sur un lien du
+  panneau ferme le panneau, la marque fait de même. À partir de 1100 px, les liens reprennent leur ligne à droite
+  et le bouton disparaît (`display: none`) : il n'existe plus à ces largeurs.
+- **Seuil choisi : `--point-desktop` (1100 px), non `--point-tablette` (768 px).** La pile cloche + sac + burger
+  remplace le lien texte « Panier » ; entre 768 et 1100 px, trois liens, l'identité et « Se déconnecter » avec
+  cette pile ne tiennent plus sur une ligne. Le panneau se déplie donc jusqu'à 1100 px. **Non vérifié en
+  navigateur** : le rendu réel aux quatre largeurs de contrôle (375 / 768 / 1024 / 1366) reste à jouer.
+- **Sac (`.entete__panier`)** : bouton rond, glyphe `shopping_cart`, rendu **seulement** à un acheteur ; il ouvre
+  le panier latéral (§33) en appelant `TiroirPanierService.ouvrir()`, le mécanisme déjà en place. Son `aria-label`
+  porte le compte — « Ouvrir le panier, 3 articles » — et son compteur est la pastille d'angle `.badge` (§25).
+  Il n'a plus d'adresse : `/acheteur/panier` reste atteignable par le bouton « Voir le panier complet » du tiroir.
+- **Cloche (`.entete__notifications`)** : lien vers `/notifications`, glyphe `notifications`, rendu pour **tout**
+  rôle connecté — acheteur, producteur et administrateur (§29). Le compteur de non-lues est sa pastille d'angle,
+  **absente à 0**, et son `aria-label` dit le compte — « Notifications, 3 non lues », « Notifications » quand il
+  n'y en a aucune. Le conteneur garde `aria-live="polite"` : un changement de nombre est annoncé sans
+  interrompre la navigation clavier.
 - Le libellé du lien d'espace suit le rôle : « Mes récoltes » (producteur), « Mes commandes » (acheteur),
   « Administration » (`/admin`) pour un administrateur, qui ne voit alors que trois liens — Catalogue,
-  Tableau de bord, Administration — le « Panier » n'étant pas son domaine (§37).
+  Tableau de bord, Administration — le sac n'étant pas son domaine (§37). La cloche, elle, est rendue pour les
+  trois rôles (§29).
 - **Pied de page** : une seule ligne sobre (mention du projet, année, lien GitHub du dépôt),
   sans colonnes marketing.
 - **Onglets d'espace (`.onglets`)** : bandeau de navigation **entre routes sœurs d'un même espace**, réservé à
@@ -540,7 +561,8 @@ Sont interdits, sans exception :
   `--largeur-contenu` (1140 px) et centrer.
 - **Pattern `.page-interieure`** : page avec un `<h1>` et un bloc `.etat` contenant un `.etat__icone`
   (icône Material Symbols à 40 px), un titre et une description. Largeur max 32 rem. Utilisé pour les
-  pages coquilles (espace producteur, acheteur, admin) et les pages d'erreur (403, 404).
+  pages d'erreur (403, 404) **uniquement** : les espaces producteur, acheteur et admin ne portent pas cette
+  classe (ils utilisent le patron `.conteneur` des écrans alignés, §41).
 
 ## 21. Section hero (Phase 4.1)
 
@@ -596,12 +618,27 @@ Toute nouvelle règle visuelle transverse doit d'abord être ajoutée à ce docu
 
 - Le panier est un état local du frontend (`localStorage`, clé préfixée `sunurecolte.`) : il n'existe
   ni entité, ni table, ni endpoint de panier. Il sert uniquement à composer une commande.
-- **Compteur de lignes dans l'en-tête** : `.badge` compact (`--taille-xs`, 600) dans le lien « Panier » ;
-  au-delà de 99, le compteur affiche `99+`. Le badge reste non cliquable (§10.7) : c'est le lien qui l'est.
-- **Ligne de panier** : produit à gauche, quantité au centre, sous-total à droite, séparateur 1 px,
-  pas de zébrage (§10.6).
+- **Compteur de lignes dans l'en-tête** : `.badge` compact (`--taille-xs`, 600) en pastille d'angle du **bouton
+  sac** rond (§10.5) ; au-delà de 99, le compteur affiche `99+`. Le badge reste non cliquable (§10.7) : c'est le
+  bouton qui l'est, et son `aria-label` reprend le même compte.
+- **Ligne de panier** : même vocabulaire qu'une ligne du panier latéral (§39) — produit à gauche,
+  montants et quantité groupés au centre, « Retirer » à droite, séparateur 1 px, pas de zébrage (§10.6).
+  Sous `$point-tablette`, la ligne reprend la carte-ligne de §32 avec la classe globale `.carte`.
+  Le nom de la récolte est porté par `.carte__titre` (classe globale) avec la typographie éditoriale
+  d'une ligne du tiroir (`--police-titre`, `--taille-xl`) ; producteur, stock connu et aide de saisie
+  sont en `--taille-xs`, couleur secondaire. « Retirer » est une `.lien-action`, pas un bouton secondaire.
+- **Aucun visuel de récolte sur une ligne** : `LignePanier` est un snapshot local qui ne porte **pas**
+  `imageUrl` (§25) — la page n'affiche donc ni photo ni emplacement réservé (§38.4, §15).
+- **Mention d'une ligne** : le motif rendu par `motifLigne()` (récolte non disponible, ou totalité du
+  stock connu déjà au panier) porte le traitement de la mention du tiroir — `--taille-xs`, couleur
+  secondaire, `role="status"` — et jamais une couleur seule : le texte dit ce que l'acheteur peut faire.
+- **Récapitulatif** : une `.carte` globale, total en chiffre dominant (`--police-titre`, `--taille-xl`)
+  et action principale pleine largeur (`.bouton--large`). Il est **à droite** de la liste à partir de
+  `$point-desktop` et **sous la liste** en dessous ; la page est plafonnée et centrée par `.conteneur` (§20).
 - **Quantité** : champ numérique + deux boutons `.bouton--compact` portant chacun un `aria-label`
-  explicite (« Augmenter la quantité de … », « Diminuer la quantité de … ») (§9).
+  explicite (« Augmenter la quantité de … », « Diminuer la quantité de … ») (§9). Le champ prend la
+  pilule de §39.1, ses chiffres restent tabulaires ; un champ désactivé l'est par `disabled`, avec son
+  aide « Récolte non disponible : quantité à laisser telle quelle. ».
 - **Total** : toujours accompagné de la mention « total indicatif, confirmé au serveur » en `--taille-xs`,
   couleur secondaire. Le frontend n'est la source ni du prix, ni du stock, ni de la disponibilité.
 - **Ligne indisponible** : une ligne épuisée, retirée du catalogue ou introuvable n'est **jamais**
@@ -679,11 +716,14 @@ Mapping statut → couleurs (§5 ; §10.7 applique la couleur au texte et son fo
   (`notifications.filter(n => !n.lu).length`) : **aucun endpoint de comptage n'existe** dans l'API, et il ne
   faut pas en inventer. Le frontend n'envoie **jamais** `utilisateurId` — ni en paramètre, ni en corps, ni
   depuis `localStorage` ou la route : l'identité du destinataire vient du jeton (§19).
-- **Compteur de non-lues dans l'en-tête**, dans un conteneur `aria-live="polite"` ; il se met à jour à la
+- **Compteur de non-lues dans l'en-tête**, pastille d'angle de la **cloche** — le lien `.entete__notifications`
+  vers `/notifications` (§10.5) — dans un conteneur `aria-live="polite"` ; il se met à jour à la
   navigation, après un marquage lu et par le bouton « Actualiser » de la page. **Aucun `setInterval`,
-  aucun polling** : le MVP n'a pas de temps réel.
-- Le compteur est plafonné à **`99+`** au-delà de 99 lignes non lues, disparaît à 0, et reste **non
-  cliquable** (§10.7) : le badge n'est pas un lien et ne devient pas un bouton. Il n'est jamais affiché à un
+  aucun polling** : le MVP n'a pas de temps réel. Son `aria-label` dit le compte (« Notifications, 3 non lues »),
+  ou simplement « Notifications » quand il n'y a rien à lire.
+- Le compteur est plafonné à **`99+`** au-delà de 99 lignes non lues et disparaît à 0. Le compteur lui-même reste
+  un **`.badge`** (§10.7) : il n'est pas un lien et ne devient pas un bouton — c'est la cloche qui le porte qui
+  est le lien. Il n'est jamais affiché à un
   visiteur anonyme, et `GET /api/notifications` n'est **jamais** appelé sans session validée — un appel
   anonyme renverrait `401` et déclencherait la purge de la session (§19).
 - **Aucune actualisation automatique.** Les trois seules causes d'un `GET /api/notifications` sont :
@@ -695,12 +735,13 @@ Mapping statut → couleurs (§5 ; §10.7 applique la couleur au texte et son fo
   renvoie l'`Observable` déjà parti (`shareReplay` + `refCount`, avec remise à zéro en `finalize` si c'est bien
   lui qui se termine) au lieu d'émettre un second `GET` identique. Dès que la réponse est reçue ou perdue, la
   lecture suivante repart au serveur : « Actualiser » et « Réessayer » restent des requêtes réelles (§11).
-- **Accès à la liste : Tableau de bord et espaces principaux** (lien « Notifications »), jamais depuis l'en-tête.
-  Le point d'entrée est proposé sur `/tableau-de-bord`, sur les pages d'atterrissage d'espace — `/producteur/recoltes`
-  (`#lien-notifications-producteur`) et `/acheteur/commandes` (`#lien-notifications-acheteur`) — et sur les écrans
-  de l'ADMIN (`/admin`, `/admin/utilisateurs`, `/admin/recoltes`, `/admin/prix-marche`). L'en-tête garde ses quatre
-  liens (§10.5) et n'en reçoit pas un cinquième : son compteur de non-lues reste un **badge non cliquable** (§10.7),
-  et ces entrées sont des liens d'espace, pas des remplacements du badge.
+- **Accès à la liste : la cloche de l'en-tête, le Tableau de bord et les espaces principaux** (lien
+  « Notifications »). La cloche est l'entrée courte (§10.5) ; le point d'entrée est aussi proposé sur
+  `/tableau-de-bord`, sur les pages d'atterrissage d'espace — `/producteur/recoltes` (`#lien-notifications-producteur`)
+  et `/acheteur/commandes` (`#lien-notifications-acheteur`) — et sur les écrans de l'ADMIN (`/admin`,
+  `/admin/utilisateurs`, `/admin/recoltes`, `/admin/prix-marche`). La cloche est une **action d'en-tête**, pas
+  une entrée de la navigation : le `<nav>` garde ses trois liens d'espace au plus (§10.5) et n'en reçoit pas un
+  quatrième ; ces entrées d'écran restent des liens d'espace, elles ne remplacent pas la cloche.
 - Une notification non lue est signalée par un **texte** (« Non lue ») en plus de tout traitement visuel ;
   l'état lu ne repose pas sur la seule absence de couleur.
 - Le passage à l'état lu passe par un **bouton explicite** « Marquer comme lue », jamais par un simple
@@ -938,8 +979,9 @@ vide (« Aucune commande reçue pour le moment. » + lien « Voir mes récoltes 
 jamais un faux état vide.
 
 **Navigation.** Le lien d'entrée est dans l'en-tête de « Mes récoltes » (« Commandes reçues ») et le lien de
-retour dans celle-ci : l'en-tête global conserve ses quatre liens, sans cinquième entrée (§10.5, même arbitrage
-qu'en §29). Le lien d'espace de l'en-tête reste actif par préfixe sur les deux pages producteur (§10.5).
+retour dans celle-ci : l'en-tête global ne reçoit pas d'entrée de navigation de plus, « Commandes reçues » reste
+hors de son `<nav>` (§10.5, même arbitrage qu'en §29). Le lien d'espace de l'en-tête reste actif par préfixe sur
+les deux pages producteur (§10.5).
 
 **Ce que cet écran ne fait pas.** Aucun paiement, aucun vocabulaire de paiement (§28), aucune annulation
 offerte au producteur, aucune notification envoyée, aucun appel de récolte, **aucun polling, aucun
@@ -1195,6 +1237,34 @@ décorative**. Cet alignement est adopté comme **hiérarchie d'action**, et non
   maquettes en décalant, sans raison, les vingt autres pages.
 - Les ombres restent interdites hors des deux usages de §7 ; les références ne contiennent aucune ombre, ce qui
   confirme la règle plutôt qu'il ne la change.
+- **Arbitrage consigné — `/admin` ne porte pas `.page--surface`** (LOT 15). Le modificateur est posé « sur la
+  racine de page d'un écran maître (Catalogue, Détail commande, Administration) » (§10.4, ligne 309) et son effet
+  est unique : « faire lire les filets `--filet-ligne` sur blanc » (§10.4, lignes 316-317). Or « Administration »,
+  dans la référence, est **un écran à trois sections** (§38.3) : il est rendu en réalité par la navigation partagée
+  et les trois tables administrées — `utilisateurs.html`, `recoltes-admin.html`, `prix-marche.html` —, qui portent
+  toutes le modificateur. `/admin` (`espace-admin.html`) est la page d'entrée décrite en §37 : « n'est pas un
+  tableau de bord », une liste de trois cartes, **aucune table donc aucun filet à faire lire sur blanc**. Son fond
+  reste le crème global (§6) : cette absence est **voulue**, ce n'est pas un écart à corriger. C'est le même
+  arbitrage que pour l'écran d'arrivée (§40, puce « États inchangés » : « Pas de `.page--surface` : §38.1 réserve
+  ce fond aux trois écrans maîtres »). Par suite, les trois liens des cartes de `/admin` restent en
+  `.bouton--secondaire` : l'encre de la ligne 1227 porte l'action principale des trois écrans maîtres, et `/admin`
+  n'en est pas un.
+- **Arbitrage consigné — une confirmation destructive reste `.bouton--danger`** (LOT 15). La hiérarchie d'encre de
+  §38.1 ne repeint pas le bouton de confirmation de la désactivation d'un compte : §31 prescrit « bouton destructif
+  en `.bouton--danger`, avec un libellé qui nomme l'effet réel » (ligne 782), §5 réserve `--couleur-erreur` aux
+  « erreurs, actions destructives » et son sombre au survol de ces actions (lignes 74-75), et §10.1 fait des deux
+  variantes des rôles distincts — `.bouton--danger` (fond erreur) n'est pas une nuance de `.bouton--encre`
+  (variante d'action principale des écrans maîtres) (lignes 271-272). La désactivation est bien « l'action la plus
+  lourde de l'espace » et suit « les conventions de §31 » (§37.1) : `utilisateurs.html` est conforme (ligne 188),
+  idem pour « Retirer le prix » de la suppression d'un prix indicatif (§37.3, `prix-marche.html` ligne 323). Les
+  actions principales **non destructives** de ces mêmes écrans restent en encre — soumission du formulaire de prix
+  (ligne 161) et bascule `DISPONIBLE ⇄ EPUISEE`, qui n'a pas de modale précisément parce que le geste est
+  réversible (§37.2, `recoltes-admin.html` ligne 127). Peindre ces confirmations en encre contredirait §38.1
+  lui-même : « un statut n'est jamais repeint en encre pour ressembler à une maquette » (ligne 1233).
+
+Ces deux arbitrages closent les derniers écarts visuels ouverts de §38.1 : la surface de `/admin` et la couleur du
+bouton de confirmation de `/admin/utilisateurs` sont **tranchées dans le sens du code livré**, et aucune des deux
+n'appelle de modification. Les règles ci-dessus restent inchangées par ailleurs.
 
 ### 38.2 Dates : le format livré garde son format
 
@@ -1242,9 +1312,10 @@ Et trois éléments de la référence **ne sont pas implémentés**, parce qu'au
 | Producteur affiché par ligne de commande | `LigneCommandeResponse` = `{ id, recolteId, produit, unite, quantite, prixUnitaire, sousTotal }`, sans producteur ni localité |
 
 Y ajouter une valeur aurait voulu dire l'inventer à l'écran ou la demander au client (§19 : les montants ne
-sont jamais acceptés depuis le client). Une image de produit est dans le même cas : `RecolteResponse.imageUrl`
-n'est **jamais** servi, faute d'upload et de fichiers dans `public/` — le catalogue n'ajoute donc pas
-d'illustration, et ses listes restent typographiques (§10.6).
+sont jamais acceptés depuis le client). **Amendement (§39)** : `RecolteResponse.imageUrl` est une adresse saisie
+par le producteur dans son formulaire, donc servie par l'API quand elle existe. Un écran de récolte ne dessine un
+bloc d'image **que** lorsque cette adresse est non nulle — le catalogue et le détail restent typographiques sinon
+(§10.6). Aucun fichier image n'est ajouté à `public/` pour garnir une récolte sans photo.
 
 ### 38.5 Responsive : une table dense n'est pas une table transportée
 
@@ -1263,3 +1334,587 @@ design system (§38.1 à §38.5, tokens et classes de `_composants.scss`), puis 
 puis Administration. Une étape ne convertit pas les écrans des suivantes, ne touche ni aux DTO, ni aux
 services, ni aux guards, ni au panier, et n'ajoute aucune dépendance. Les tests sont adaptés **seulement** là
 où la structure HTML change réellement ; aucun test n'est supprimé ni désactivé pour faire passer un style.
+
+## 39. Refonte visuelle (maquette Figma, octobre 2026)
+
+Cette section **remplace** les règles ci-dessous de §6, §7 (rayons et ombres), §14 et §17 pour l'ensemble de l'interface :
+
+- **Typographie (§6)** : titres en Fraunces (`--police-titre`, italique pour le mot d'accent), texte en DM Sans
+  (`--police-texte`). Les deux polices sont **auto-hébergées** via `@fontsource-variable/*` (aucune requête
+  externe, rendu identique hors connexion).
+- **Palette (§5)** : valeurs des tokens mises à jour dans `_tokens.scss` (vert forêt `#203d2e`, terre cuite
+  `#b66b3b`, crème `#f8f7f1`) ; les noms de tokens sont inchangés, donc tous les écrans suivent.
+  Nouveaux tokens : `--couleur-sable`, `--couleur-foret-profonde`, `--couleur-sable-accent`,
+  `--rayon-pilule`, `--duree-mouvement`, `--police-titre`, et ceux de §39.1.
+- **Formes (§17)** : boutons et badges en pilule (`--rayon-pilule`).
+- **Animations (§14)** : survol des cartes de récolte (élévation de 4 px, zoom lent de la photo), glissement de la
+  flèche des boutons, ouverture du panier latéral (`--duree-mouvement`, 300 ms). Toutes sont neutralisées par
+  `prefers-reduced-motion`. Aucune animation permanente ni carrousel automatique.
+- **En-tête** : trois actions rondes en pilule (`--rayon-pilule`, 44 × 44 px, bordure `--couleur-bordure`, survol
+  `--couleur-primaire` + texte `--couleur-fond`) — **sac** (acheteur), **cloche** (tout rôle connecté), **burger**
+  (sous 1100 px). Les comptes sont des `.badge` en pastille d'angle, jamais des surfaces cliquables distinctes.
+  Les liens sont repliés en **navigation disclosure** sous `--point-desktop` et reprennent leur ligne à droite au
+  dessus. Détail des règles, des `aria-label` et du seuil : §10.5.
+- **Panier latéral** : composant `app-panier-tiroir`, ouvert par le **bouton sac** rond de l'en-tête (§10.5) ; le
+  sac n'a pas d'adresse, `/acheteur/panier` reste atteint par le tiroir. Son action principale est
+  **« Continuer à explorer »** : elle ferme le tiroir sans
+  naviguer ; l'accès à la commande et au panier complet reste assuré par « Voir le panier complet »
+  (`/acheteur/panier`), qui mène lui-même à l'étape de commande (§26). Le tiroir ne fait que refléter
+  `PanierService` ; la commande reste calculée et validée par le serveur. L'ajout rapide depuis l'accueil ne
+  l'ouvre plus : il rend une notice (§39.2).
+- **Images (§15)** : la photo du hero est une photographie d'illustration ; les cartes de récolte utilisent
+  `imageUrl` de l'API.
+- **Puce de statut d'une récolte** : `.recolte__statut` et sa variante `.recolte__statut--epuise` vivent désormais
+  dans `styles/_composants.scss`, **promues à l'identique** depuis la carte « Récolte du moment » de l'accueil. Les
+  trois copies locales (accueil, catalogue, fiche) sont supprimées : une règle unique, posée **sur le visuel** d'une
+  récolte, partagée par les trois écrans. Ses trois valeurs (`padding: 6px 12px`, `font-size: 0.625rem`,
+  `rgba(32, 61, 46, 0.88)`) viennent de la règle d'origine et restent hors de la table §39.1 : elles y figureront si
+  un quatrième écran les reprend un jour, en attendant elles ne sont pas dupliquées.
+- **Catalogue (étape 4 de l'alignement)** : la liste dense (`<table>` à sept colonnes) devient la **grille de cartes
+  de récolte** de l'accueil — une colonne sous `$point-mobile`, deux de `$point-mobile` à `$point-desktop`, quatre
+  au-delà. Une carte porte le visuel (seulement quand `imageUrl` est non nul), le produit, le producteur, la
+  description, les colonnes restantes de l'ancienne table (disponibilité, bornes de commande, prix, date et lieu)
+  **uniquement quand l'API les fournit**, puis les actions. Le statut se pose **sur la photo** avec la puce promue
+  ci-dessus ; sans photo, il revient au `.badge` du titre : **un seul indicateur à la fois**, comme sur la fiche. Ni
+  filière ni catégorie n'apparaissent sur la carte : `RecolteResponse` ne les expose pas (§38.4). La barre de filtres
+  reprend celle de la maquette : **pastilles** de filière et de statut — « Toutes » et « Tous » portent l'absence de
+  critère — et champ de recherche **sur la même ligne**. Elles réutilisent `.bouton` : la pastille active est en
+  `.bouton--encre` et marquée `aria-pressed="true"`, les autres en `.bouton--secondaire` avec `aria-pressed="false"`.
+  Un clic sur une pastille note le critère et **ne lance aucune requête** : la recherche part toujours du bouton
+  « Rechercher », avec les mêmes paramètres d'URL qu'auparavant (§38.4). Une récolte non ajoutable (statut ou stock)
+  garde ses deux boutons — texte et « + » — **focusables** en `aria-disabled="true"` (jamais `disabled`), avec le
+  motif en `role="status"` relié par `aria-describedby`, et le composant refuse tout clic : rien n'est ajouté, aucune
+  notice n'est émise. Le succès est « `[produit] ajouté au panier` » (§39.2), dans les mêmes mots que l'accueil et la
+  fiche. Les quatre états (§11) restent inchangés. `.tableau--empile` (§38.5) ne s'applique plus à cette page, qui
+  n'a plus de table ; il reste la règle des autres tableaux.
+- **Fiche de récolte `/recoltes/:id` (étape 5 de l'alignement)** : la route reste une **page** (lien partageable,
+  aucun piège de focus) et non une modale, avec la mise en page de la maquette produit : **deux colonnes** à partir
+  de `$point-tablette` — le visuel à gauche, les informations et les actions à droite — empilées sous ce seuil, le
+  visuel en premier. Le statut se pose **sur la photo** avec les classes de la carte de récolte de l'accueil
+  (`.recolte__statut`, variante `--epuise`) ; quand aucune photo n'est affichée (`imageUrl` null ou image qui ne
+  charge pas), il revient au `.badge` du titre : **un seul indicateur à la fois**, jamais deux. « Ajouter au
+  panier » est le bouton primaire de la colonne droite et ajoute `QUANTITE_INITIALE` unité, avec le libellé « Quantité
+  ajoutée : … » existant — cet écran n'a **pas** de sélecteur de quantité. Une récolte non ajoutable (statut ou
+  stock) garde son bouton **focusable** en `aria-disabled="true"` (jamais `disabled`), son motif en `role="status"`
+  relié par `aria-describedby`, et le composant refuse tout clic sur ce bouton : rien n'est ajouté, aucune notice
+  n'est émise. Le succès est « `[produit] ajouté au panier` » (§39.2), le refus `messageRefusAjout()`. Les trois
+  états §11 (chargement, erreur avec « Réessayer », introuvable) restent inchangés, reposés sur les seuls tokens
+  existants.
+
+### 39.1 Tokens de la refonte
+
+Ce tableau est la liste à jour des couleurs, rayons, ombres et voiles introduits par la maquette. Aucune autre
+valeur n'est autorisée (§5) : une teinte ou un rayon absent d'ici doit d'abord être ajouté ici, puis dans
+`_tokens.scss`, avant d'apparaître dans un écran.
+
+| Rôle | Token | Valeur | Usage |
+|---|---|---|---|
+| Vert survol | `--couleur-primaire-survol` | `#365a43` | survol et état actif des actions vertes (`--couleur-primaire`, `--couleur-encre`) |
+| Sauge | `--couleur-sauge` | `#b5c3a6` | `::selection` ; ne porte jamais de texte |
+| Fond d'image | `--couleur-fond-image` | `#e9e6db` | fond d'un bloc d'image avant et pendant le chargement |
+| Voile de modale | `--voile` | `rgba(16, 37, 26, 0.7)` | fond des modales (§31), sous `--flou-voile` |
+| Voile de tiroir | `--voile-tiroir` | `rgba(16, 37, 26, 0.6)` | fond du panier latéral et des tiroirs, **sans flou** |
+| Flou de voile | `--flou-voile` | `blur(8px)` | `backdrop-filter` du seul voile de modale |
+| Rayon de surface | `--rayon-surface` | `3px` | cartes, modales, panneaux et surfaces de même nature |
+| Ombre d'élévation | `--ombre-elevation` | `0 25px 50px -12px rgba(0, 0, 0, 0.25)` | panneau superposé qui borde l'écran : tiroir du panier, menu latéral |
+| Ombre de carte au survol | `--ombre-carte-survol` | `0 20px 50px rgba(28, 54, 39, 0.1)` | élévation d'une carte de récolte au survol (accueil, catalogue) |
+| Ombre de notice | `--ombre-toast` | `0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)` | pilule de la notice de retour d'action (§39.2) |
+| Empilement de la notice | `--z-toast` | `70` | niveau de la notice : au-dessus du tiroir (`50` et `51`) et de `--z-voile` |
+
+- **Rayons** : `--rayon-surface` (3 px) pour les surfaces, `--rayon-pilule` (999 px) pour les boutons, badges,
+  pastilles et champs de quantité. `--rayon-md` (6 px) reste la valeur des champs de saisie, des messages et du
+  lien d'évitement jusqu'à l'alignement de leur écran ; `--rayon-lg` (8 px) ne sert plus aux surfaces du design
+  system. Aucune valeur intermédiaire (4 px, 12 px, 16 px) n'est introduite.
+- **Ombres** : `--ombre-surface` reste la seule ombre des surfaces posées dans le flux, et une carte ne porte
+  jamais d'ombre au repos (une bordure suffit). Un panneau superposé qui **borde l'écran** (tiroir du panier,
+  menu latéral) est rendu par `--ombre-elevation` — jamais par une ombre directionnelle écrite en dur dans un
+  composant. La modale de confirmation, elle, reste à `--ombre-surface` et au `--rayon-surface` : la maquette ne la
+  dessine pas, et §31 garde la main jusqu'à son alignement. L'élévation au survol d'une **carte de récolte** est
+  rendu par `--ombre-carte-survol` (accueil et catalogue) : elle ne s'applique qu'au survol, jamais au repos, et
+  seulement aux cartes de récolte — ni aux tableaux, ni aux panneaux d'administration.
+- **Voiles** : `#10251a` à 70 % pour une modale, avec `--flou-voile`, et 60 % pour un tiroir, **sans flou** — la
+  maquette ne floute que le fond de la modale produit. Le flou est la seule exception acceptée à « pas d'effet
+  gratuit » (§17) : il sépare le panneau du contenu sans bordure ni épaisseur. Il reste décoratif — sans
+  `backdrop-filter`, le voile demeure plein et le panneau lisible.
+- **Survol des actions vertes** : le survol **éclaircit** le vert (`--couleur-primaire-survol`) au lieu de
+  l'assombrir, et le texte garde `--couleur-texte-inverse` (contraste 7,8:1 sur `#365a43`). Aucun survol n'inverse
+  fond et texte, aucun survol n'utilise une teinte de survol d'une autre famille.
+- **Polices** : Fraunces (`--police-titre`, titres et chiffres éditoriaux, italique pour le mot d'accent) et
+  DM Sans (`--police-texte`, corps) sont auto-hébergées par `@fontsource-variable/*` et déclarées dans
+  `angular.json`. Aucune webfont n'est chargée depuis un CDN, y compris pour un écran en cours d'alignement.
+- **Périmètre de la maquette** : `figma-reference/` ne couvre que l'accueil. Pour tout autre écran, la référence
+  est ce §39, les tokens de §39.1 et les quatre écrans validés (accueil, en-tête, pied de page, panier latéral).
+
+### 39.2 Notice de retour d'action (`ToastService` + `app-toast`)
+
+La notice est le **mécanisme unique de retour d'action** de l'application : elle confirme ou infirme une action
+déclenchée par l'utilisateur (ajout au panier, enregistrement, statut modifié), sans jamais remplacer un
+état d'écran. Elle est migrée **écran par écran**. Écrans qui l'utilisent aujourd'hui : les ajouts rapides de
+l'accueil et du catalogue, puis le **LOT 1 « parcours acheteur »** — `/acheteur/panier` (`refus()`), `/recoltes`
+(`succesPanier()` et `refusPanier()` du bouton texte), `/recoltes/:id` (les deux mêmes) et
+`/acheteur/commandes/:id` (`succesAnnulation()`), puis le **LOT 2 « parcours producteur »** —
+`/producteur/commandes` (refus de transition : le `messageErreurApi()` du PATCH, texte mot pour mot repris
+du signal `refus()`) et `/producteur/profil` (succès d'enregistrement : « Profil mis à jour. »), puis le
+**LOT 4 « récoltes du producteur »** — `/producteur/recoltes` pour le **retrait d'une récolte** (« « X » a été
+supprimée du catalogue. », texte mot pour mot). Seul écran migré où le texte ne vient pas du signal de l'écran :
+`messageSucces()` rend le message d'arrivée (voir le tableau ci-dessous) et n'est plus écrit par la suppression,
+qui porte elle-même sa phrase à la notice. Les bannières
+`.message--succes` et `.message--erreur` des autres écrans restent en place jusqu'à leur étape.
+
+Sur un écran migré, le **signal du composant reste la source du texte** : la notice est émise à partir du même
+message (`messageRefusAjout()`, `La commande n° … a été annulée.`, etc.), mot pour mot. `ToastService` n'écrit
+aucun libellé et n'est jamais l'autorité d'un succès.
+
+- **API** : `afficher(message, type)` avec `type` parmi `'succes' | 'erreur' | 'info'` (défaut `info`),
+  `masquer()`, `suspendre()`, `reprendre()`. **Une seule notice à la fois** : la nouvelle remplace l'ancienne et
+  repart sur sa propre durée. `ToastService` est un service **visuel** : il n'appelle aucune API, ne connaît ni le
+  panier ni l'authentification, et n'est jamais l'autorité d'un succès — ce succès lui est transmis par l'écran.
+- **Durées** : succès et info **2500 ms**, erreur **5000 ms**. Le minuteur est **en pause** pendant que la notice
+  est survolée ou qu'un de ses éléments a le focus, et repart au retrait du survol ou du focus. Une erreur porte
+  un **bouton de fermeture** (« Fermer la notification ») ; succès et info n'en portent pas, ils se retirent
+  seuls. Un message long reste donc traitable par l'utilisateur, et aucune notice n'est éternelle.
+- **Position** : en bas de l'écran, centrée ; sous `$point-mobile`, pleine largeur moins les marges, au-dessus de
+  la safe-area (`env(safe-area-inset-bottom)`). Elle ne déplace pas le contenu et ne piège pas le focus.
+- **Entrée et sortie** : la pilule monte depuis le bas (`translateY` + `opacity`) en `--duree-mouvement`
+  (300 ms), reste visible pendant sa durée, puis redescend et est retirée du DOM. Sous
+  `prefers-reduced-motion: reduce`, le reset global de §14 (`_base.scss`, `!important` sur toute durée) neutralise
+  **aussi** le fondu : la notice apparaît et disparaît instantanément. C'est plus strict que le simple fondu visé,
+  et c'est assumé : le reset global sert toute l'interface et n'est pas rétréci pour un seul composant.
+- **Accessibilité** : les régions de notification sont **permanentes dans le DOM** (montées dans `app.html`, après
+  le tiroir), le message seul entre et sort. Deux régions, jamais une seule dont le rôle changerait :
+  `role="status" aria-live="polite"` pour succès et info, `role="alert"` pour erreur. Une notice n'est jamais le
+  seul porteur d'une information durable : l'état d'écran (compteur du panier, libellé, tableau) reste la source.
+- **Variante par type** :
+
+  | Type | Fond | Texte | Icône (§9, sous-ensemble existant) | Rôle | Durée |
+  |---|---|---|---|---|---|
+  | `succes` | `--couleur-primaire` (#203d2e) | `--couleur-texte-inverse` (contraste 11,9:1) | `check_circle` `f0be` | `status` / `polite` | 2500 ms |
+  | `info` | `--couleur-info` (#29527a) | `--couleur-texte-inverse` (contraste 7,6:1) | `info` `e88e` | `status` / `polite` | 2500 ms |
+  | `erreur` | `--couleur-erreur` (#b3261e) | `--couleur-texte-inverse` (contraste 6,5:1) | `error` `f8b6` | `alert` | 5000 ms |
+
+  Aucun texte technique dans une notice : le message vient du `message` renvoyé par le backend ou d'un texte court
+  rédigé par l'écran qui détient la donnée (§11 et §16 — ni trace, ni SQL, ni contenu de jeton).
+  `ToastService` ne fait que transporter le texte ; il n'en connaît ni la source ni la grammaire. Le succès d'un
+  ajout au panier est « `[produit] ajouté au panier` », le refus reprend `messageRefusAjout()`.
+- **Empilement et panier latéral** : `--z-toast` (70) place la notice au-dessus du tiroir (50 et 51) et des
+  modales (`--z-voile`, 20). Parce que le tiroir est modal et que son action principale est collée en bas de
+  l'écran, **aucune notice n'est rendue pendant qu'il est ouvert** : le composant lit `TiroirPanierService.ouvert()`
+  et rend ses régions vides. **Rien n'est perdu pour autant** : le composant met la notice **en attente** —
+  `suspendre()` gèle le temps restant à l'ouverture, `reprendre()` le relance à la fermeture. La notice est donc
+  rendue **une seule fois**, avec le temps qu'il lui restait, sans doublon si le tiroir s'ouvre et se ferme
+  plusieurs fois, et une notice déjà en sortie n'est jamais ressuscitée. Corollaire obligatoire : l'ajout rapide
+  de l'accueil, qui ouvrait le tiroir, ne l'ouvre plus et rend sa notice — sans cette dérogation la notice serait
+  systématiquement masquée. Limite connue et assumée : le tiroir ne piège pas encore le focus de la page, donc un
+  refus déclenché au clavier **derrière** un tiroir ouvert est retardé jusqu'à sa fermeture plutôt que perdu.
+- **Refus d'une ligne du tiroir (LOT 2)** : un refus **déjà au panier** ne devient **jamais** une notice globale.
+  Il est porté par la ligne elle-même, en mention discrète sous le pas (`role="status"`, reliée au « + » par
+  `aria-describedby`), parce que le tiroir est modal et que la correction se lit à l'endroit même du geste. Le
+  « + » est neutralisé **au plafond du stock connu** (`quantite >= quantiteDisponible`) en `aria-disabled` — et non
+  `disabled`, pour ne pas perdre le focus — avec la mention « Stock maximum atteint » ; un refus que ce plafond ne
+  couvre pas (quantité fractionnaire) reste affiché sous la ligne. La phrase du refus vient de
+  `messageRefusQuantite()` (`core/utilitaires/panier-affichage.ts`) : **source unique**, partagée avec la page
+  `/acheteur/panier`, qui l'envoie elle en notice.
+- **Ligne non disponible dans le tiroir (LOT 3)** : le tiroir obéit au **même** blocage que la page. Une ligne dont
+  le snapshot n'est plus `DISPONIBLE` neutralise son « + » en `aria-disabled`, porte sous la ligne le motif de la
+  page — `messageLigneBloquee()`, **mot pour mot** — en `role="status"` et relié par `aria-describedby`, et garde
+  le « − » et « Retirer » utilisables : rien n'est jamais masqué ni retiré automatiquement (§25). La règle
+  `estLigneBloquee()` et sa phrase vivent dans `core/utilitaires/panier-affichage.ts`, **source unique** des deux
+  écrans comme au LOT 2. Quand statut bloqué et plafond de stock se cumulent, **le statut prime** : une seule
+  mention, jamais deux.
+- **Ajout rapide (`+`)** : la pilule ronde d'une carte de récolte ajoute `QUANTITE_INITIALE` unité et applique
+  **exactement** les mêmes règles que le bouton texte de la même carte : même garde `estAjoutPossible()`, mêmes
+  bornes de commande, même refus de `PanierService`, et **récolte épuisée ou stock insuffisant = bouton rendu
+  `aria-disabled="true"` avec son motif** (§39) — jamais `disabled`, pour qu'il reste atteignable au clavier et que
+  le motif se lise ; la garde du composant refuse le clic. Elle affiche une notice de succès **seulement si**
+  `PanierService.ajouter()` a renvoyé `true` ; sinon c'est une notice d'erreur portant le motif du refus. Un refus
+  du service ne produit jamais de notice de succès. Sur l'accueil, le « + » n'est rendu que pour une récolte
+  disponible ; sur `/recoltes`, il est rendu bloqué, comme le bouton texte de la carte et celui de la fiche. Depuis
+  le LOT 1, le bouton texte obéit à la même règle sur `/recoltes` et `/recoltes/:id` : les deux partagent le même
+  refus et la carte ne porte plus de bannière.
+- **Règle d'exclusion — ce qui reste en bannière** : un retour n'est migré que s'il est **gratuit** (aucune
+  correction attendue dans l'instant) et **non attaché à un champ**. Restent donc en bannière :
+
+  | Écran | Bannière | Motif de non-migration |
+  |---|---|---|
+  | `/acheteur/commande` | `erreur()` (`commande.html:112`) | cible de focus (`#erreurMessage`, `tabindex="-1"`, `focusAttendu('erreur')`) **et** porte le bouton « Réessayer l'envoi » ; le même signal porte deux messages de validation du formulaire de réception |
+  | `/acheteur/paiement/:id` | `erreurSoumission()` (`paiement.html:133`) | désigné par l'`aria-describedby` du fieldset « Moyen de paiement » : le message corrige une saisie et doit rester attaché au champ ; le même signal porte « Choisissez un moyen de paiement pour continuer. » |
+  | `/producteur/commandes` | `succes()` rendu par `succesPour()` (`commandes-recues.html:110`) | cible du focus après une transition réussie (`#zoneSucces`, `role="status"`, `tabindex="-1"`, `focusSurSucces()`) ; les specs assertent `document.activeElement` |
+  | `/producteur/profil` | `erreurGenerale()` (`profil-producteur.html:40`) | signal **mixte**, non scindé : porte à la fois la validation d'un champ (filière obligatoire) et l'échec du PUT ; la correction attendue est une saisie |
+  | `/producteur/recoltes` | `messageSucces()` (`mes-recoltes.html:36`) | **message d'arrivée** porté par `?recolteCreee` / `?recolteModifiee` : confirmation d'un événement déjà passé, comme `compteCree()`, à lire en arrivant et tant qu'on la lit. Le retrait d'une récolte (LOT 4) part en notice **sans écrire ce signal** : la bannière partagée n'est pas scindée |
+  | toute **modale** | `detail-commande.html:189`, `prix-marche.html:307`, `mes-recoltes.html:159`, `utilisateurs.html:171`, `recoltes-admin.html:143` | une notice hors de la modale sortirait le message du contexte fermé et masquerait le bouton à reprendre |
+  | `/connexion`, `/inscription` | `erreur()`, `erreurGenerale()` | échec de formulaire : la correction est la saisie elle-même, le message doit persister jusqu'à la correction |
+  | `/tableau-de-bord` | `compteCree()` | confirmation d'un événement déjà passé, pas le retour d'une action immédiate ; doit rester lue à l'arrivée sur l'écran |
+  | **états de chargement** | les 17 bannières rendues à la place du contenu | ce ne sont pas des retours d'action : la notice ne remplace jamais un état d'écran |
+
+  Un `erreurStockage()` rendu en `message--avertissement` (panier) n'est pas concerné par le LOT 1.
+
+## 40. Tableau de bord (Phase 5.11, LOT 9)
+
+`/tableau-de-bord` — écran d'arrivée d'un compte connecté (`authGuard`), tous rôles. Aucun bloc ni raccourci
+par rôle n'existe et n'est ajouté : le rôle n'agit que sur deux rendus existants, le libellé du badge et le
+`href` de « Accéder à mon espace » (`espaceParRole()` : `/producteur`, `/acheteur/commandes`, `/admin`).
+
+- **Plafond §20** : le contenu est enveloppé dans `<div class="conteneur">` **imbriqué** dans
+  `<section class="tableau-de-bord">`, comme sur les écrans déjà alignés — jamais
+  `.tableau-de-bord.conteneur`. `.conteneur` apporte `--largeur-contenu` (1140 px), le centrage et les
+  gouttières ; le rythme vertical est porté par `.tableau-de-bord .conteneur` (`flex-direction: column`,
+  `gap: --espace-5`), donc `h1` et les bannières portent `margin: 0`. L'ancien `max-width: 36rem` local,
+  non centré, est **retiré** : la carte ne contraint plus sa largeur elle-même et prend celle du conteneur.
+- **Carte** : `class="carte tableau-de-bord__carte"` — fond, bordure, `--rayon-surface` et `padding: --espace-5`
+  viennent du global §10.4 ; `__carte` n'ajoute que son rythme interne (`flex`, `gap: --espace-4`) et le
+  `margin: 0` de `.carte__titre`.
+- **Champs d'identité** : `dl` en grille **une colonne**, deux à partir de `$point-tablette`
+  (`repeat(2, minmax(0, 1fr))`), `gap: --espace-3`. `dt` en `--taille-xs`, 600,
+  `--couleur-texte-secondaire`, majuscules, `letter-spacing: 0.02em` ; `dd` en `margin-top: --espace-1` avec
+  `font-variant-numeric: tabular-nums` — vocabulaire identique à la fiche récolte (§39) et aux champs de
+  commande (§33).
+- **États inchangés** : `.etat[aria-busy]` pendant le chargement, `.message--erreur` avec son bouton
+  « Réessayer » (message du backend repris tel quel, texte générique sinon, aucune requête quand la session
+  locale est absente), `.message--succes` `role="status"` pour `?compteCree=1` — cette bannière reste en
+  bannière, §39.2 l'y autorise. Pas de `.page--surface` : §38.1 réserve ce fond aux trois écrans maîtres.
+- **Aucune teinte, aucun rayon, aucune police, aucune largeur nouveaux.**
+- **Tests** : `tableau-de-bord.spec.ts` (17 tests) couvre l'identité des cinq champs, le rôle lu depuis le
+  serveur, les trois destinations, la bannière d'arrivée, les trois chemins d'erreur et la structure nouvelle
+  (conteneur unique, `h1` unique, états dans le conteneur). **Non observé en navigateur réel** : les quatre
+  largeurs 375 / 768 / 1024 / 1366 restent à contrôler (§38.5).
+
+## 41. Parcours de commande acheteur (Phase 5.11, LOT 10)
+
+`/acheteur/commande` et `/acheteur/paiement/:id` — les deux dernières étapes du tunnel, sans maquette : seule
+compte l'alignement sur le vocabulaire déjà refait (panier §25, tableau de bord §40). Aucune logique n'est
+modifiée : les montants restent lus sur la commande du serveur, jamais sur le panier local (§2), le paiement
+reste simulé (§34), les modes de réception et les moyens de paiement restent exactement ceux d'avant.
+
+- **Plafond §20 sur les deux écrans** : le contenu est enveloppé dans `<div class="conteneur">` **imbriqué**
+  dans `<section class="commande">` et `<section class="paiement">`, comme au panier et au tableau de bord —
+  jamais `.commande.conteneur`. Le rythme vertical est porté par `.commande .conteneur` et
+  `.paiement .conteneur` (`flex-direction: column`, `gap: --espace-5`) ; l'unité de rythme fait passer le
+  paiement de `--espace-4` à `--espace-5`, la commande l'avait déjà.
+- **Deux colonnes dès `$point-desktop`, comme au panier** : le nouveau `<div class="commande__corps">`
+  enveloppe le récapitulatif et la zone de réception, et passe en `grid` à
+  `minmax(0, 1.8fr) minmax(0, 1fr)` avec `gap: --espace-6` et `align-items: start` — les mêmes proportions
+  que `.panier__corps`. En dessous de 1100 px, les deux blocs s'empilent. Le paiement reste une colonne
+  unique : il n'a qu'un résumé et un formulaire, et rien n'est ajouté pour l'élargir.
+- **Titres de carte sur la classe globale** : les cinq titres de carte (`Récapitulatif`, les deux `Réception`,
+  `Commande`, le titre de résultat du paiement) portent `.carte__titre` (§10.4) et non plus leur classe
+  locale : la règle globale leur est byte-identique, aucune promotion n'a donc été nécessaire dans
+  `_composants.scss`. Ne reste en classe locale que `.commande__zone-titre`, l'intitulé d'une zone **à
+  l'intérieur** d'une carte (« Lignes de la commande »). Le `outline: none` du titre de résultat-focus
+  (`tabindex="-1"`) est repris en `.paiement .carte__titre:focus`.
+- **Chiffre dominant (§30)** : le total du récapitulatif (`.commande__total-valeur`) et le montant à payer
+  (`.paiement__total`) passent en `--police-titre` + `--taille-xl`, comme le pied du panier — `tabular-nums`
+  et le poids 600 sont conservés.
+- **Arbitrage des largeurs locales — formulaire = colonne étroite centrée dans le conteneur**. Le `max-width`
+  d'un formulaire ne se décrète pas écran par écran : il reprend la **valeur déjà présente** sur l'écran et se
+  centre dans sa carte (`margin-inline: auto`), sans jamais en inventer une. `commande.scss` conserve donc son
+  `32rem` existant et ajoute le centrage ; `paiement.scss` n'ajoute **aucune** largeur, puisqu'aucune
+  n'existait. À ce lot, les trois largeurs locales encore non centrées — `detail-recolte` (46 rem),
+  `formulaire-recolte` et `profil-producteur` (44 rem) — ne sont pas touchées. Les deux formulaires
+  producteur (**§41.2**) puis la fiche récolte (**§41.4**) ont été alignés depuis et sortent de la liste de
+  suivi, rejoints par les deux pages d'erreur (**§41.5**, LOT 16) puis par `connexion` et `inscription`
+  (**§41.6**, LOT 17) : **toute largeur locale plafonnée passe désormais par un `.conteneur` centré — il ne
+  reste plus une seule largeur locale non centrée dans l'application**.
+- **États conservés, notices sans changement de type** : `.etat[aria-busy]` de chargement, bannière
+  d'erreur avec son bouton « Réessayer » (elle reste bannière, §39.2 : cible de focus et porte l'action),
+  écran de succès de la commande, bannière §28 « aucune transaction réelle » rendue hors des branches d'état,
+  refus de paiement et fieldset « Moyen de paiement » inchangés. `h1` unique par écran, aucune hiérarchie
+  modifiée là où elle était déjà correcte.
+- **Aucune teinte, aucun rayon, aucune police, aucune largeur nouveaux.**
+- **Tests** : `commande.spec.ts` passe de 34 à 38, `paiement.spec.ts` de 51 à 55 — les quatre ajouts par écran
+  portent sur la structure nouvelle (conteneur unique, cartes globales, `h1` unique, états dans le
+  conteneur). Une seule assertion existante a été re-ciblée, **avec la même chaîne** : le titre
+  « Récapitulatif » est lu via `.commande__recap .carte__titre` au lieu de `.commande__zone-titre`. Aucune
+  assertion supprimée ni assouplie. **Non observé en navigateur réel** : les quatre largeurs
+  375 / 768 / 1024 / 1366 restent à contrôler (§38.5).
+
+### 41.1 Liste et détail des commandes (LOT 11)
+
+`/acheteur/commandes` et `/acheteur/commandes/:id`. Les deux écrans portaient **déjà** le plafond §20
+(`<div class="conteneur">` imbriqué, étape 8 pour la liste, Phase 5.10 Étape 3 pour le détail) et la liste était
+**déjà** une `li.carte` avec `h2.carte__titre`, badge de statut et lien « Voir le détail ». Ce lot ne fait donc
+que trois ajustements, et consigne deux décisions.
+
+- **Rythme** : `.detail-commande .conteneur` passe de `--espace-4` à `--espace-5` — les cinq écrans du parcours
+  d'achat (panier, commande, paiement, liste, détail) respirent désormais à l'identique.
+- **Chiffre dominant** : `.commandes__total` prend `--police-titre` + `--taille-xl`, poids 600 conservé,
+  `tabular-nums` déjà porté par `.commandes__champs dd` — même écriture que `.panier__total-valeur` (§30) et que
+  le total du tunnel (§41).
+- **Capitules** : `.commandes__champs dt` reçoit `text-transform: uppercase` et `letter-spacing: 0.02em`, comme
+  `.commande__chiffres dt` et les champs du paiement.
+- **Décision — les lignes du détail restent un `<table>`.** `detail-commande.html` garde
+  `table.tableau.tableau--maitre.tableau--empile` lié à son titre par `aria-labelledby="lignes-titre"` : c'est
+  §38.5 qui l'exige, parce que l'empilement sous `$point-tablette` doit conserver l'association cellule / en-tête
+  (`th scope="col"` dans le DOM, libellé de colonne repris par `data-libelle`). Une mise en cartes aurait été
+  silencieuse : **aucune** assertion ne regardait le `<table>`. Trois tests de protection ont donc été écrits
+  **avant** le restylage (`detail-commande.spec.ts`, 40 → 43) — `<table>` + classes denses + titre lié, les
+  quatre `th scope`, les huit `data-libelle` d'une commande à deux lignes. Toute conversion future des lignes en
+  cartes rougit la suite et doit d'abord révoquer §38.5 dans ce document.
+- **Décision — aucun bloc paiement sur ce détail, tant que le contrat ne l'expose pas.** `CommandeResponse` ne
+  porte aucun champ de paiement et `detail-commande.ts` n'émet **aucun** appel de paiement (`payable()` ne pilote
+  que le lien). La consultation d'un paiement enregistré reste l'écran §34, qui relit la commande et le paiement.
+  Afficher ici un moyen, un statut ou une référence de paiement exigerait soit un appel nouveau, soit un champ
+  inventé — l'un et l'autre hors règles.
+- **Ce que ce lot n'a pas fait, à dessein** : la liste reste en **une colonne**, sans grille multi-colonne, sans
+  filtre, sans tri et sans pagination (§33) ; aucune `.carte` nouvelle, aucun token, aucune classe globale
+  nouvelle, `styles/_composants.scss` non touché ; les `.ts` et les `.html` des deux écrans sont inchangés.
+- **Tests** : `detail-commande.spec.ts` 40 → 43, `commandes.spec.ts` 25 **inchangées** (la classe
+  `.commandes__total` est déjà épinglée par une assertion existante, un test supplémentaire n'aurait rien
+  protégé de plus). **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366.
+
+### 41.2 Formulaires producteur — colonne étroite centrée dans le conteneur (LOT 12)
+
+`/producteur/recoltes/nouvelle`, `/producteur/recoltes/:id/modifier` et `/producteur/profil`. Ces deux écrans
+portaient déjà le rythme `--espace-5`, les `.carte` et `.champ` globaux, mais **aucun `.conteneur`** : leur
+racine (`.formulaire-recolte`, `.profil-producteur`) appliquait `display: flex` et `max-width: 44rem` **sans
+centrage**, la colonne restait collée à la gouttière gauche.
+
+- **Règle — un formulaire est une colonne étroite centrée dans le conteneur** : le contenu de la `<section>` est
+  enveloppé dans `<div class="conteneur">`, comme sur panier, commande, paiement, liste et détail des commandes
+  (§41, §41.1). Le socle global (`styles/_base.scss`) fournit `width: 100%`, `margin: 0 auto` et les gouttières.
+- **44rem conservé, aucune largeur nouvelle** : le `max-width` passe de la racine de section sur
+  `.formulaire-recolte .conteneur` et `.profil-producteur .conteneur`, avec le rythme vertical `--espace-5` ; la
+  règle de racine est supprimée, comme sur les six écrans déjà refaits. `margin-inline: auto` **n'a pas été
+  ajouté** — le global `.conteneur` porte déjà `margin: 0 auto`, et la règle du composant (spécificité 0,2,0)
+  l'emporte sur la globale (0,1,0) pour `max-width`. Conséquence à connaître : `box-sizing: border-box` étant
+  global, les 44rem incluent désormais les gouttières, la colonne utile vaut donc 44rem moins 2 × `--espace-4`
+  (mobile) ou 2 × `--espace-5` (≥ tablette).
+- **Rien d'autre ne change** : `--espace-4` des groupes, légendes, cartes, `.champ`, `__rangee` en deux colonnes
+  sous `$point-tablette`, `__note`, tailles de boutons, ainsi que tous les ids, classes et `aria-describedby`
+  assertés (les 7 champs du profil, ceux de la récolte, `#formulaire-soumettre`, `#profil-soumettre`,
+  `#erreur-reessayer`, `#profil-reessayer`) sont inchangés. Aucun token, aucune teinte, aucun rayon, aucune
+  police nouveaux ; `styles/_composants.scss`, les `.ts`, services, routes et guards non touchés.
+- **États conservés** : `.etat[aria-busy]` de chargement, écran « Récolte introuvable », message d'accès refusé,
+  bannière d'erreur avec son bouton « Réessayer » et bannière `erreurGenerale()` restent des bannières (§39.2)
+  et sont rendus dans la même colonne que le formulaire.
+- **Tests** : le filet de structure a été écrit **avant** le restylage, sur le gabarit alors non modifié —
+  `formulaire-recolte.spec.ts` 23 → 26 et `profil-producteur.spec.ts` 31 → 34 (`h1` unique et son libellé,
+  `<form>` unique, chargement / erreur / formulaire dans le même parent), exécuté vert **60/60** avant tout
+  changement de gabarit. Après le restylage, un test de conteneur par écran (26 → 27, 34 → 35 ; **62/62**)
+  vérifie que le `.conteneur` est **unique**, enfant direct de la `<section>`, et qu'il porte à la fois le `h1`,
+  l'état de chargement et le formulaire. **Aucune assertion existante n'a été modifiée, supprimée ni assouplie.**
+- **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366, et le centrage effectif du
+  plafond — jsdom ne rend pas la cascade SCSS.
+
+### 41.3 Listes producteur (LOT 13)
+
+`/producteur/recoltes` (`mes-recoltes`) et `/producteur/commandes` (`commandes-recues`) : les deux derniers
+écrans sans `.conteneur` de l'espace producteur. Ils portaient déjà le rythme `--espace-5`, les `.carte` et les
+`.badge` globaux, mais leur racine appliquait `display: flex` directement sur la `<section>`, pleine largeur.
+
+- **Règle — un écran de liste prend le plafond global, sans inventer de largeur** : le contenu de la `<section>`
+  est enveloppé dans `<div class="conteneur">` et la règle de racine est supprimée, recréée en
+  `.mes-recoltes .conteneur` et `.commandes-recues .conteneur` avec `display: flex`, `flex-direction: column` et
+  `gap: var(--espace-5)`. **Aucun `max-width`** : contrairement aux formulaires (§41.2), ces deux écrans
+  n'avaient aucune largeur locale, il n'y a donc **rien à aligner dans la liste de suivi des largeurs** — le
+  plafond vient seul du socle global (`--largeur-contenu`, §20).
+- **La modale de suppression reste hors du conteneur** : `.voile` est en position fixe et couvre l'écran entier
+  (§31) ; l'insérer dans une colonne centrée à gouttières ne changerait rien visuellement et casserait le motif
+  global. Un test l'épingle : `parentDe('.voile')` reste la `<section>`.
+- **Capitules (§41)** : `.mes-recoltes__mesures dt` et `.commandes-recues__champs dt` reçoivent
+  `text-transform: uppercase` et `letter-spacing: 0.02em`, aux mêmes déclarations que `.commandes__champs dt`.
+  Les surtitres de page gardent leur `0.08em` (§41) : deux traitements, deux rôles.
+- **`tabular-nums`** : `.mes-recoltes__mesures dd` le reçoit, comme `.commandes-recues__champs dd` qui le portait
+  déjà — les quantités et les prix de la carte s'alignent entre les lignes.
+- **Chiffre dominant (§30)** : `.commandes-recues__total` passe en `--police-titre` + `--taille-xl`, poids 600
+  conservé, `tabular-nums` déjà porté par le `dd` parent — même écriture que `.commandes__total` (§41.1), le pied
+  du panier et le total du tunnel. **Mes récoltes n'a aucun total** : aucune valeur dominante n'a été inventée
+  pour sa carte, ses mesures restent quatre `dt`/`dd` de poids égal.
+- **Rayon (§39.1)** : `.commandes-recues__ligne` passe de `--rayon-md` (6 px, les champs de saisie) à
+  `--rayon-surface` (3 px, les surfaces de même nature qu'une carte). Seul changement visuel de cet élément ; la
+  version ≥ tablette écrase déjà le rayon à `0` et la bordure, elle n'est pas touchée.
+- **Décision — les lignes de « Commandes reçues » restent une grille.** `commandes-recues.html` garde
+  `ul.commandes-recues__lignes > li.commandes-recues__ligne` en `display: grid` (quatre paragraphes, deux
+  colonnes en mobile, quatre en desktop). La conversion en `table.tableau--maitre` — ce que §38.5 impose au
+  détail d'une commande — est un **point de suivi**, pas une omission : ici la carte porte déjà ses quatre champs
+  en `dl`, l'écran est une **liste de commandes** et non le détail d'une seule, et la grille empile produit puis
+  sous-total en pleine largeur sans perdre de libellé. L'asymétrie avec `detail-commande` est donc assumée et
+  documentée ; elle ne doit pas être « corrigée » par un alignement implicite.
+- **Rien d'autre ne change** : tous les ids, classes et attributs assertés sont inchangés
+  (`#commande-{id}-etape`, `#commandes-recues-reessayer`, `#erreur-reessayer`, `#lien-mes-recoltes`,
+  `#lien-notifications-producteur`, `__carte`, `__liste`, `__ligne`, `__champs dd`, `__total`, `__notice`,
+  `__mesures`, `__actions`, `.badge` et ses variantes, `.etat`, `.voile` / `.modale` / `.modale__actions`,
+  `#suppression-titre`, `#suppression-annuler`, `#suppression-confirmer`, `aria-busy`, `aria-label`, `[disabled]`
+  de l'action d'étape). `.mes-recoltes__actions` — mutualisé par l'en-tête, la bannière d'erreur et chaque carte —
+  n'a pas été renommé ni redéfini. Les focus (`#zoneSucces` `tabindex="-1"`, piège de la modale, Échap, retour
+  du focus après suppression) et les bannières §39.2 sont intacts. Aucun token, aucune teinte, aucune police
+  nouveaux ; `styles/_composants.scss`, les `.ts`, services, routes, guards et backend non touchés.
+- **États conservés** : `.etat[aria-busy]` de chargement, bannière d'erreur avec « Réessayer » (elle reste
+  bannière, §39.2), état vide avec son lien d'action, liste de cartes, bannière `messageSucces()` de mes récoltes
+  et notice de succès par carte de commandes reçues — tous rendus dans la même colonne que l'en-tête de page.
+- **Tests** : le filet de structure a été écrit **avant** le restylage, sur les gabarits alors non modifiés —
+  `mes-recoltes.spec.ts` 39 → 42 et `commandes-recues.spec.ts` 37 → 40 (`h1` unique et son libellé ; chargement,
+  erreur, liste et liste vide rendus sous le **même parent que l'en-tête** — l'assertion porte sur le parent, pas
+  sur son nom, donc elle survit au conteneur), exécuté vert **82/82** avant tout changement de gabarit. Après le
+  restylage, **un** test de conteneur par écran (42 → 43, 40 → 41 ; **84/84**). Aucune assertion existante n'a été
+  modifiée, supprimée ni assouplie ; **aucune re-ciblage nécessaire** — les deux specs ne regardaient ni la
+  classe de la `<section>` ni un combinator `>`, et le texte du total (`'12 345 FCFA'`) comme
+  `document.activeElement` sur `#zoneSucces` sont passés tels quels.
+- **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366, le centrage effectif du
+  plafond, le rendu des capitules et du chiffre dominant — jsdom ne rend pas la cascade SCSS.
+
+### 41.4 Fiche récolte — colonne étroite centrée dans le conteneur (LOT 14)
+
+`/recoltes/:id` (`detail-recolte`) : le dernier écran dont la largeur locale n'était pas centrée. Sa racine
+appliquait `max-width: 46rem` directement sur la `<section>`, sans `.conteneur` : la fiche restait collée à la
+gouttière gauche.
+
+- **Règle — la fiche applique « colonne étroite centrée dans le conteneur »** (§41, §41.2) : le contenu de la
+  `<section>` est enveloppé dans `<div class="conteneur">`, et le `46rem` **existant** passe de la racine sur
+  `.detail-recolte .conteneur`. **Aucune largeur nouvelle** ; la règle de racine est supprimée, comme sur les
+  écrans déjà alignés (§41, §41.2, §41.3). `margin-inline: auto` **n'a pas été ajouté** : le socle global
+  (`styles/_base.scss`) porte déjà `margin: 0 auto`, et la règle du composant (spécificité 0,2,0, attribut
+  d'encapsulation compris) l'emporte sur la globale pour `max-width`.
+- **Largeur utile mesurée** — 1 rem = 16 px (aucune taille de racine fixée par le projet), donc 46rem = 736 px,
+  `box-sizing: border-box` étant global **gouttières comprises** : **688 px** à `$point-tablette` (768 px) comme à
+  1366 px, le plafond bornant avant le viewport, moins 2 × `--espace-5` (24 px) ; **704 px** sous la tablette
+  (2 × `--espace-4`). La grille de la fiche y tient sans changer le breakpoint : deux colonnes de **332 px**
+  chacune, `(688 − 24) / 2` avec le `gap: --espace-5` existant, le visuel en `aspect-ratio: 1.13` rendu à
+  332 × ~294 px.
+- **Le rythme vertical n'a pas été déplacé** : contrairement aux lots précédents, la racine de cette fiche ne
+  portait **aucun** rythme — seulement `max-width`. Les respirations restent portées par les marges des blocs
+  (`__retour`, `__etat`, `__description`, `__mesures`, `__achat`). Introduire `display: flex` et un `gap` sur
+  `.detail-recolte .conteneur` aurait été un changement visuel hors périmètre : la divergence avec la formule des
+  autres écrans est donc **assumée et consignée ici**.
+- **Rien d'autre ne change** : les deux colonnes de la fiche à `$point-tablette`, `> :only-child` en
+  `grid-column: 1 / -1` (fiche sans photo), les capitules et `tabular-nums` déjà présents sur `__mesures` et
+  `__identification`, `--rayon-surface` du visuel, et **tous** les ids, classes et attributs assertés —
+  `.recolte__statut` / `--epuise` posés sur l'image, `.badge` du titre sans photo, `#detail-ajouter` avec son
+  `aria-disabled` et son `aria-describedby="detail-motif"`, `.etat[aria-busy]`, `.message--erreur` et le texte des
+  quatre états. Aucun token, aucune teinte, aucun rayon, aucune police nouveaux ; `styles/_composants.scss`,
+  `detail-recolte.ts`, `PanierService`, `ToastService`, routes, guards et backend non touchés.
+- **Tests** : le filet de structure a été écrit **avant** le restylage, sur le gabarit alors non modifié —
+  `detail-recolte.spec.ts` 21 → 26 (`h1` unique et le « Producteur » en `h2` unique ; chargement, « Récolte
+  introuvable », erreur serveur, retour et fiche rendus sous le **même parent de colonne** — l'assertion porte sur
+  le parent, pas sur son nom, donc elle survit au conteneur ; fiche en deux blocs `__visuel` / `__infos` ;
+  `__infos` seul sans photo), exécuté vert **26/26** avant tout changement de gabarit. Après le restylage, **un
+  seul** test de conteneur (26 → 27) vérifie que le `.conteneur` est unique, enfant direct de la `<section>`, et
+  qu'il porte à la fois le `h1`, la fiche et les deux états successifs. **Aucune assertion existante n'a été
+  modifiée, supprimée ni assouplie ; aucun re-ciblage nécessaire** — la spec n'employait aucun combinator `>`.
+- **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366 et le centrage effectif du
+  plafond — jsdom ne rend pas la cascade SCSS. La colonne utile ci-dessus est un **calcul**, pas une mesure de
+  rendu.
+
+### 41.5 Pages d'erreur — colonne étroite centrée dans le conteneur (LOT 16)
+
+`/acces-interdit` (`AccesInterdit`) et `/**` (`PageIntrouvable`) : les deux derniers écrans à porter une largeur
+locale **sans centrage**. Leur `<section class="page-interieure">` appliquait `max-width: 32rem` dans
+`styles/_composants.scss`, sans aucune marge : la colonne restait collée à la gouttière gauche.
+
+- **Règle — les deux pages appliquent « colonne étroite centrée dans le conteneur »** (§41, §41.2) : le contenu de
+  la `<section>` est enveloppé dans `<div class="conteneur">`, et le `32rem` **existant** passe de
+  `.page-interieure` sur `.page-interieure .conteneur`. **Aucune largeur nouvelle.** Le centrage vient du socle
+  `.conteneur` (`styles/_base.scss`, `margin: 0 auto`) ; `margin-inline: auto` **n'a pas été ajouté**, il ferait
+  doublon. `.page-interieure` reste la classe de la `<section>` — elle n'est portée par aucun autre écran (§20).
+- **Largeur utile mesurée** — 1 rem = 16 px et `box-sizing: border-box` global, donc les gouttières du conteneur
+  sont **comprises** dans les 32 rem : **464 px** à 1366 px (`512 − 2 × --espace-5` ; le plafond de 512 px borne
+  bien avant `--largeur-contenu` de 1140 px) et **311 px** à 375 px (`375 − 2 × 16` de `.contenu-principal` = 343,
+  moins `2 × 16` de gouttières). La colonne perd 48 px en desktop et 32 px en mobile par rapport à l'état d'avant
+  le lot (512 px / 343 px). Les deux boutons de la 403 tiennent dans 311 px (`Tableau de bord` ≈ 168 px +
+  `Accueil` ≈ 104 px + `gap: --espace-3`, `.bouton` à `padding: 0 --espace-5` et `font-size: --taille-md` = 16 px),
+  et `.page-interieure__actions` dispose déjà de `flex-wrap: wrap`.
+- **Rien d'autre ne change** : le rythme vertical (`h1` en `--taille-2xl` avec son `margin-bottom: --espace-4`
+  global, `.page-interieure__etat { margin-top: --espace-5 }`), le bloc `.etat` et sa **bordure pointillée** — c'est
+  le patron §20, conservé volontairement sur ces deux écrans —, `.etat__icone` à 40 px avec son
+  `aria-hidden="true"`, `--rayon-surface`, `.bouton--secondaire` et `.bouton--discret`, l'absence de `h2`, et
+  **tous** les ids, classes, libellés et attributs. Les `.ts`, `app.routes.ts` (y compris le `title` de `**`),
+  `roleGuard`, services, `ToastService`, backend et autres écrans non touchés ; aucun token, aucune teinte, aucun
+  rayon, aucune police nouveaux.
+- **Tests** : ces deux écrans n'avaient **aucune** spec. Le filet a été écrit **avant** le restylage, sur le
+  gabarit alors intact — `acces-interdit.spec.ts` et `page-introuvable.spec.ts`, 5 tests par écran (`h1` unique et
+  son libellé, les deux libellés exacts de l'état, les `href` des liens de sortie, l'icône `aria-hidden`, et l'état
+  sous le **même parent** que le titre — assertion portée sur le parent et non sur son nom, donc insensible au
+  conteneur), exécuté vert **10/10** avant tout changement de gabarit. Après le restylage, **un seul** test de
+  conteneur par écran (10 → 12) vérifie que le `.conteneur` est l'unique enfant de la `<section>` et qu'il porte le
+  `h1`. **Aucune assertion existante n'a été modifiée : il n'y en avait pas.** La cible `/acces-interdit` reste
+  verrouillée par `role.guard.spec.ts`, non touchée ; ni le `title` de route ni le `roleGuard` ne sont testés ici.
+- **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366, le centrage effectif du plafond
+  et la tenue réelle des deux boutons de la 403 — jsdom ne rend pas la cascade SCSS. La colonne utile ci-dessus est
+  un **calcul**, pas une mesure de rendu.
+
+### 41.6 Écrans d'authentification — colonne étroite centrée dans le conteneur (LOT 17)
+
+`/connexion` (`Connexion`) et `/inscription` (`Inscription`) : les deux derniers écrans à plafonner et centrer leur
+colonne **hors** du patron `.conteneur`. Chacun portait sa largeur sur la `<section class="auth">` de racine
+(`max-width` + `margin: 0 auto` dans sa feuille de composant), sans conteneur intermédiaire.
+
+- **Règle — les deux écrans appliquent « colonne étroite centrée dans le conteneur »** (§41, §41.2, §41.5) : le
+  contenu de la `<section>` est enveloppé dans `<div class="conteneur">`, et le plafond passe de `.auth` sur
+  `.auth .conteneur`. Le centrage vient du socle `.conteneur` (`styles/_base.scss`, `margin: 0 auto`) ;
+  `margin-inline: auto` **n'a pas été ajouté**, il ferait doublon. La spécificité scopée du composant
+  (`.auth .conteneur[_ngcontent-…]`, 0,3,0) bat la règle globale (0,1,0), c'est ce qui fait foi pour le plafond.
+- **Les deux largeurs sont conservées, aucune largeur nouvelle** : `26rem` pour connexion, `30rem` pour inscription
+  (§41, arbitrage des largeurs locales — on reprend la valeur déjà présente, on ne la décrète pas). L'écart de
+  4 rem entre les deux écrans vient de leur contenu réel : connexion n'a que deux champs, alors que l'inscription
+  porte le `fieldset` des rôles, cinq champs d'identité et un champ conditionnel (filière ou type d'acheteur), donc
+  une carte plus haute et une colonne un peu plus généreuse. `.auth` reste la classe de la `<section>` et n'est
+  portée **que** par ces deux écrans (vérifié : aucun autre gabarit, aucune règle globale).
+- **Duplication assumée** : les deux feuilles `.scss` restent distinctes et partaient de la même racine. Après le
+  lot, **18 déclarations byte-identiques réparties sur 8 sélecteurs partagés** (`.auth__marque` et son `:hover`,
+  `.auth h1`, `.auth__intro`, `.auth .message`, `.auth__formulaire`, `.auth__formulaire .champ:last-of-type`,
+  `.auth__alternative`) ; la seule règle qui diffère en valeur est le plafond (`26rem` / `30rem`). L'inscription
+  ajoute en plus 3 sélecteurs et 10 déclarations propres (`.auth__roles`, `.auth__roles legend`, `.auth__choix`).
+  Avant le lot le compte était de 19 : le `margin: 0 auto`, jusqu'ici identique dans les deux feuilles, a
+  disparu des deux au profit du socle. **Consolider ces règles dans un partial partagé est un refactor, hors
+  campagne de design** : le lot ne demandait aucun mouvement de code, seulement aucun mouvement visuel.
+- **Largeurs utiles mesurées** — 1 rem = 16 px, `box-sizing: border-box` global, donc les gouttières du conteneur
+  sont **comprises** dans le plafond : connexion **368 px** à 1366 px (`416 − 2 × --espace-5`) et **311 px** à 375 px ;
+  inscription **432 px** à 1366 px (`480 − 48`) et **311 px** à 375 px (à 375 px le plafond ne sature pas, c'est la
+  largeur disponible qui borne). Par rapport à l'état d'avant le lot la colonne perd 48 px en desktop et 32 px en
+  mobile, exactement l'effet mesuré sur les pages d'erreur (**§41.5**). Dans la carte (`.carte` à
+  `padding: --espace-5`), le champ fait 320 px (connexion) ou 384 px (inscription) à 1366 px, et 263 px à 375 px.
+  **Condition d'arrêt non déclenchée** : `.champ__saisie` est en `width: 100%` sans `min-width` et `.bouton--large`
+  aussi, avec `.bouton` à `min-height: 44px`, `padding: 0 --espace-5` et `font-size: --taille-md` (16 px) ; les
+  libellés « Se connecter » (≈148 px) et « Créer mon compte » (≈183 px) tiennent dans 263 px. Rien ne déborde.
+- **Rien d'autre ne change** : rythme vertical intact (les `margin-bottom` par bloc restent, rien n'a été déplacé
+  vers un `gap`), boutons `--large`, liens de bascule `.auth__alternative`, `.carte`, `.champ__*`, radios et
+  `fieldset`/`legend` du groupe de rôles, icônes Material Symbols, bannière de session expirée (§39.2), et **tous**
+  les ids, `autocomplete`, `maxlength`, `aria-describedby`, `[attr.aria-invalid]`, `[disabled]` + `aria-busy`,
+  libellés et chaînes d'erreur. Les `.ts`, services, guards, `app.routes.ts`, `ToastService`, backend, autres
+  écrans et `styles/_composants.scss` ne sont pas touchés.
+- **Tests** : le filet a été écrit **avant** le restylage, sur les gabarits intacts — 4 tests dans
+  `connexion.spec.ts` et 3 dans `inscription.spec.ts` (`h1` unique et son libellé, un seul `<form>`, formulaire sous
+  le **même parent** que le titre, bannières sous le même parent que le formulaire quand elles s'affichent :
+  `role="status"` pour la session expirée, `role="alert"` pour l'erreur, côté inscription via un 500 sans `erreurs`
+  — seul un 401 purge la session, et seul un 500 atteint `erreurGenerale()`), exécuté vert **24/24** avant tout
+  changement. Après le lot, **un** test de conteneur par écran (connexion 8 → 13, inscription 9 → 13). **Aucune
+  assertion existante n'a été modifiée, supprimée ni assouplie.** Suite complète : 821 tests / 42 fichiers (baseline
+  812 + 9 nouveaux).
+- **Décision d'accessibilité (LOT 18) — les obligations sont déclarées, pas seulement écrites** : `required` **et**
+  `aria-required="true"` sur les deux champs de connexion (email, mot de passe) et sur nom, prénom, email, téléphone
+  et mot de passe à l'inscription. Le téléphone est inclus parce que le composant le valide réellement avec
+  `Validators.required`, non par convention ; le `fieldset` des rôles **ne porte pas** `required` (son contrôle a déjà
+  `Validators.required` et le `legend` dit « (obligatoire) »). Les deux champs conditionnels portent les deux
+  attributs **à l'intérieur** de leur branche `@if`, donc uniquement quand ils sont affichés et validés. `novalidate`
+  reste sur les deux `<form>` : aucune bulle native, le message reste décidé par Angular — `required` n'apporte ici
+  qu'une information sémantique.
+- **Focus après un envoi refusé** : `focusSurPremierChampInvalide()` parcourt une liste **ordonnée comme le DOM**
+  (`{ nom de contrôle, sélecteur }`) et pose **un seul** focus sur le premier champ que `invalide()` déclare fautif.
+  Deux déclencheurs : l'échec de la validation locale (`markAllAsTouched()` puis `return`) et le retour du backend
+  avec un objet `erreurs` non vide — chemin propre à l'inscription, `Connexion` ne mappe jamais d'erreur par champ.
+  Le mécanisme est celui déjà joué dans le dépôt (`ElementRef` + `nativeElement.querySelector(...)`, comme
+  `prix-marche.ts:198` et `recoltes-admin.ts:149`) : aucune dépendance nouvelle, pas de `viewChildren` par champ,
+  rien de différé — la cible est rendue en permanence, donc le focus est synchrone et ne peut ni piéger ni boucler.
+  La cible est cherchée **à travers `invalide()`** et non par `querySelector('[aria-invalid="true"]')` : les bindings
+  ne sont à jour qu'au cycle de détection suivant, un DOM lu en synchronie serait périmé.
+- **Une erreur générale ne déplace pas le focus** : sans objet `erreurs` du backend (ou sur un 401 de connexion
+  refusée), aucun champ n'est invalide et rien n'est cherché ; la bannière `.message--erreur`, déjà en `role="alert"`
+  (§39.2), porte seule l'annonce.
+- **`.champ__erreur` reste sans `role="alert"`, et c'est voulu** : ces paragraphes naissent et disparaissent à chaque
+  frappe, et `role="alert"` est une zone live `aria-live="assertive"` — chaque apparition interromprait la lecture en
+  cours, soit « Ce champ est obligatoire. » répété à chaque caractère sur un formulaire de sept champs. La perception
+  d'une erreur de champ passe désormais par le focus qui y est posé : le lecteur d'écran lit le libellé,
+  l'obligation via `aria-required`, l'état `aria-invalid` et le message visé par `aria-describedby`.
+- **Limite consignée** : le `fieldset` du groupe de rôles ne porte ni `id`, ni `aria-describedby`, ni `aria-invalid`
+  (le lot interdit d'y toucher) ; le focus posé sur son premier radio annonce donc le groupe et son état, mais pas le
+  texte de l'erreur. À reprendre si l'obligation d'un `aria-describedby` sur ce groupe est décidée un jour.
+- **Tests du LOT 18** : le filet a d'abord été rejoué vert sur les gabarits intacts (**26/26**), puis après
+  l'ajout des attributs (**26/26**) — **aucune** assertion existante n'a été modifiée, supprimée ni assouplie. Les
+  nouveaux comportements n'ont que des tests nouveaux : connexion 13 → 18, inscription 13 → 21, soit **+13**
+  (attributs par écran, champ conditionnel marqué seulement quand il est rendu, focus sur le premier champ invalide
+  de l'ordre du DOM, focus sur le champ conditionnel en dernier, focus sur le champ signalé par le backend, focus
+  immobile sur erreur générale seule, absence de `role="alert"` sur les erreurs de champ rendues). Suite complète :
+  **834 tests / 42 fichiers** (baseline 821). **Non vérifié** :
+  le rendu réel par un lecteur d'écran (NVDA, VoiceOver) et le comportement en navigateur — jsdom ne constate que
+  `document.activeElement`.
+- **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366 et le centrage effectif du
+  plafond — jsdom ne rend pas la cascade SCSS. Les colonnes utiles ci-dessus sont des **calculs**.

@@ -12,7 +12,13 @@ import {
 import { RouterLink } from '@angular/router';
 import { LIBELLES_STATUT_RECOLTE, StatutRecolte } from '../../../core/modeles/referentiels';
 import { LignePanier, PanierService } from '../../../core/services/panier.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { formaterMontant, formaterQuantite } from '../../../core/utilitaires/formatage';
+import {
+  estLigneBloquee,
+  messageLigneBloquee,
+  messageRefusQuantite,
+} from '../../../core/utilitaires/panier-affichage';
 
 /** Écart des boutons d'incrémentation : une unité du produit, jamais d'arrondi implicite. */
 const PAS = 1;
@@ -34,6 +40,7 @@ const PAS = 1;
 })
 export class Panier {
   private readonly panier = inject(PanierService);
+  private readonly toast = inject(ToastService);
   private readonly document = inject(DOCUMENT);
 
   protected readonly lignes = this.panier.lignes;
@@ -102,8 +109,8 @@ export class Panier {
    * automatiquement (§25). Le texte dit ce que l'acheteur peut faire.
    */
   protected motifLigne(ligne: LignePanier): string | null {
-    if (ligne.statut !== 'DISPONIBLE') {
-      return 'Cette récolte n’est plus disponible. Retirez-la du panier.';
+    if (estLigneBloquee(ligne)) {
+      return messageLigneBloquee();
     }
     if (ligne.quantite >= ligne.quantiteDisponible) {
       return 'Le panier contient déjà la totalité du stock connu.';
@@ -113,7 +120,7 @@ export class Panier {
 
   /** Une récolte épuisée n'a plus de quantité à saisir : le retrait reste possible. */
   protected estBloquee(ligne: LignePanier): boolean {
-    return ligne.statut !== 'DISPONIBLE';
+    return estLigneBloquee(ligne);
   }
 
   protected sousTotal(ligne: LignePanier): number {
@@ -140,9 +147,9 @@ export class Panier {
 
     const quantite = Number(valeur.replace(',', '.'));
     if (valeur === '' || !Number.isFinite(quantite)) {
-      this.refus.set(
-        `Quantité invalide pour « ${ligne.produit} » : saisissez un nombre strictement positif.`,
-      );
+      const message = `Quantité invalide pour « ${ligne.produit} » : saisissez un nombre strictement positif.`;
+      this.refus.set(message);
+      this.toast.afficher(message, 'erreur');
       return;
     }
     this.deposerQuantite(ligne, quantite);
@@ -161,20 +168,20 @@ export class Panier {
   private deposerQuantite(ligne: LignePanier, quantite: number): void {
     if (this.panier.modifierQuantite(ligne.recolteId, quantite)) {
       this.refus.set(null);
+      // Parité avec l'ancienne bannière : la mention du maximum s'efface dès que la saisie passe.
+      this.toast.masquer();
       return;
     }
-    this.refus.set(
-      `Quantité refusée pour « ${ligne.produit} » : le stock connu est de ${formaterQuantite(
-        ligne.quantiteDisponible,
-        ligne.unite,
-      )} au maximum, 0,01 au minimum.`,
-    );
+    const motif = messageRefusQuantite(ligne);
+    this.refus.set(motif);
+    this.toast.afficher(motif, 'erreur');
   }
 
   protected retirer(ligne: LignePanier): void {
     this.panier.retirer(ligne.recolteId);
     this.oublierBrouillon(ligne.recolteId);
     this.refus.set(null);
+    this.toast.masquer();
   }
 
   protected demanderVider(evenement: MouseEvent): void {
@@ -191,6 +198,7 @@ export class Panier {
     this.panier.vider();
     this.confirmationVider.set(false);
     this.refus.set(null);
+    this.toast.masquer();
     this.brouillons.set({});
     // Le bouton déclencheur disparaît avec les lignes : le focus passera au lien du catalogue.
     this.declencheurVider = null;

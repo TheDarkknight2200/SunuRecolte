@@ -14,6 +14,7 @@ import { authInterceptor } from '../../core/intercepteurs/auth.interceptor';
 import { AuthService, CLE_JETON, CLE_UTILISATEUR } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { CLE_PANIER, LignePanier, PanierService } from '../../core/services/panier.service';
+import { TiroirPanierService } from '../../core/services/tiroir-panier.service';
 import { EnTete } from './en-tete';
 
 const API = 'http://localhost:8080/api';
@@ -200,19 +201,31 @@ describe('EnTete — indicateur de panier', () => {
     expect(liensEspace()).toEqual([]);
   });
 
-  it('plafonne le compteur à 99+ et relie le panier à sa page', () => {
+  it('plafonne le compteur à 99+ et nomme le sac avec ce compte', () => {
     ouvrir('ACHETEUR', lignes(100));
 
-    const lien = element<HTMLAnchorElement>(racine, '.entete__panier');
-    expect(lien.tagName).toBe('A');
-    expect(lien.getAttribute('href')).toBe('/acheteur/panier');
-    expect(texteDe(lien)).toContain('Panier');
+    const sac = element<HTMLButtonElement>(racine, '.entete__panier');
+    expect(sac.tagName).toBe('BUTTON');
+    expect(sac.getAttribute('aria-label')).toBe('Ouvrir le panier, 99+ articles');
     expect(texteDe(element(racine, '.entete__panier-compteur'))).toBe('99+');
 
     const liens = elements<HTMLAnchorElement>(racine, '.entete__navigation a').map((lien) =>
       sansIcone(texteDe(lien)),
     );
-    expect(liens).toEqual(['Catalogue', 'Tableau de bord', 'Mes commandes', 'Panier 99+']);
+    expect(liens).toEqual(['Catalogue', 'Tableau de bord', 'Mes commandes']);
+  });
+
+  /** Le sac n’est plus un lien : il ouvre le tiroir existant, sans quitter la page. */
+  it('ouvre le panier latéral depuis le sac', () => {
+    ouvrir('ACHETEUR', [ligne(1)]);
+
+    const tiroir = TestBed.inject(TiroirPanierService);
+    expect(tiroir.ouvert()).toBe(false);
+
+    element<HTMLButtonElement>(racine, '.entete__panier').click();
+    fixture.detectChanges();
+
+    expect(tiroir.ouvert()).toBe(true);
   });
 
   it('garde le compteur dans un badge non cliquable (§10.7)', () => {
@@ -322,12 +335,18 @@ describe('EnTete — compteur de notifications non lues (§29)', () => {
 
     expect(badge()).toBeNull();
     expect(racine.querySelector('.entete__notifications')).not.toBeNull();
+    expect(element(racine, '.entete__notifications').getAttribute('aria-label')).toBe(
+      'Notifications',
+    );
   });
 
   it('masque le compteur quand le compte n’a aucune notification', () => {
     ouvrir('PRODUCTEUR', []);
 
     expect(badge()).toBeNull();
+    expect(element(racine, '.entete__notifications').getAttribute('aria-label')).toBe(
+      'Notifications',
+    );
   });
 
   it('plafonne le compteur à 99+', () => {
@@ -338,21 +357,43 @@ describe('EnTete — compteur de notifications non lues (§29)', () => {
     expect(texteDe(element(racine, '.entete__notifications'))).toContain('99+');
   });
 
-  /** Le compteur est une information, jamais une navigation (§29, §10.5). */
-  it('reste un badge non cliquable, hors des quatre liens de navigation', () => {
+  /**
+   * §29, §10.5 : la cloche est le seul lien vers `/notifications` de l'en-tête, et elle vit hors
+   * de la liste des liens d'espace. Son badge reste une information non cliquable (§10.7).
+   */
+  it('reste un badge non cliquable, hors des liens de navigation de l’espace', () => {
     ouvrir('ACHETEUR', [notification(1, false)]);
 
     const zone = element(racine, '.entete__notifications');
-    expect(zone.tagName).toBe('SPAN');
+    expect(zone.tagName).toBe('A');
     expect(badge()?.tagName).toBe('SPAN');
-    expect(zone.getAttribute('href')).toBeNull();
+    expect(zone.getAttribute('href')).toBe('/notifications');
+    expect(badge()?.getAttribute('href')).toBeNull();
     expect(racine.querySelector('a .entete__notifications')).toBeNull();
     expect(racine.querySelector('a.badge')).toBeNull();
     expect(
       elements<HTMLAnchorElement>(racine, '.entete__navigation a').map((lien) =>
         sansIcone(texteDe(lien)),
       ),
-    ).toEqual(['Catalogue', 'Tableau de bord', 'Mes commandes', 'Panier 0']);
+    ).toEqual(['Catalogue', 'Tableau de bord', 'Mes commandes']);
+  });
+
+  it('nomme la cloche avec son compte de non-lues, et le sans badge reste « Notifications »', () => {
+    ouvrir('ACHETEUR', [notification(1, false), notification(2, false), notification(3, true)]);
+
+    expect(element(racine, '.entete__notifications').getAttribute('aria-label')).toBe(
+      'Notifications, 2 non lues',
+    );
+
+    TestBed.inject(NotificationService)
+      .marquerLue(1)
+      .subscribe();
+    http.expectOne(`${URL_NOTIFICATIONS}/1/lue`).flush(notification(1, true));
+    fixture.detectChanges();
+
+    expect(element(racine, '.entete__notifications').getAttribute('aria-label')).toBe(
+      'Notifications, 1 non lue',
+    );
   });
 
   /** §10.5 : l'entrée du profil vit dans l'espace producteur, jamais dans l'en-tête. */
@@ -443,6 +484,122 @@ describe('EnTete — compteur de notifications non lues (§29)', () => {
 /** Sonde de test : une page fille de « /producteur », sans appel HTTP. */
 @Component({ selector: 'app-sonde-profil', template: '<p>Profil</p>' })
 class SondeProfil {}
+
+/**
+ * Le burger est le repli de navigation des largeurs où les liens ne tiennent plus (§10.5).
+ * Montage sans session : les quatre liens publics suffisent à prouver l'ouverture et la
+ * fermeture, et aucune requête n'est émise.
+ */
+describe('EnTete — menu burger (repli de navigation)', () => {
+  let fixture: ComponentFixture<EnTete>;
+  let racine: HTMLElement;
+
+  function monter(): void {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter(
+          [{ path: 'connexion', component: SondeProfil }],
+          withDisabledInitialNavigation(),
+        ),
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClientTesting(),
+      ],
+    });
+    fixture = TestBed.createComponent(EnTete);
+    fixture.detectChanges();
+    racine = fixture.nativeElement as HTMLElement;
+  }
+
+  function bouton(): HTMLButtonElement {
+    return element<HTMLButtonElement>(racine, '.entete__menu');
+  }
+
+  afterEach(() => {
+    TestBed.inject(HttpTestingController).verify();
+    localStorage.clear();
+  });
+
+  it('annonce son état par aria-expanded et commande la liste des liens', () => {
+    monter();
+
+    const nav = element(racine, '.entete__navigation');
+    expect(bouton().getAttribute('aria-controls')).toBe(nav.id);
+    expect(nav.id).toBe('navigation-principale');
+    expect(bouton().getAttribute('aria-expanded')).toBe('false');
+    expect(bouton().getAttribute('aria-label')).toBe('Ouvrir le menu');
+
+    bouton().click();
+    fixture.detectChanges();
+    expect(bouton().getAttribute('aria-expanded')).toBe('true');
+    expect(bouton().getAttribute('aria-label')).toBe('Fermer le menu');
+    expect(racine.querySelector('header.entete--menu-ouvert')).not.toBeNull();
+
+    bouton().click();
+    fixture.detectChanges();
+    expect(bouton().getAttribute('aria-expanded')).toBe('false');
+    expect(racine.querySelector('header.entete--menu-ouvert')).toBeNull();
+  });
+
+  /** Un repli de navigation n'est pas une modale : `aria-modal` et piège de focus sont exclus. */
+  it('ne se déclare jamais comme une modale', () => {
+    monter();
+
+    bouton().click();
+    fixture.detectChanges();
+
+    const nav = element(racine, '.entete__navigation');
+    expect(nav.getAttribute('aria-modal')).toBeNull();
+    expect(bouton().getAttribute('aria-haspopup')).toBeNull();
+    expect(nav.getAttribute('role')).toBeNull();
+  });
+
+  it('ferme le menu au premier plan et rend le focus au bouton', () => {
+    monter();
+
+    bouton().click();
+    fixture.detectChanges();
+    const lien = element<HTMLAnchorElement>(racine, '.entete__lien[href="/connexion"]');
+    lien.focus();
+    expect(document.activeElement).toBe(lien);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+
+    expect(bouton().getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(bouton());
+  });
+
+  it('laisse le focus où il est quand Échap ne referme rien', () => {
+    monter();
+
+    const lien = element<HTMLAnchorElement>(racine, '.entete__lien[href="/connexion"]');
+    lien.focus();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+
+    expect(document.activeElement).toBe(lien);
+  });
+
+  it('se referme quand un lien du menu est activé', () => {
+    monter();
+
+    bouton().click();
+    fixture.detectChanges();
+    expect(bouton().getAttribute('aria-expanded')).toBe('true');
+
+    element<HTMLAnchorElement>(racine, '.entete__lien[href="/connexion"]').click();
+    fixture.detectChanges();
+    expect(bouton().getAttribute('aria-expanded')).toBe('false');
+
+    bouton().click();
+    fixture.detectChanges();
+    element<HTMLElement>(racine, '.entete__marque').click();
+    fixture.detectChanges();
+    expect(bouton().getAttribute('aria-expanded')).toBe('false');
+  });
+});
 
 /**
  * Le lien d'espace pointe vers « /producteur » : une page producteur de plus reste sous le

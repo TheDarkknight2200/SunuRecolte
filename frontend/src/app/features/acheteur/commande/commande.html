@@ -1,328 +1,332 @@
 <section class="commande">
-  <div class="commande__entete">
-    <p class="commande__surtitre">Espace acheteur</p>
-    <h1>Commande</h1>
-    @if (!estVide() && etape() !== 'confirmee') {
-      <p class="commande__intro">
-        Vérifiez les lignes et le mode de réception, puis validez. Les quantités et les montants
-        affichés ici sont repris de votre panier : le serveur confirme les prix et le total.
-      </p>
-    }
-  </div>
-
-  @if (chargement()) {
-    <div class="etat" aria-busy="true">
-      <p class="etat__texte">Chargement…</p>
-    </div>
-  } @else if (erreurChargement(); as message) {
-    <div class="message message--erreur" role="alert">
-      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
-      <div>
-        <p>{{ message }}</p>
-        <p class="commande__actions">
-          <button
-            type="button"
-            class="bouton bouton--secondaire bouton--compact"
-            id="profil-reessayer"
-            (click)="chargerProfil()"
-          >
-            Réessayer
-          </button>
+  <div class="conteneur">
+    <div class="commande__entete">
+      <p class="commande__surtitre">Espace acheteur</p>
+      <h1>Commande</h1>
+      @if (!estVide() && etape() !== 'confirmee') {
+        <p class="commande__intro">
+          Vérifiez les lignes et le mode de réception, puis validez. Les quantités et les montants
+          affichés ici sont repris de votre panier : le serveur confirme les prix et le total.
         </p>
-      </div>
-    </div>
-  } @else if (commandeCreee(); as commande) {
-    <div class="carte commande__succes">
-      <p class="commande__surtitre">Commande n° {{ commande.id }}</p>
-      <h2 class="carte__titre" id="titre-succes" #titreSucces tabindex="-1">
-        Commande enregistrée.
-      </h2>
-      @if (commande.statut === 'EN_ATTENTE') {
-        <p class="commande__mention">Commande enregistrée — paiement non effectué.</p>
       }
+    </div>
 
-      <dl class="commande__chiffres">
-        <div>
-          <dt>Statut</dt>
-          <dd>
-            <span class="badge badge--avertissement">{{ libelleStatut(commande.statut) }}</span>
-          </dd>
-        </div>
-        <div>
-          <dt>Date</dt>
-          <dd>{{ formaterDateHeure(commande.dateCreation) }}</dd>
-        </div>
-        <div>
-          <dt>Mode de réception</dt>
-          <dd>{{ libelleMode(commande.modeReception) }}</dd>
-        </div>
-        @if (commande.adresseLivraison) {
-          <div>
-            <dt>Adresse de livraison</dt>
-            <dd>{{ commande.adresseLivraison }}</dd>
-          </div>
-        }
-        @if (commande.telephoneLivraison) {
-          <div>
-            <dt>Téléphone</dt>
-            <dd>{{ commande.telephoneLivraison }}</dd>
-          </div>
-        }
-        @if (commande.instructionsLivraison) {
-          <div>
-            <dt>Instructions</dt>
-            <dd>{{ commande.instructionsLivraison }}</dd>
-          </div>
-        }
-        <div class="commande__chiffres-total">
-          <dt>Total calculé par le serveur</dt>
-          <dd>{{ formaterMontant(commande.total) }}</dd>
-        </div>
-      </dl>
-
-      <h3 class="commande__zone-titre">Lignes de la commande</h3>
-      <ul class="commande__lignes">
-        @for (ligne of commande.lignes; track ligne.id) {
-          <li class="commande__ligne">
-            <p class="commande__produit">{{ ligne.produit }}</p>
-            <p class="commande__quantite">
-              {{ formaterQuantite(ligne.quantite, ligne.unite) }}
-            </p>
-            <p class="commande__prix">{{ formaterMontant(ligne.prixUnitaire) }} / {{ ligne.unite }}</p>
-            <p class="commande__sous-total">{{ formaterMontant(ligne.sousTotal) }}</p>
-          </li>
-        }
-      </ul>
-
-      <div class="commande__actions">
-        <a class="bouton bouton--secondaire" routerLink="/recoltes">Retour au catalogue</a>
+    @if (chargement()) {
+      <div class="etat" aria-busy="true">
+        <p class="etat__texte">Chargement…</p>
       </div>
-    </div>
-  } @else if (estVide()) {
-    <div class="etat">
-      <span class="materiel-icone etat__icone" aria-hidden="true">&#xe8cc;</span>
-      <p class="etat__titre">Votre panier est vide.</p>
-      <p class="etat__texte">
-        Aucune commande ne peut être envoyée sans récolte. Ajoutez une récolte, puis revenez ici.
-      </p>
-      <a class="bouton bouton--primaire" routerLink="/recoltes">Parcourir le catalogue</a>
-    </div>
-  } @else {
-    @if (erreur(); as message) {
-      <div class="message message--erreur" role="alert" id="erreur-message" #erreurMessage tabindex="-1">
+    } @else if (erreurChargement(); as message) {
+      <div class="message message--erreur" role="alert">
         <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
         <div>
           <p>{{ message }}</p>
-          @if (etape() === 'revision') {
-            <p class="commande__actions">
-              <button
-                type="button"
-                class="bouton bouton--secondaire bouton--compact"
-                id="erreur-reessayer"
-                (click)="confirmer()"
-              >
-                Réessayer l’envoi
-              </button>
-            </p>
-          }
+          <p class="commande__actions">
+            <button
+              type="button"
+              class="bouton bouton--secondaire bouton--compact"
+              id="profil-reessayer"
+              (click)="chargerProfil()"
+            >
+              Réessayer
+            </button>
+          </p>
         </div>
       </div>
-    }
-
-    <div class="carte commande__recap">
-      <h2 class="commande__zone-titre">Récapitulatif</h2>
-      @if (profil(); as acheteur) {
-        <p class="commande__acheteur">
-          Vous commandez en tant que {{ acheteur.prenom }} {{ acheteur.nom }}. Cette identité est
-          reprise de votre compte, vous ne la saisissez pas.
-        </p>
-      }
-
-      <ul class="commande__lignes">
-        @for (ligne of lignes(); track ligne.recolteId) {
-          <li class="commande__ligne">
-            <p class="commande__produit">{{ ligne.produit }}</p>
-            <p class="commande__quantite">
-              {{ formaterQuantite(ligne.quantite, ligne.unite) }}
-            </p>
-            <p class="commande__prix">{{ formaterMontant(ligne.prixUnitaire) }} / {{ ligne.unite }}</p>
-            <p class="commande__sous-total">{{ formaterMontant(sousTotal(ligne)) }}</p>
-          </li>
-        }
-      </ul>
-
-      <p class="commande__total">
-        <span class="commande__total-libelle">Total indicatif</span>
-        <span class="commande__total-valeur">{{ formaterMontant(totalIndicatif()) }}</span>
-      </p>
-      <p class="commande__mention">Total indicatif — le montant final sera confirmé par le serveur.</p>
-    </div>
-
-    @if (etape() === 'revision') {
-      <div class="carte commande__reception">
-        <h2 class="commande__zone-titre" id="titre-revision" #titreRevision tabindex="-1">
-          Réception
+    } @else if (commandeCreee(); as commande) {
+      <div class="carte commande__succes">
+        <p class="commande__surtitre">Commande n° {{ commande.id }}</p>
+        <h2 class="carte__titre" id="titre-succes" #titreSucces tabindex="-1">
+          Commande enregistrée.
         </h2>
-        <p class="commande__choix">Mode de réception : {{ libelleMode(mode) }}</p>
+        @if (commande.statut === 'EN_ATTENTE') {
+          <p class="commande__mention">Commande enregistrée — paiement non effectué.</p>
+        }
 
-        @if (livraison) {
-          <dl class="commande__chiffres">
+        <dl class="commande__chiffres">
+          <div>
+            <dt>Statut</dt>
+            <dd>
+              <span class="badge badge--avertissement">{{ libelleStatut(commande.statut) }}</span>
+            </dd>
+          </div>
+          <div>
+            <dt>Date</dt>
+            <dd>{{ formaterDateHeure(commande.dateCreation) }}</dd>
+          </div>
+          <div>
+            <dt>Mode de réception</dt>
+            <dd>{{ libelleMode(commande.modeReception) }}</dd>
+          </div>
+          @if (commande.adresseLivraison) {
             <div>
               <dt>Adresse de livraison</dt>
-              <dd>{{ formulaire.controls.adresseLivraison.value }}</dd>
+              <dd>{{ commande.adresseLivraison }}</dd>
             </div>
+          }
+          @if (commande.telephoneLivraison) {
             <div>
               <dt>Téléphone</dt>
-              <dd>{{ formulaire.controls.telephoneLivraison.value }}</dd>
+              <dd>{{ commande.telephoneLivraison }}</dd>
             </div>
-            @if (formulaire.controls.instructionsLivraison.value) {
-              <div>
-                <dt>Instructions</dt>
-                <dd>{{ formulaire.controls.instructionsLivraison.value }}</dd>
-              </div>
-            }
-          </dl>
-        } @else {
-          <p class="commande__notice">
-            Retrait : vous récupérez la commande auprès du producteur.
-          </p>
-        }
+          }
+          @if (commande.instructionsLivraison) {
+            <div>
+              <dt>Instructions</dt>
+              <dd>{{ commande.instructionsLivraison }}</dd>
+            </div>
+          }
+          <div class="commande__chiffres-total">
+            <dt>Total calculé par le serveur</dt>
+            <dd>{{ formaterMontant(commande.total) }}</dd>
+          </div>
+        </dl>
 
-        <p class="commande__notice">
-          Rien n’est encore enregistré. Vérifiez les lignes, les quantités et ces informations.
-        </p>
+        <h3 class="commande__zone-titre">Lignes de la commande</h3>
+        <ul class="commande__lignes">
+          @for (ligne of commande.lignes; track ligne.id) {
+            <li class="commande__ligne">
+              <p class="commande__produit">{{ ligne.produit }}</p>
+              <p class="commande__quantite">
+                {{ formaterQuantite(ligne.quantite, ligne.unite) }}
+              </p>
+              <p class="commande__prix">{{ formaterMontant(ligne.prixUnitaire) }} / {{ ligne.unite }}</p>
+              <p class="commande__sous-total">{{ formaterMontant(ligne.sousTotal) }}</p>
+            </li>
+          }
+        </ul>
 
         <div class="commande__actions">
-          <button
-            type="button"
-            class="bouton bouton--primaire"
-            id="commande-confirmer"
-            [disabled]="enCours()"
-            [attr.aria-busy]="enCours()"
-            (click)="confirmer()"
-          >
-            {{ enCours() ? '…' : 'Passer la commande' }}
-          </button>
-          <button
-            type="button"
-            class="bouton bouton--secondaire"
-            id="commande-modifier"
-            (click)="modifierInformations()"
-          >
-            Modifier les informations
-          </button>
+          <a class="bouton bouton--secondaire" routerLink="/recoltes">Retour au catalogue</a>
         </div>
-
-        @if (enCours()) {
-          <p class="commande__envoi" role="status" aria-busy="true">Envoi de la commande…</p>
-        }
+      </div>
+    } @else if (estVide()) {
+      <div class="etat">
+        <span class="materiel-icone etat__icone" aria-hidden="true">&#xe8cc;</span>
+        <p class="etat__titre">Votre panier est vide.</p>
+        <p class="etat__texte">
+          Aucune commande ne peut être envoyée sans récolte. Ajoutez une récolte, puis revenez ici.
+        </p>
+        <a class="bouton bouton--primaire" routerLink="/recoltes">Parcourir le catalogue</a>
       </div>
     } @else {
-      <form
-        class="carte commande__zone"
-        [formGroup]="formulaire"
-        (ngSubmit)="passerEnRevision()"
-        novalidate
-      >
-        <h2 class="commande__zone-titre">Réception</h2>
-
-        <fieldset class="commande__champs">
-          <legend class="commande__legende">Mode de réception</legend>
-
-          <div class="commande__options">
-            @for (option of modes; track option) {
-              <label
-                class="commande__option"
-                [class.commande__option--choisi]="estChoisi(option)"
-              >
-                <input type="radio" name="modeReception" [value]="option" formControlName="modeReception" />
-                <span class="commande__option-nom">{{ libelleMode(option) }}</span>
-                <span class="commande__option-detail">{{ detailMode(option) }}</span>
-              </label>
+      @if (erreur(); as message) {
+        <div class="message message--erreur" role="alert" id="erreur-message" #erreurMessage tabindex="-1">
+          <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
+          <div>
+            <p>{{ message }}</p>
+            @if (etape() === 'revision') {
+              <p class="commande__actions">
+                <button
+                  type="button"
+                  class="bouton bouton--secondaire bouton--compact"
+                  id="erreur-reessayer"
+                  (click)="confirmer()"
+                >
+                  Réessayer l’envoi
+                </button>
+              </p>
             }
           </div>
-        </fieldset>
+        </div>
+      }
 
-        @if (livraison) {
-          <div class="commande__champs">
-            <div class="champ">
-              <label class="champ__libelle" for="adresseLivraison">
-                Adresse de livraison <span class="champ__obligatoire">(obligatoire)</span>
-              </label>
-              <input
-                id="adresseLivraison"
-                class="champ__saisie"
-                type="text"
-                formControlName="adresseLivraison"
-                maxlength="255"
-                required
-                aria-required="true"
-                [attr.aria-invalid]="invalide('adresseLivraison')"
-                aria-describedby="adresseLivraison-erreur"
-              />
-              @if (invalide('adresseLivraison')) {
-                <p id="adresseLivraison-erreur" class="champ__erreur">
-                  {{ messageErreur('adresseLivraison') }}
+      <div class="commande__corps">
+        <div class="carte commande__recap">
+          <h2 class="carte__titre">Récapitulatif</h2>
+          @if (profil(); as acheteur) {
+            <p class="commande__acheteur">
+              Vous commandez en tant que {{ acheteur.prenom }} {{ acheteur.nom }}. Cette identité est
+              reprise de votre compte, vous ne la saisissez pas.
+            </p>
+          }
+
+          <ul class="commande__lignes">
+            @for (ligne of lignes(); track ligne.recolteId) {
+              <li class="commande__ligne">
+                <p class="commande__produit">{{ ligne.produit }}</p>
+                <p class="commande__quantite">
+                  {{ formaterQuantite(ligne.quantite, ligne.unite) }}
                 </p>
-              }
-            </div>
+                <p class="commande__prix">{{ formaterMontant(ligne.prixUnitaire) }} / {{ ligne.unite }}</p>
+                <p class="commande__sous-total">{{ formaterMontant(sousTotal(ligne)) }}</p>
+              </li>
+            }
+          </ul>
 
-            <div class="champ">
-              <label class="champ__libelle" for="telephoneLivraison">
-                Téléphone <span class="champ__obligatoire">(obligatoire)</span>
-              </label>
-              <input
-                id="telephoneLivraison"
-                class="champ__saisie"
-                type="tel"
-                formControlName="telephoneLivraison"
-                maxlength="20"
-                inputmode="tel"
-                required
-                aria-required="true"
-                [attr.aria-invalid]="invalide('telephoneLivraison')"
-                aria-describedby="telephoneLivraison-erreur"
-              />
-              @if (invalide('telephoneLivraison')) {
-                <p id="telephoneLivraison-erreur" class="champ__erreur">
-                  {{ messageErreur('telephoneLivraison') }}
-                </p>
-              }
-            </div>
+          <p class="commande__total">
+            <span class="commande__total-libelle">Total indicatif</span>
+            <span class="commande__total-valeur">{{ formaterMontant(totalIndicatif()) }}</span>
+          </p>
+          <p class="commande__mention">Total indicatif — le montant final sera confirmé par le serveur.</p>
+        </div>
 
-            <div class="champ">
-              <label class="champ__libelle" for="instructionsLivraison">Instructions</label>
-              <textarea
-                id="instructionsLivraison"
-                class="champ__saisie"
-                formControlName="instructionsLivraison"
-                rows="2"
-                aria-describedby="instructionsLivraison-aide"
-              ></textarea>
-              <p id="instructionsLivraison-aide" class="champ__aide">
-                Facultatif : créneau, point de dépôt, contact sur place.
+        @if (etape() === 'revision') {
+          <div class="carte commande__reception">
+            <h2 class="carte__titre" id="titre-revision" #titreRevision tabindex="-1">
+              Réception
+            </h2>
+            <p class="commande__choix">Mode de réception : {{ libelleMode(mode) }}</p>
+
+            @if (livraison) {
+              <dl class="commande__chiffres">
+                <div>
+                  <dt>Adresse de livraison</dt>
+                  <dd>{{ formulaire.controls.adresseLivraison.value }}</dd>
+                </div>
+                <div>
+                  <dt>Téléphone</dt>
+                  <dd>{{ formulaire.controls.telephoneLivraison.value }}</dd>
+                </div>
+                @if (formulaire.controls.instructionsLivraison.value) {
+                  <div>
+                    <dt>Instructions</dt>
+                    <dd>{{ formulaire.controls.instructionsLivraison.value }}</dd>
+                  </div>
+                }
+              </dl>
+            } @else {
+              <p class="commande__notice">
+                Retrait : vous récupérez la commande auprès du producteur.
               </p>
+            }
+
+            <p class="commande__notice">
+              Rien n’est encore enregistré. Vérifiez les lignes, les quantités et ces informations.
+            </p>
+
+            <div class="commande__actions">
+              <button
+                type="button"
+                class="bouton bouton--primaire"
+                id="commande-confirmer"
+                [disabled]="enCours()"
+                [attr.aria-busy]="enCours()"
+                (click)="confirmer()"
+              >
+                {{ enCours() ? '…' : 'Passer la commande' }}
+              </button>
+              <button
+                type="button"
+                class="bouton bouton--secondaire"
+                id="commande-modifier"
+                (click)="modifierInformations()"
+              >
+                Modifier les informations
+              </button>
             </div>
+
+            @if (enCours()) {
+              <p class="commande__envoi" role="status" aria-busy="true">Envoi de la commande…</p>
+            }
           </div>
         } @else {
-          <p class="commande__notice">
-            Aucun adresse ni téléphone n’est demandé pour un retrait, et rien n’est envoyé à leur
-            sujet.
-          </p>
-        }
-
-        <div class="commande__actions">
-          <button
-            type="submit"
-            class="bouton bouton--primaire"
-            id="commande-reviser"
-            [disabled]="enCours()"
+          <form
+            class="carte commande__zone"
+            [formGroup]="formulaire"
+            (ngSubmit)="passerEnRevision()"
+            novalidate
           >
-            Vérifier la commande
-          </button>
-          <a class="bouton bouton--discret" routerLink="/acheteur/panier">Modifier le panier</a>
-        </div>
-      </form>
+            <h2 class="carte__titre">Réception</h2>
+
+            <fieldset class="commande__champs">
+              <legend class="commande__legende">Mode de réception</legend>
+
+              <div class="commande__options">
+                @for (option of modes; track option) {
+                  <label
+                    class="commande__option"
+                    [class.commande__option--choisi]="estChoisi(option)"
+                  >
+                    <input type="radio" name="modeReception" [value]="option" formControlName="modeReception" />
+                    <span class="commande__option-nom">{{ libelleMode(option) }}</span>
+                    <span class="commande__option-detail">{{ detailMode(option) }}</span>
+                  </label>
+                }
+              </div>
+            </fieldset>
+
+            @if (livraison) {
+              <div class="commande__champs">
+                <div class="champ">
+                  <label class="champ__libelle" for="adresseLivraison">
+                    Adresse de livraison <span class="champ__obligatoire">(obligatoire)</span>
+                  </label>
+                  <input
+                    id="adresseLivraison"
+                    class="champ__saisie"
+                    type="text"
+                    formControlName="adresseLivraison"
+                    maxlength="255"
+                    required
+                    aria-required="true"
+                    [attr.aria-invalid]="invalide('adresseLivraison')"
+                    aria-describedby="adresseLivraison-erreur"
+                  />
+                  @if (invalide('adresseLivraison')) {
+                    <p id="adresseLivraison-erreur" class="champ__erreur">
+                      {{ messageErreur('adresseLivraison') }}
+                    </p>
+                  }
+                </div>
+
+                <div class="champ">
+                  <label class="champ__libelle" for="telephoneLivraison">
+                    Téléphone <span class="champ__obligatoire">(obligatoire)</span>
+                  </label>
+                  <input
+                    id="telephoneLivraison"
+                    class="champ__saisie"
+                    type="tel"
+                    formControlName="telephoneLivraison"
+                    maxlength="20"
+                    inputmode="tel"
+                    required
+                    aria-required="true"
+                    [attr.aria-invalid]="invalide('telephoneLivraison')"
+                    aria-describedby="telephoneLivraison-erreur"
+                  />
+                  @if (invalide('telephoneLivraison')) {
+                    <p id="telephoneLivraison-erreur" class="champ__erreur">
+                      {{ messageErreur('telephoneLivraison') }}
+                    </p>
+                  }
+                </div>
+
+                <div class="champ">
+                  <label class="champ__libelle" for="instructionsLivraison">Instructions</label>
+                  <textarea
+                    id="instructionsLivraison"
+                    class="champ__saisie"
+                    formControlName="instructionsLivraison"
+                    rows="2"
+                    aria-describedby="instructionsLivraison-aide"
+                  ></textarea>
+                  <p id="instructionsLivraison-aide" class="champ__aide">
+                    Facultatif : créneau, point de dépôt, contact sur place.
+                  </p>
+                </div>
+              </div>
+            } @else {
+              <p class="commande__notice">
+                Aucun adresse ni téléphone n’est demandé pour un retrait, et rien n’est envoyé à leur
+                sujet.
+              </p>
+            }
+
+            <div class="commande__actions">
+              <button
+                type="submit"
+                class="bouton bouton--primaire"
+                id="commande-reviser"
+                [disabled]="enCours()"
+              >
+                Vérifier la commande
+              </button>
+              <a class="bouton bouton--discret" routerLink="/acheteur/panier">Modifier le panier</a>
+            </div>
+          </form>
+        }
+      </div>
     }
-  }
+  </div>
 </section>

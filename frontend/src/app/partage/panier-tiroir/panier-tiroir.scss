@@ -1,0 +1,218 @@
+@use "points-rupture" as pr;
+
+.tiroir__voile {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background-color: var(--voile-tiroir);
+  animation: tiroir-voile var(--duree-mouvement) ease-out;
+}
+
+.tiroir {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 51;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 440px);
+  background-color: var(--couleur-fond);
+  box-shadow: var(--ombre-elevation);
+  animation: tiroir-entree var(--duree-mouvement) cubic-bezier(0.22, 0.8, 0.3, 1);
+}
+
+@keyframes tiroir-entree {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes tiroir-voile {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tiroir__entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--espace-5);
+  border-bottom: 1px solid var(--couleur-bordure);
+}
+
+.tiroir__titre {
+  margin: 0;
+  font-size: var(--taille-2xl);
+}
+
+.tiroir__nombre {
+  color: var(--couleur-accent);
+}
+
+.tiroir__fermer,
+.tiroir__pas {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--couleur-primaire);
+  cursor: pointer;
+  transition: background-color var(--duree-transition) ease-out;
+
+  &:hover {
+    background-color: var(--couleur-primaire-clair);
+  }
+}
+
+.tiroir__pas {
+  width: 32px;
+  height: 32px;
+  border: 0;
+}
+
+/* Bouton neutralisé au plafond du stock : même traitement que `.bouton:disabled`, sans retirer le focus. */
+.tiroir__pas[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+
+  &:hover {
+    background-color: transparent;
+  }
+}
+
+.tiroir__glyphe,
+.tiroir__pas .materiel-icone {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.tiroir__liste {
+  flex: 1;
+  margin: 0;
+  padding: 0 var(--espace-5);
+  overflow-y: auto;
+  list-style: none;
+}
+
+.tiroir__ligne {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--espace-4);
+  padding: var(--espace-5) 0;
+  border-bottom: 1px solid var(--couleur-filet);
+}
+
+.tiroir__nom {
+  margin: 0;
+  font-family: var(--police-titre);
+  font-size: var(--taille-xl);
+  line-height: 1.2;
+}
+
+.tiroir__detail {
+  margin: var(--espace-1) 0 var(--espace-3);
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+}
+
+.tiroir__quantite {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+}
+
+.tiroir__valeur {
+  min-width: 64px;
+  text-align: center;
+  font-size: var(--taille-sm);
+  font-weight: 600;
+}
+
+.tiroir__retirer {
+  margin-left: var(--espace-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--couleur-texte-secondaire);
+  font: inherit;
+  font-size: var(--taille-xs);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.tiroir__montant {
+  margin: 0;
+  font-size: var(--taille-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tiroir__pied {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+  padding: var(--espace-5);
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.tiroir__total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0;
+
+  strong {
+    font-size: var(--taille-xl);
+  }
+}
+
+.tiroir__mention {
+  margin: 0;
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-xs);
+}
+
+/* Mention sous une ligne : plafond du stock atteint ou refus du service. */
+.tiroir__mention--aide {
+  margin-top: var(--espace-2);
+}
+
+.tiroir__lien {
+  justify-content: center;
+}
+
+.tiroir__vide {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-3);
+  padding: var(--espace-5);
+  text-align: center;
+}
+
+.tiroir__vide-titre {
+  margin: 0;
+  font-family: var(--police-titre);
+  font-size: var(--taille-2xl);
+  line-height: 1.2;
+}
+
+.tiroir__vide-texte {
+  margin: 0 0 var(--espace-3);
+  color: var(--couleur-texte-secondaire);
+  font-size: var(--taille-sm);
+}

@@ -1,199 +1,204 @@
 <section class="panier">
-  <div class="panier__entete">
-    <div class="panier__titre">
-      <p class="panier__surtitre">Espace acheteur</p>
-      <h1>Panier</h1>
-      @if (!estVide()) {
-        <p class="panier__intro">
-          {{ denombrement() }} au panier. Quantités et montants indicatifs, calculés sur les
-          informations enregistrées à l’ajout.
-        </p>
-      }
-    </div>
-
-    @if (!estVide()) {
-      <button
-        type="button"
-        class="bouton bouton--secondaire"
-        id="vider-panier"
-        (click)="demanderVider($event)"
-      >
-        Vider le panier
-      </button>
-    }
-  </div>
-
-  @if (erreurStockage(); as message) {
-    <div class="message message--avertissement" role="status">
-      <span class="materiel-icone message__icone" aria-hidden="true">&#xf083;</span>
-      <p>{{ message }}</p>
-    </div>
-  }
-
-  @if (refus(); as message) {
-    <div class="message message--erreur" role="alert">
-      <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
-      <p>{{ message }}</p>
-    </div>
-  }
-
-  @if (estVide()) {
-    <div class="etat">
-      <span class="materiel-icone etat__icone" aria-hidden="true">&#xe8cc;</span>
-      <p class="etat__titre">Votre panier est vide.</p>
-      <p class="etat__texte">
-        Ajoutez une récolte depuis le catalogue pour préparer votre commande.
-      </p>
-      <a class="bouton bouton--primaire" id="lien-catalogue" #lienCatalogue routerLink="/recoltes">
-        Parcourir le catalogue
-      </a>
-    </div>
-  } @else {
-    <ul class="panier__liste">
-      @for (ligne of lignes(); track ligne.recolteId) {
-        <li class="panier__ligne">
-          <div class="panier__produit">
-            <h2 class="carte__titre">{{ ligne.produit }}</h2>
-            <p class="panier__producteur">Producteur : {{ ligne.nomProducteur }}</p>
-            <span
-              class="badge"
-              [class.badge--succes]="ligne.statut === 'DISPONIBLE'"
-              [class.badge--erreur]="ligne.statut !== 'DISPONIBLE'"
-            >
-              {{ libelleStatut(ligne.statut) }}
-            </span>
-            <p class="panier__stock">
-              Stock connu : {{ formaterQuantite(ligne.quantiteDisponible, ligne.unite) }}
-            </p>
-            @if (motifLigne(ligne); as motif) {
-              <p class="panier__motif">{{ motif }}</p>
-            }
-          </div>
-
-          <div class="panier__quantite">
-            <label class="champ__libelle" [for]="champId(ligne)">
-              Quantité ({{ ligne.unite }})
-            </label>
-            <div class="panier__saisie">
-              <button
-                type="button"
-                class="bouton bouton--secondaire bouton--compact panier__pas"
-                [attr.aria-label]="'Diminuer la quantité de ' + ligne.produit"
-                [disabled]="estBloquee(ligne)"
-                [attr.aria-describedby]="aideId(ligne)"
-                (click)="diminuer(ligne)"
-              >
-                <span aria-hidden="true">−</span>
-              </button>
-              <input
-                class="champ__saisie panier__champ"
-                type="number"
-                min="0.01"
-                step="0.01"
-                inputmode="decimal"
-                [id]="champId(ligne)"
-                [value]="valeurAffichee(ligne)"
-                [disabled]="estBloquee(ligne)"
-                [attr.aria-describedby]="aideId(ligne)"
-                (input)="memoriserSaisie(ligne, $event)"
-                (change)="appliquerSaisie(ligne, $event)"
-              />
-              <button
-                type="button"
-                class="bouton bouton--secondaire bouton--compact panier__pas"
-                [attr.aria-label]="'Augmenter la quantité de ' + ligne.produit"
-                [disabled]="estBloquee(ligne)"
-                [attr.aria-describedby]="aideId(ligne)"
-                (click)="augmenter(ligne)"
-              >
-                <span aria-hidden="true">+</span>
-              </button>
-            </div>
-            <p class="panier__aide" [id]="aideId(ligne)">
-              @if (estBloquee(ligne)) {
-                Récolte non disponible : quantité à laisser telle quelle.
-              } @else {
-                Nombre décimal accepté, maximum
-                {{ formaterQuantite(ligne.quantiteDisponible, ligne.unite) }}.
-              }
-            </p>
-          </div>
-
-          <dl class="panier__montants">
-            <div>
-              <dt>Prix unitaire</dt>
-              <dd>{{ formaterMontant(ligne.prixUnitaire) }} / {{ ligne.unite }}</dd>
-            </div>
-            <div>
-              <dt>Sous-total indicatif</dt>
-              <dd>{{ formaterMontant(sousTotal(ligne)) }}</dd>
-            </div>
-          </dl>
-
-          <button
-            type="button"
-            class="bouton bouton--secondaire bouton--compact panier__retirer"
-            [attr.aria-label]="'Retirer ' + ligne.produit + ' du panier'"
-            (click)="retirer(ligne)"
-          >
-            Retirer
-          </button>
-        </li>
-      }
-    </ul>
-
-    <div class="panier__total">
-      <div class="panier__total-ligne">
-        <p class="panier__total-libelle">Total indicatif</p>
-        <p class="panier__total-valeur">{{ formaterMontant(totalIndicatif()) }}</p>
+  <div class="conteneur">
+    <div class="panier__entete">
+      <div class="panier__titre">
+        <p class="panier__surtitre">Espace acheteur</p>
+        <h1>Panier</h1>
+        @if (!estVide()) {
+          <p class="panier__intro">
+            {{ denombrement() }} au panier. Quantités et montants indicatifs, calculés sur les
+            informations enregistrées à l’ajout.
+          </p>
+        }
       </div>
-      <p class="panier__total-mention">Total indicatif, confirmé au serveur.</p>
-      <div class="panier__total-actions">
-        <a class="bouton bouton--primaire" id="lien-commander" routerLink="/acheteur/commande">
-          Passer la commande
+
+      @if (!estVide()) {
+        <button
+          type="button"
+          class="bouton bouton--secondaire"
+          id="vider-panier"
+          (click)="demanderVider($event)"
+        >
+          Vider le panier
+        </button>
+      }
+    </div>
+
+    @if (erreurStockage(); as message) {
+      <div class="message message--avertissement" role="status">
+        <span class="materiel-icone message__icone" aria-hidden="true">&#xf083;</span>
+        <p>{{ message }}</p>
+      </div>
+    }
+
+    @if (estVide()) {
+      <div class="etat">
+        <span class="materiel-icone etat__icone" aria-hidden="true">&#xe8cc;</span>
+        <p class="etat__titre">Votre panier est vide.</p>
+        <p class="etat__texte">
+          Ajoutez une récolte depuis le catalogue pour préparer votre commande.
+        </p>
+        <a class="bouton bouton--primaire" id="lien-catalogue" #lienCatalogue routerLink="/recoltes">
+          Parcourir le catalogue
         </a>
       </div>
-    </div>
-  }
+    } @else {
+      <div class="panier__corps">
+        <ul class="panier__liste">
+          @for (ligne of lignes(); track ligne.recolteId) {
+            <!-- `carte` : la carte-ligne de §32 sur mobile, retirée au-dessus de $point-tablette.
+                 Aucune image : `LignePanier` est un snapshot local qui ne porte pas `imageUrl`. -->
+            <li class="carte panier__ligne">
+              <div class="panier__produit">
+                <h2 class="carte__titre">{{ ligne.produit }}</h2>
+                <p class="panier__producteur">Producteur : {{ ligne.nomProducteur }}</p>
+                <span
+                  class="badge"
+                  [class.badge--succes]="ligne.statut === 'DISPONIBLE'"
+                  [class.badge--erreur]="ligne.statut !== 'DISPONIBLE'"
+                >
+                  {{ libelleStatut(ligne.statut) }}
+                </span>
+                <p class="panier__stock">
+                  Stock connu : {{ formaterQuantite(ligne.quantiteDisponible, ligne.unite) }}
+                </p>
+                @if (motifLigne(ligne); as motif) {
+                  <p class="panier__motif" role="status">{{ motif }}</p>
+                }
+              </div>
 
-  @if (confirmationVider()) {
-    <div class="voile" (click)="annulerVider()">
-      <div
-        class="modale"
-        #modale
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="vider-titre"
-        (click)="$event.stopPropagation()"
-      >
-        <h2 class="panier__modale-titre" id="vider-titre">
-          Voulez-vous vraiment vider le panier ?
-        </h2>
-        <p class="texte-secondaire">
-          Toutes les récoltes enregistrées ici seront retirées du panier. Les annonces du catalogue
-          ne sont pas modifiées.
-        </p>
+              <div class="panier__detail">
+                <dl class="panier__montants">
+                  <div>
+                    <dt>Prix unitaire</dt>
+                    <dd>{{ formaterMontant(ligne.prixUnitaire) }} / {{ ligne.unite }}</dd>
+                  </div>
+                  <div>
+                    <dt>Sous-total indicatif</dt>
+                    <dd>{{ formaterMontant(sousTotal(ligne)) }}</dd>
+                  </div>
+                </dl>
 
-        <div class="modale__actions">
-          <button
-            type="button"
-            class="bouton bouton--secondaire"
-            id="vider-annuler"
-            #boutonAnnuler
-            (click)="annulerVider()"
-          >
-            Annuler
-          </button>
-          <button
-            type="button"
-            class="bouton bouton--danger"
-            id="vider-confirmer"
-            (click)="confirmerVider()"
-          >
-            Vider le panier
-          </button>
+                <div class="panier__quantite">
+                  <label class="champ__libelle" [for]="champId(ligne)">
+                    Quantité ({{ ligne.unite }})
+                  </label>
+                  <div class="panier__saisie">
+                    <button
+                      type="button"
+                      class="bouton bouton--secondaire bouton--compact panier__pas"
+                      [attr.aria-label]="'Diminuer la quantité de ' + ligne.produit"
+                      [disabled]="estBloquee(ligne)"
+                      [attr.aria-describedby]="aideId(ligne)"
+                      (click)="diminuer(ligne)"
+                    >
+                      <span aria-hidden="true">−</span>
+                    </button>
+                    <input
+                      class="champ__saisie panier__champ"
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      inputmode="decimal"
+                      [id]="champId(ligne)"
+                      [value]="valeurAffichee(ligne)"
+                      [disabled]="estBloquee(ligne)"
+                      [attr.aria-describedby]="aideId(ligne)"
+                      (input)="memoriserSaisie(ligne, $event)"
+                      (change)="appliquerSaisie(ligne, $event)"
+                    />
+                    <button
+                      type="button"
+                      class="bouton bouton--secondaire bouton--compact panier__pas"
+                      [attr.aria-label]="'Augmenter la quantité de ' + ligne.produit"
+                      [disabled]="estBloquee(ligne)"
+                      [attr.aria-describedby]="aideId(ligne)"
+                      (click)="augmenter(ligne)"
+                    >
+                      <span aria-hidden="true">+</span>
+                    </button>
+                  </div>
+                  <p class="panier__aide" [id]="aideId(ligne)">
+                    @if (estBloquee(ligne)) {
+                      Récolte non disponible : quantité à laisser telle quelle.
+                    } @else {
+                      Nombre décimal accepté, maximum
+                      {{ formaterQuantite(ligne.quantiteDisponible, ligne.unite) }}.
+                    }
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                class="lien-action panier__retirer"
+                [attr.aria-label]="'Retirer ' + ligne.produit + ' du panier'"
+                (click)="retirer(ligne)"
+              >
+                Retirer
+              </button>
+            </li>
+          }
+        </ul>
+
+        <div class="carte panier__total">
+          <div class="panier__total-ligne">
+            <p class="panier__total-libelle">Total indicatif</p>
+            <p class="panier__total-valeur">{{ formaterMontant(totalIndicatif()) }}</p>
+          </div>
+          <p class="panier__total-mention">Total indicatif, confirmé au serveur.</p>
+          <div class="panier__total-actions">
+            <a
+              class="bouton bouton--primaire bouton--large"
+              id="lien-commander"
+              routerLink="/acheteur/commande"
+            >
+              Passer la commande
+            </a>
+          </div>
         </div>
       </div>
-    </div>
-  }
+    }
+
+    @if (confirmationVider()) {
+      <div class="voile" (click)="annulerVider()">
+        <div
+          class="modale"
+          #modale
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="vider-titre"
+          (click)="$event.stopPropagation()"
+        >
+          <h2 class="panier__modale-titre" id="vider-titre">
+            Voulez-vous vraiment vider le panier ?
+          </h2>
+          <p class="texte-secondaire">
+            Toutes les récoltes enregistrées ici seront retirées du panier. Les annonces du catalogue
+            ne sont pas modifiées.
+          </p>
+
+          <div class="modale__actions">
+            <button
+              type="button"
+              class="bouton bouton--secondaire"
+              id="vider-annuler"
+              #boutonAnnuler
+              (click)="annulerVider()"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              class="bouton bouton--danger"
+              id="vider-confirmer"
+              (click)="confirmerVider()"
+            >
+              Vider le panier
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
 </section>

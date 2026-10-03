@@ -9,10 +9,10 @@
   align-items: center;
   justify-content: center;
   gap: var(--espace-2);
-  min-height: 40px;
-  padding: 0 var(--espace-4);
+  min-height: 44px;
+  padding: 0 var(--espace-5);
   border: 1px solid transparent;
-  border-radius: var(--rayon-md);
+  border-radius: var(--rayon-pilule);
   font-family: inherit;
   font-size: var(--taille-md);
   font-weight: 600;
@@ -38,8 +38,8 @@
 }
 
 .bouton--primaire:hover:not(:disabled) {
-  background-color: var(--couleur-primaire-sombre);
-  border-color: var(--couleur-primaire-sombre);
+  background-color: var(--couleur-primaire-survol);
+  border-color: var(--couleur-primaire-survol);
 }
 
 .bouton--secondaire {
@@ -82,8 +82,8 @@
 }
 
 .bouton--encre:hover:not(:disabled) {
-  background-color: var(--couleur-encre-sombre);
-  border-color: var(--couleur-encre-sombre);
+  background-color: var(--couleur-primaire-survol);
+  border-color: var(--couleur-primaire-survol);
 }
 
 .bouton--large {
@@ -237,7 +237,7 @@ textarea.champ__saisie {
 .carte {
   background-color: var(--couleur-surface);
   border: 1px solid var(--couleur-bordure);
-  border-radius: var(--rayon-lg);
+  border-radius: var(--rayon-surface);
   padding: var(--espace-5);
 }
 
@@ -374,7 +374,7 @@ textarea.champ__saisie {
   display: inline-block;
   padding: 2px var(--espace-2);
   border: 1px solid var(--couleur-bordure);
-  border-radius: var(--rayon-sm);
+  border-radius: var(--rayon-pilule);
   background-color: var(--couleur-surface);
   color: var(--couleur-texte-secondaire);
   font-size: var(--taille-xs);
@@ -413,6 +413,29 @@ textarea.champ__saisie {
   color: var(--couleur-primaire);
 }
 
+/* --- Puce de statut posée sur le visuel d'une récolte (§39) ---
+   Promue de la carte « Récolte du moment » de l'accueil, à l'identique : l'accueil, le catalogue
+   et la fiche de récolte partagent désormais cette seule règle. Elle s'ancre sur le premier
+   ancêtre `position: relative`, la carte elle-même. */
+.recolte__statut {
+  position: absolute;
+  top: var(--espace-4);
+  left: var(--espace-4);
+  padding: 6px 12px;
+  border-radius: var(--rayon-pilule);
+  background-color: var(--couleur-fond);
+  color: var(--couleur-primaire);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.recolte__statut--epuise {
+  background-color: rgba(32, 61, 46, 0.88);
+  color: var(--couleur-fond);
+}
+
 /* --- États d'interface (idle, chargement, succès, vide, erreur) --- */
 .etat {
   display: flex;
@@ -421,7 +444,7 @@ textarea.champ__saisie {
   gap: var(--espace-3);
   padding: var(--espace-5);
   border: 1px dashed var(--couleur-bordure);
-  border-radius: var(--rayon-lg);
+  border-radius: var(--rayon-surface);
   background-color: var(--couleur-surface);
 }
 
@@ -441,8 +464,9 @@ textarea.champ__saisie {
   color: var(--couleur-texte-secondaire);
 }
 
-/* Page intérieure : section avec titre h1 + état centré */
-.page-interieure {
+/* Page intérieure : section avec titre h1 + état centré. Le plafond est porté par le conteneur,
+   seul élément à recevoir `margin: 0 auto` ; `box-sizing: border-box` inclut les gouttières dans 32 rem. */
+.page-interieure .conteneur {
   max-width: 32rem;
 }
 
@@ -516,6 +540,8 @@ textarea.champ__saisie {
   justify-content: center;
   padding: var(--espace-4);
   background-color: var(--voile);
+  -webkit-backdrop-filter: var(--flou-voile);
+  backdrop-filter: var(--flou-voile);
 }
 
 .modale {
@@ -523,7 +549,7 @@ textarea.champ__saisie {
   max-width: 26rem;
   padding: var(--espace-5);
   border: 1px solid var(--couleur-bordure);
-  border-radius: var(--rayon-lg);
+  border-radius: var(--rayon-surface);
   background-color: var(--couleur-surface);
   box-shadow: var(--ombre-surface);
 }

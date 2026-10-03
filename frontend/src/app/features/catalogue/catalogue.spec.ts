@@ -2,11 +2,13 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
+import { vi } from 'vitest';
 import { SessionUtilisateur } from '../../core/modeles/auth.modeles';
 import { RecolteResponse } from '../../core/modeles/domaine.modeles';
 import { FILIERES, Role, STATUTS_RECOLTE } from '../../core/modeles/referentiels';
 import { CLE_UTILISATEUR } from '../../core/services/auth.service';
 import { PanierService } from '../../core/services/panier.service';
+import { ToastService } from '../../core/services/toast.service';
 import { Catalogue } from './catalogue';
 
 const API = 'http://localhost:8080/api';
@@ -69,12 +71,6 @@ function saisir(racine: HTMLElement, selecteur: string, valeur: string): void {
   const champ = element<HTMLInputElement>(racine, selecteur);
   champ.value = valeur;
   champ.dispatchEvent(new Event('input'));
-}
-
-function choisir(racine: HTMLElement, selecteur: string, valeur: string): void {
-  const champ = element<HTMLSelectElement>(racine, selecteur);
-  champ.value = valeur;
-  champ.dispatchEvent(new Event('change'));
 }
 
 describe('Catalogue', () => {
@@ -174,8 +170,8 @@ describe('Catalogue', () => {
     repondre([]);
 
     saisir(racine, '#recherche', '  mangue  ');
-    choisir(racine, '#statut', 'EPUISEE');
-    choisir(racine, '#filiere', 'CEREALES');
+    cliquer('#statut [data-valeur="EPUISEE"]');
+    cliquer('#filiere [data-valeur="CEREALES"]');
     rechercher();
 
     const requete = enAttente();
@@ -195,14 +191,60 @@ describe('Catalogue', () => {
     ouvrir();
     repondre([]);
 
-    expect(elements<HTMLOptionElement>(racine, '#statut option').map((option) => option.value)).toEqual([
-      '',
-      ...STATUTS_RECOLTE,
-    ]);
-    expect(elements<HTMLOptionElement>(racine, '#filiere option').map((option) => option.value)).toEqual([
-      '',
-      ...FILIERES,
-    ]);
+    expect(
+      elements<HTMLButtonElement>(racine, '#statut [data-valeur]').map((pastille) =>
+        pastille.getAttribute('data-valeur') ?? '',
+      ),
+    ).toEqual(['', ...STATUTS_RECOLTE]);
+    expect(
+      elements<HTMLButtonElement>(racine, '#filiere [data-valeur]').map((pastille) =>
+        pastille.getAttribute('data-valeur') ?? '',
+      ),
+    ).toEqual(['', ...FILIERES]);
+  });
+
+  it('marque la pastille active avec aria-pressed et n’envoie aucune requête au clic', () => {
+    ouvrir();
+    repondre([]);
+
+    const toutes = element<HTMLButtonElement>(racine, '#filiere [data-valeur=""]');
+    const cereales = element<HTMLButtonElement>(racine, '#filiere [data-valeur="CEREALES"]');
+    expect(toutes.getAttribute('aria-pressed')).toBe('true');
+    expect(cereales.getAttribute('aria-pressed')).toBe('false');
+
+    cliquer('#filiere [data-valeur="CEREALES"]');
+
+    expect(cereales.getAttribute('aria-pressed')).toBe('true');
+    expect(element(racine, '#filiere [data-valeur=""]').getAttribute('aria-pressed')).toBe('false');
+
+    cliquer('#statut [data-valeur="EPUISEE"]');
+
+    expect(element(racine, '#statut [data-valeur="EPUISEE"]').getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    // les deux jeux de pastilles restent indépendants : la filière garde son choix
+    expect(cereales.getAttribute('aria-pressed')).toBe('true');
+
+    http.expectNone((requete) => requete.url === URL_CATALOGUE);
+  });
+
+  it('la saisie de recherche ne déclenche rien, la recherche garde la même URL et les mêmes paramètres', () => {
+    ouvrir();
+    repondre([]);
+
+    saisir(racine, '#recherche', 'mangue');
+    http.expectNone((requete) => requete.url === URL_CATALOGUE);
+
+    rechercher();
+
+    const requete = enAttente();
+    expect(requete.request.method).toBe('GET');
+    expect(requete.request.url).toBe(URL_CATALOGUE);
+    expect(requete.request.params.keys().length).toBe(1);
+    expect(requete.request.params.get('recherche')).toBe('mangue');
+
+    repondre([recolte(1)], requete);
+    expect(texteDe(racine)).toContain('1 récolte affichée');
   });
 
   it('conserve l’ordre de l’API et n’affiche que les données réellement reçues', () => {
@@ -214,11 +256,11 @@ describe('Catalogue', () => {
     ]);
 
     expect(
-      elements<HTMLElement>(racine, '.catalogue__ligne .cellule-double__titre').map(texteDe),
+      elements<HTMLElement>(racine, '.catalogue__carte .catalogue__nom').map(texteDe),
     ).toEqual(['Niébe', 'Mangue']);
     expect(texteDe(racine)).toContain('2 récoltes affichées');
 
-    const seconde = elements<HTMLElement>(racine, '.catalogue__ligne')[1];
+    const seconde = elements<HTMLElement>(racine, '.catalogue__carte')[1];
     expect(sansEspace(texteDe(seconde))).toContain('12500FCFA');
     expect(texteDe(seconde)).toContain('500 kg');
     expect(texteDe(seconde)).toContain('Diop — Thiès');
@@ -230,7 +272,7 @@ describe('Catalogue', () => {
 
     repondre([recolte(1)]);
 
-    const ligne = element<HTMLElement>(racine, '.catalogue__ligne');
+    const ligne = element<HTMLElement>(racine, '.catalogue__carte');
     expect(texteDe(ligne)).not.toContain('Commande minimale');
     expect(texteDe(ligne)).not.toContain('Commande maximale');
     expect(texteDe(ligne)).not.toContain('Disponible à partir du');
@@ -246,7 +288,7 @@ describe('Catalogue', () => {
 
     repondre([recolte(1, { quantiteMin: 5, quantiteMax: 50, description: 'Variety Kent', localisation: 'Thiès', dateDisponibilite: '2026-04-10' })]);
 
-    const ligne = element<HTMLElement>(racine, '.catalogue__ligne');
+    const ligne = element<HTMLElement>(racine, '.catalogue__carte');
     expect(texteDe(ligne)).toContain('Commande minimale');
     expect(texteDe(ligne)).toContain('Commande maximale');
     expect(texteDe(ligne)).toContain('5 kg');
@@ -261,7 +303,7 @@ describe('Catalogue', () => {
 
     repondre([recolte(12), recolte(7)]);
 
-    const hrefs = elements<HTMLAnchorElement>(racine, '.catalogue__ligne a').map((lien) =>
+    const hrefs = elements<HTMLAnchorElement>(racine, '.catalogue__carte a').map((lien) =>
       sansEspace(lien.getAttribute('href') ?? ''),
     );
     expect(hrefs).toEqual(['/recoltes/12', '/recoltes/12', '/recoltes/7', '/recoltes/7']);
@@ -269,6 +311,49 @@ describe('Catalogue', () => {
       'Voir la récolte',
       'Voir la récolte',
     ]);
+  });
+
+  it('pose le badge de statut sur la photo, avec la règle globale de la carte de récolte', () => {
+    ouvrir();
+
+    repondre([
+      recolte(1, { imageUrl: 'https://cdn.example.sn/mangue.jpg' }),
+      recolte(2, {
+        produit: 'Niébe',
+        statut: 'EPUISEE',
+        quantiteDisponible: 0,
+        imageUrl: 'https://cdn.example.sn/niebe.jpg',
+      }),
+    ]);
+
+    const cartes = elements<HTMLElement>(racine, '.catalogue__carte');
+    const premiere = element<HTMLElement>(cartes[0], '.recolte__statut');
+    expect(texteDe(premiere)).toBe('Disponible');
+    expect(premiere.classList.contains('recolte__statut--epuise')).toBe(false);
+
+    const seconde = element<HTMLElement>(cartes[1], '.recolte__statut');
+    expect(texteDe(seconde)).toBe('Épuisée');
+    expect(seconde.classList.contains('recolte__statut--epuise')).toBe(true);
+
+    // le badge ne se cumule avec aucun repli et ne revient pas dans le corps de carte
+    for (const carte of cartes) {
+      expect(carte.querySelector('.catalogue__corps .recolte__statut')).toBeNull();
+      expect(carte.querySelector('.catalogue__entete .badge')).toBeNull();
+    }
+  });
+
+  it('rend le badge dans le titre quand la récolte n’a aucune photo', () => {
+    ouvrir();
+
+    repondre([recolte(1), recolte(2, { produit: 'Niébe', statut: 'EPUISEE', quantiteDisponible: 0 })]);
+
+    expect(racine.querySelector('.recolte__statut')).toBeNull();
+    expect(elements(racine, 'img')).toHaveLength(0);
+
+    const badges = elements<HTMLElement>(racine, '.catalogue__entete .badge');
+    expect(badges.map(texteDe)).toEqual(['Disponible', 'Épuisée']);
+    expect(badges[0].classList.contains('badge--succes')).toBe(true);
+    expect(badges[1].classList.contains('badge--succes')).toBe(false);
   });
 
   it('distingue un catalogue vide d’un résultat vide lié aux critères', () => {
@@ -303,7 +388,7 @@ describe('Catalogue', () => {
     ouvrir();
     repondre([]);
 
-    choisir(racine, '#statut', 'EPUISEE');
+    cliquer('#statut [data-valeur="EPUISEE"]');
     rechercher();
     repondre([]);
 
@@ -317,7 +402,9 @@ describe('Catalogue', () => {
     expect(requete.request.params.get('recherche')).toBe('oignon');
     expect(requete.request.params.get('statut')).toBe('EPUISEE');
     expect(element<HTMLInputElement>(racine, '#recherche').value).toBe('oignon');
-    expect(element<HTMLSelectElement>(racine, '#statut').value).toBe('EPUISEE');
+    expect(
+      element<HTMLButtonElement>(racine, '#statut [data-valeur="EPUISEE"]').getAttribute('aria-pressed'),
+    ).toBe('true');
 
     repondre([recolte(1)], requete);
   });
@@ -330,7 +417,7 @@ describe('Catalogue', () => {
     expect(bouton.disabled).toBe(true);
 
     saisir(racine, '#recherche', 'mangue');
-    choisir(racine, '#filiere', 'MARAICHAGE');
+    cliquer('#filiere [data-valeur="MARAICHAGE"]');
     rechercher();
     expect(bouton.disabled).toBe(false);
     repondre([]);
@@ -340,7 +427,9 @@ describe('Catalogue', () => {
     const requete = enAttente();
     expect(requete.request.params.keys().length).toBe(0);
     expect(element<HTMLInputElement>(racine, '#recherche').value).toBe('');
-    expect(element<HTMLSelectElement>(racine, '#filiere').value).toBe('');
+    expect(
+      element<HTMLButtonElement>(racine, '#filiere [data-valeur=""]').getAttribute('aria-pressed'),
+    ).toBe('true');
 
     repondre([recolte(1)], requete);
     expect(texteDe(racine)).toContain('1 récolte affichée');
@@ -384,10 +473,11 @@ describe('Catalogue', () => {
 
     cliquer('#ajouter-1');
 
-    const message = element(racine, '.message--succes');
-    expect(message.getAttribute('role')).toBe('status');
-    expect(texteDe(message)).toContain('Récolte ajoutée au panier');
-    expect(texteDe(message)).toContain('Mangue');
+    const notice = TestBed.inject(ToastService).notice();
+    expect(notice?.type).toBe('succes');
+    expect(notice?.message).toContain('ajouté au panier');
+    expect(notice?.message).toContain('Mangue');
+    expect(racine.querySelector('.message--succes')).toBeNull();
     const lignes = panier().lignes();
     expect(lignes).toHaveLength(1);
     expect(lignes[0].recolteId).toBe(1);
@@ -395,16 +485,26 @@ describe('Catalogue', () => {
     expect(lignes[0].unite).toBe('kg');
   });
 
-  it('désactive l’ajout d’une récolte épuisée sans la retirer du catalogue', () => {
+  it('bloque l’ajout d’une récolte épuisée sans la retirer du catalogue', () => {
     ouvrir('ACHETEUR');
     repondre([recolte(1, { statut: 'EPUISEE', quantiteDisponible: 0 })]);
 
-    expect(elements(racine, '.catalogue__ligne')).toHaveLength(1);
+    expect(elements(racine, '.catalogue__carte')).toHaveLength(1);
     const bouton = element<HTMLButtonElement>(racine, '#ajouter-1');
-    expect(bouton.disabled).toBe(true);
+    expect(bouton.getAttribute('aria-disabled')).toBe('true');
+    // `aria-disabled` laisse le bouton focusable : seule la garde du TS refuse l'ajout.
+    expect(bouton.disabled).toBe(false);
     expect(bouton.getAttribute('aria-describedby')).toBe('motif-1');
-    expect(texteDe(element(racine, '.catalogue__motif'))).toContain('Épuisée');
+    const motif = element(racine, '.catalogue__motif');
+    expect(motif.id).toBe('motif-1');
+    expect(motif.getAttribute('role')).toBe('status');
+    expect(texteDe(motif)).toContain('Épuisée');
+
+    bouton.click();
+    fixture.detectChanges();
+
     expect(panier().lignes()).toHaveLength(0);
+    expect(TestBed.inject(ToastService).notice()).toBeNull();
   });
 
   it('refuse un ajout qui dépasserait le stock affiché et l’explique, sans rien ajouter', () => {
@@ -416,11 +516,12 @@ describe('Catalogue', () => {
 
     cliquer('#ajouter-1');
 
-    const message = element(racine, '.message--erreur');
-    expect(message.getAttribute('role')).toBe('alert');
-    expect(texteDe(message)).toContain('Mangue');
-    expect(texteDe(message)).toContain('inférieur');
+    const notice = TestBed.inject(ToastService).notice();
+    expect(notice?.type).toBe('erreur');
+    expect(notice?.message).toContain('Mangue');
+    expect(notice?.message).toContain('inférieur');
     expect(racine.querySelector('.message--succes')).toBeNull();
+    expect(racine.querySelector('.message--erreur')).toBeNull();
     expect(panier().lignes()).toHaveLength(0);
   });
 
@@ -434,6 +535,79 @@ describe('Catalogue', () => {
     const lignes = panier().lignes();
     expect(lignes).toHaveLength(1);
     expect(lignes[0].quantite).toBe(2);
-    expect(texteDe(element(racine, '.message--succes'))).toContain('Récolte ajoutée au panier');
+    expect(TestBed.inject(ToastService).notice()?.message).toContain('ajouté au panier');
+  });
+
+  it('le bouton texte ne rend plus de bannière : sa notice est le seul retour', () => {
+    ouvrir('ACHETEUR');
+    repondre([recolte(1, { quantiteDisponible: 500 })]);
+    const toast = TestBed.inject(ToastService);
+    const appelee = vi.spyOn(toast, 'afficher');
+
+    cliquer('#ajouter-1');
+
+    expect(appelee).toHaveBeenCalledWith('Mangue ajouté au panier', 'succes');
+    expect(racine.querySelector('.message--succes')).toBeNull();
+    expect(racine.querySelector('.message--erreur')).toBeNull();
+  });
+
+  it('ajoute une unité par le « + », avec une notice propre au clic rapide', () => {
+    ouvrir('ACHETEUR');
+    repondre([recolte(1, { produit: 'Arachides', quantiteDisponible: 500 })]);
+
+    const rapide = element<HTMLButtonElement>(racine, '#ajout-rapide-1');
+    expect(rapide.disabled).toBe(false);
+    expect(rapide.getAttribute('aria-label')).toBe('Ajouter Arachides au panier');
+    expect(rapide.getAttribute('aria-describedby')).toBeNull();
+
+    cliquer('#ajout-rapide-1');
+
+    const lignes = panier().lignes();
+    expect(lignes).toHaveLength(1);
+    expect(lignes[0].quantite).toBe(1);
+    expect(TestBed.inject(ToastService).notice()).toEqual({
+      message: 'Arachides ajouté au panier',
+      type: 'succes',
+    });
+    expect(racine.querySelector('.message--succes')).toBeNull();
+  });
+
+  it('bloque le « + » d’une récolte épuisée, comme le bouton texte de la carte', () => {
+    ouvrir('ACHETEUR');
+    repondre([recolte(1, { statut: 'EPUISEE', quantiteDisponible: 0 })]);
+
+    const rapide = element<HTMLButtonElement>(racine, '#ajout-rapide-1');
+    expect(rapide.getAttribute('aria-disabled')).toBe('true');
+    expect(rapide.disabled).toBe(false);
+    expect(rapide.getAttribute('aria-describedby')).toBe('motif-1');
+    // une seule explication par récolte : le « + » renvoie au motif du bouton texte
+    expect(element(racine, '.catalogue__motif').getAttribute('role')).toBe('status');
+
+    rapide.click();
+    fixture.detectChanges();
+
+    expect(panier().lignes()).toHaveLength(0);
+    expect(TestBed.inject(ToastService).notice()).toBeNull();
+  });
+
+  it('rend une notice d’erreur quand le « + » est refusé, jamais une notice de succès', () => {
+    ouvrir('ACHETEUR');
+    repondre([recolte(1, { quantiteDisponible: 0.5 })]);
+
+    cliquer('#ajout-rapide-1');
+
+    const notice = TestBed.inject(ToastService).notice();
+    expect(notice?.type).toBe('erreur');
+    expect(notice?.message).toContain('inférieur');
+    expect(panier().lignes()).toHaveLength(0);
+  });
+
+  it('ne propose aucun ajout à une visite anonyme, « + » compris', () => {
+    ouvrir();
+    repondre([recolte(1)]);
+
+    expect(racine.querySelector('#ajouter-1')).toBeNull();
+    expect(racine.querySelector('#ajout-rapide-1')).toBeNull();
+    expect(racine.querySelector('.catalogue__ajout')).toBeNull();
   });
 });
