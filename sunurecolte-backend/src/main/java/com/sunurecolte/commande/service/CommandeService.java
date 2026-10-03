@@ -13,6 +13,7 @@ import com.sunurecolte.commande.repository.CommandeRepository;
 import com.sunurecolte.exception.BusinessException;
 import com.sunurecolte.exception.ResourceNotFoundException;
 import com.sunurecolte.notification.service.NotificationService;
+import com.sunurecolte.paiement.entity.Paiement;
 import com.sunurecolte.paiement.entity.StatutPaiement;
 import com.sunurecolte.paiement.repository.PaiementRepository;
 import com.sunurecolte.recolte.entity.Recolte;
@@ -38,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 /**
  * Gestion des commandes.
@@ -55,7 +57,10 @@ import java.util.TreeMap;
  *   ni marquée prête sans un paiement au statut REUSSI. La règle vaut pour tous les rôles
  *   (producteur concerné comme administrateur) et ne s'applique pas au RETRAIT ;
  * - l'annulation restaure le stock et solde le paiement : REUSSI devient REMBOURSE
- *   (remboursement simulé), EN_ATTENTE devient ANNULE, ECHOUE reste inchangé.
+ *   (remboursement simulé), EN_ATTENTE devient ANNULE, ECHOUE reste inchangé ;
+ * - la réponse d'une commande expose le statut et le moyen de son paiement (LOT P2a) :
+ *   une commande sans paiement rend deux fois `null`, et une liste charge tous ses
+ *   paiements en une seule requête plutôt qu'un appel par commande.
  *
  * Règles d'accès (Phase 3) :
  * - une commande n'est visible que par l'acheteur propriétaire, les producteurs
@@ -103,13 +108,17 @@ public class CommandeService {
             case ACHETEUR -> commandesDeLAcheteur(acheteurId, principal);
             case PRODUCTEUR -> commandesDuProducteur(acheteurId, principal);
         };
-        return commandes.stream().map(this::versResponse).toList();
+        // Une seule requête de paiements pour toute la liste, jamais un appel par commande.
+        Map<Long, Paiement> paiements = paiementsDeLaListe(commandes);
+        return commandes.stream()
+                .map(commande -> versResponse(commande, paiements.get(commande.getId())))
+                .toList();
     }
 
     public CommandeResponse findById(Long id, UtilisateurPrincipal principal) {
         Commande commande = trouver(id);
         verifierAcces(commande, principal);
-        return versResponse(commande);
+        return versResponse(commande, paiementDe(commande));
     }
 
     @Transactional
@@ -179,7 +188,7 @@ public class CommandeService {
                     "Vous avez reçu la commande n° " + enregistree.getId() + " de la part de "
                             + nomComplet(acheteur.getUtilisateur()) + ".");
         }
-        return versResponse(enregistree);
+        return versResponse(enregistree, paiementDe(enregistree));
     }
 
     @Transactional
@@ -215,7 +224,7 @@ public class CommandeService {
                 "Le statut de votre commande n° " + enregistree.getId()
                         + " est désormais : " + cible + ".");
 
-        return versResponse(enregistree);
+        return versResponse(enregistree, paiementDe(enregistree));
     }
 
     /**
@@ -361,7 +370,28 @@ public class CommandeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
     }
 
-    private CommandeResponse versResponse(Commande commande) {
+    /**
+     * Paiement d'une commande, chargé séparément : `null` quand aucun paiement n'existe,
+     * ce que la réponse rend comme `null` plutôt que d'inventer un statut.
+     */
+    private Paiement paiementDe(Commande commande) {
+        return paiementRepository.findByCommandeId(commande.getId()).orElse(null);
+    }
+
+    /**
+     * Paiements de toute une liste de commandes en une seule requête. La clé est
+     * l'identifiant de la commande, lu sur le proxy sans initialisation supplémentaire.
+     */
+    private Map<Long, Paiement> paiementsDeLaListe(List<Commande> commandes) {
+        if (commandes.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = commandes.stream().map(Commande::getId).toList();
+        return paiementRepository.findByCommandeIdIn(ids).stream()
+                .collect(Collectors.toMap(paiement -> paiement.getCommande().getId(), paiement -> paiement));
+    }
+
+    private CommandeResponse versResponse(Commande commande, Paiement paiement) {
         List<LigneCommandeResponse> lignes = commande.getLignes().stream()
                 .map(ligne -> new LigneCommandeResponse(
                         ligne.getId(),
@@ -384,7 +414,9 @@ public class CommandeService {
                 commande.getAdresseLivraison(),
                 commande.getTelephoneLivraison(),
                 commande.getInstructionsLivraison(),
-                lignes);
+                lignes,
+                paiement == null ? null : paiement.getStatut(),
+                paiement == null ? null : paiement.getMoyenPaiement());
     }
 
     private static BigDecimal arrondir(BigDecimal montant) {
