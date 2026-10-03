@@ -62,6 +62,8 @@ function commande(surcharge: Partial<CommandeResponse> = {}): CommandeResponse {
     telephoneLivraison: null,
     instructionsLivraison: null,
     lignes: [ligne(900)],
+    statutPaiement: null,
+    moyenPaiement: null,
     ...surcharge,
   };
 }

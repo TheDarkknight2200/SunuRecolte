@@ -25,8 +25,12 @@ export class PaiementService {
    * Java (`commandeId` et `moyenPaiement`) : **aucun `acheteurId`**, l'identité est portée
    * par le jeton, et le serveur refuse (403) si la commande n'appartient pas au titulaire.
    *
-   * Réponse réelle du backend : `201` avec un paiement `EN_ATTENTE` et une référence
-   * `SIMU-…`. Aucun chemin de l'application ne produit `REUSSI` ou `ECHOUE`.
+   * Réponse réelle du backend : `201` avec un paiement `REUSSI`, une date de confirmation
+   * horodatée par le serveur et une référence `SIMU-…`. La réussite fait partie de la
+   * simulation (`PaiementService.appliquerLaReussiteSimulee`, seule écriture de `REUSSI`) :
+   * aucune transaction réelle n'est effectuée et aucun opérateur de paiement n'est appelé.
+   * À l'annulation de la commande liée, ce statut devient `REMBOURSE` ; `ECHOUE` est dans
+   * l'enum sans qu'aucun chemin d'API l'écrive aujourd'hui.
    */
   simuler(requete: PaiementRequest): Observable<PaiementResponse> {
     return this.http.post<PaiementResponse>(`${environment.apiUrl}/paiements`, requete);

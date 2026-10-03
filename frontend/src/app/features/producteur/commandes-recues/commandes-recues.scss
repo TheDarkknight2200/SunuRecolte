@@ -154,6 +154,13 @@
   min-height: 44px;
 }
 
+/* Le blocage passe par `aria-disabled` : le bouton reste focusable, la garde est dans le TS.
+   Même traitement que le CTA du catalogue — l'indisponibilité se voit, pas seulement se lit. */
+.commandes-recues__actions .bouton[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 @media (min-width: pr.$point-tablette) {
   .commandes-recues__entete {
     flex-direction: row;

@@ -38,6 +38,8 @@ const REPONSE: CommandeResponse = {
       sousTotal: 1125,
     },
   ],
+  statutPaiement: null,
+  moyenPaiement: null,
 };
 
 describe('CommandeService', () => {

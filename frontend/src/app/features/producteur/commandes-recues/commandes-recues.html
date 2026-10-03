@@ -67,6 +67,10 @@
                 <dd>{{ libelleReception(commande.modeReception) }}</dd>
               </div>
               <div>
+                <dt>Paiement</dt>
+                <dd>{{ libellePaiement(commande) }}</dd>
+              </div>
+              <div>
                 <dt>Total</dt>
                 <dd class="commandes-recues__total">{{ formaterMontant(commande.total) }}</dd>
               </div>
@@ -129,6 +133,8 @@
                   [id]="'commande-' + commande.id + '-etape'"
                   [attr.aria-label]="libelleAccessible(commande, etape.libelle)"
                   [disabled]="commandeEnCours() !== null"
+                  [attr.aria-disabled]="motifBlocage(commande) === null ? null : 'true'"
+                  [attr.aria-describedby]="motifBlocageId(commande)"
                   [attr.aria-busy]="enCoursPour(commande)"
                   (click)="appliquerEtape(commande)"
                 >
@@ -136,6 +142,17 @@
                 </button>
               }
             </p>
+
+            <!-- Neutralisée, l'action reste focusable : le motif est annoncé, pas seulement suggéré. -->
+            @if (motifBlocage(commande); as motif) {
+              <p
+                class="commandes-recues__notice"
+                role="status"
+                [id]="'commande-' + commande.id + '-paiement-requis'"
+              >
+                {{ motif }}
+              </p>
+            }
           </li>
         }
       </ul>

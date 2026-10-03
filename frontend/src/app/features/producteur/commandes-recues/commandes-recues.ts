@@ -3,7 +3,9 @@ import { RouterLink } from '@angular/router';
 import { CommandeResponse } from '../../../core/modeles/domaine.modeles';
 import {
   LIBELLES_MODE_RECEPTION,
+  LIBELLES_MOYEN_PAIEMENT,
   LIBELLES_STATUT_COMMANDE,
+  LIBELLES_STATUT_PAIEMENT,
   ModeReception,
   StatutCommande,
   VARIANTES_BADGE_COMMANDE,
@@ -11,6 +13,10 @@ import {
 import { CommandeService } from '../../../core/services/commande.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { messageErreurApi } from '../../../core/utilitaires/erreurs-api';
+import {
+  messageDePaiementRequis,
+  paiementRequisPour,
+} from '../../../core/utilitaires/paiement-commande';
 import {
   formaterDateHeure,
   formaterMontant,
@@ -42,9 +48,15 @@ const ETAPES_SUIVANTES: Partial<
  *
  * Le serveur filtre à partir du jeton — aucun `producteurId` n'est envoyé — et renvoie la liste
  * triée par date décroissante. Tout ce qui est affiché vient de la réponse : montants, lignes,
- * acheteur, coordonnées de réception. Une commande ne reçoit qu'une seule action, celle que la
- * table du service autorise depuis son statut courant ; le statut rendu après un `PATCH` est celui
+ * acheteur, coordonnées de réception, statut du paiement et moyen choisi — `null` rendu
+ * « Aucun paiement ». Une commande ne reçoit qu'une seule action, celle que la table du
+ * service autorise depuis son statut courant ; le statut rendu après un `PATCH` est celui
  * renvoyé par le serveur, jamais un statut écrit ici.
+ *
+ * La règle « une livraison doit être payée avant d'être confirmée » est **anticipée** ici
+ * (`paiementRequisPour`) : l'action reste visible et focusable, neutralisée par
+ * `aria-disabled` et son motif, et la garde empêche l'appel. Le serveur garde le dernier
+ * mot ; s'il refuse malgré tout, son message passe par la notice existante.
  */
 @Component({
   selector: 'app-commandes-recues',
@@ -118,7 +130,8 @@ export class CommandesRecues {
 
   protected appliquerEtape(commande: CommandeResponse): void {
     const etape = this.etapeDe(commande);
-    if (etape === null || this.commandeEnCours() !== null) {
+    // Un blocage anticipé n'est pas une invitation à quand même tenter le `PATCH` : la garde arrête.
+    if (etape === null || this.commandeEnCours() !== null || this.motifBlocage(commande) !== null) {
       return;
     }
 
@@ -170,6 +183,39 @@ export class CommandesRecues {
 
   protected livraison(commande: CommandeResponse): boolean {
     return commande.modeReception === 'LIVRAISON';
+  }
+
+  /**
+   * Paiement rendu par le serveur : « Aucun paiement » quand aucun n'a été enregistré,
+   * sinon « moyen — statut ». Rien n'est déduit ici : un statut de paiement n'est jamais posé
+   * par l'écran, et une commande sans paiement n'est jamais présentée comme payée.
+   */
+  protected libellePaiement(commande: CommandeResponse): string {
+    if (commande.statutPaiement === null) {
+      return 'Aucun paiement';
+    }
+    const statut = LIBELLES_STATUT_PAIEMENT[commande.statutPaiement];
+    return commande.moyenPaiement === null
+      ? statut
+      : `${LIBELLES_MOYEN_PAIEMENT[commande.moyenPaiement]} — ${statut}`;
+  }
+
+  /**
+   * Le motif qui neutralise l'unique action de la carte, `null` quand elle est possible.
+   * Reflet de `CommandeService.verifierPaiementAvantConfirmation` : la règle est anticipée
+   * pour ne pas proposer une action que le serveur refuserait, pas décidée ici.
+   */
+  protected motifBlocage(commande: CommandeResponse): string | null {
+    const etape = this.etapeDe(commande);
+    if (etape === null || !paiementRequisPour(commande, etape.statut)) {
+      return null;
+    }
+    return messageDePaiementRequis(etape.statut);
+  }
+
+  /** L'identifiant du motif, pour `aria-describedby` ; `null` évite d'annoncer une description vide. */
+  protected motifBlocageId(commande: CommandeResponse): string | null {
+    return this.motifBlocage(commande) === null ? null : `commande-${commande.id}-paiement-requis`;
   }
 
   /** Valeur absente : un seul signe, jamais une case vide ni « null » (§30). */
