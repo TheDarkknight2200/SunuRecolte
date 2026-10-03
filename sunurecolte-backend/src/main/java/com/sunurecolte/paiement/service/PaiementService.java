@@ -17,23 +17,30 @@ import com.sunurecolte.security.ControleAcces;
 import com.sunurecolte.security.UtilisateurPrincipal;
 import com.sunurecolte.user.entity.Producteur;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 
 /**
  * Paiements simulés (MVP) : aucune transaction réelle n'est effectuée auprès de
- * Wave ou Orange Money. Le paiement est créé au statut EN_ATTENTE avec une
- * référence de simulation ; la confirmation ou l'échec relèvera d'une phase ultérieure.
+ * Wave ou Orange Money. Un paiement initié est marqué REUSSI avec sa date de
+ * confirmation, car la réussite fait partie de la simulation ; le mot « simulé »
+ * reste explicite dans la référence (`SIMU-...`), dans les messages et en base.
+ * La confirmation ou l'échec réels relèveront d'une phase ultérieure.
  *
  * Le montant est toujours repris du total de la commande calculé côté serveur.
  *
  * Un paiement enregistré notifie chaque producteur distinct concerné par une ligne de la
  * commande. Le message rend le statut persisté par le serveur et rappelle la simulation : il
- * n'affirme jamais un paiement reçu, réussi ou payé.
+ * n'affirme jamais un paiement réellement reçu ou réellement encaissé.
+ *
+ * La règle « paiement avant confirmation » (LOT P1) s'appuie sur ce statut REUSSI :
+ * voir CommandeService.
  *
  * Règles d'accès (Phase 3) : un paiement suit les droits de sa commande
  * (acheteur propriétaire, producteurs concernés, administrateur) ; seul
@@ -43,6 +50,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PaiementService {
+
+    /** Message unique pour les deux chemins qui refusent un doublon : contrôle d'existence, puis contrainte. */
+    private static final String MESSAGE_PAIEMENT_EXISTANT = "Un paiement existe déjà pour cette commande.";
 
     private final PaiementRepository paiementRepository;
     private final CommandeRepository commandeRepository;
@@ -76,20 +86,43 @@ public class PaiementService {
             throw new BusinessException("Cette commande est déjà livrée.");
         }
         if (paiementRepository.findByCommandeId(commande.getId()).isPresent()) {
-            throw new BusinessException("Un paiement existe déjà pour cette commande.");
+            throw new BusinessException(MESSAGE_PAIEMENT_EXISTANT);
         }
 
         Paiement paiement = new Paiement();
         paiement.setCommande(commande);
         paiement.setMontant(commande.getTotal());
         paiement.setMoyenPaiement(request.moyenPaiement());
-        paiement.setStatut(StatutPaiement.EN_ATTENTE);
         paiement.setReferenceTransaction("SIMU-" + UUID.randomUUID());
-        Paiement enregistre = paiementRepository.save(paiement);
+        appliquerLaReussiteSimulee(paiement);
+
+        Paiement enregistre = enregistrerSansDoublon(paiement);
 
         notifierProducteursConcernes(enregistre);
 
         return versResponse(enregistre);
+    }
+
+    /**
+     * Réussite simulée : seul endroit qui écrit REUSSI. La date de confirmation naît ici,
+     * d'un horodatage local, et non du retour réel d'un opérateur de paiement.
+     */
+    private static void appliquerLaReussiteSimulee(Paiement paiement) {
+        paiement.setStatut(StatutPaiement.REUSSI);
+        paiement.setDateConfirmation(LocalDateTime.now());
+    }
+
+    /**
+     * Deux requêtes simultanées peuvent toutes deux passer le contrôle d'existence : la
+     * contrainte `uq_paiements_commande` refuse alors la seconde à l'écriture. Elle doit
+     * devenir le même message métier 400, jamais une erreur 500.
+     */
+    private Paiement enregistrerSansDoublon(Paiement paiement) {
+        try {
+            return paiementRepository.saveAndFlush(paiement);
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException(MESSAGE_PAIEMENT_EXISTANT);
+        }
     }
 
     private Paiement trouver(Long id) {
@@ -116,7 +149,8 @@ public class PaiementService {
                     "Paiement simulé",
                     "Un paiement simulé a été enregistré pour la commande n° " + commande.getId()
                             + " : statut " + paiement.getStatut()
-                            + ", aucune transaction réelle n'a été effectuée.");
+                            + " (réussite simulée par l'application), aucune transaction réelle"
+                            + " n'a été effectuée.");
         }
     }
 

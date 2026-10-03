@@ -51,7 +51,11 @@ import java.util.TreeMap;
  * - transitions de statut autorisées :
  *   EN_ATTENTE → {CONFIRMEE, ANNULEE} ; CONFIRMEE → {PRETE, ANNULEE} ;
  *   PRETE → {LIVREE} ; LIVREE et ANNULEE sont terminaux ;
- * - l'annulation restaure le stock et annule un paiement encore en attente.
+ * - paiement avant confirmation : une commande en LIVRAISON ne peut être ni confirmée
+ *   ni marquée prête sans un paiement au statut REUSSI. La règle vaut pour tous les rôles
+ *   (producteur concerné comme administrateur) et ne s'applique pas au RETRAIT ;
+ * - l'annulation restaure le stock et solde le paiement : REUSSI devient REMBOURSE
+ *   (remboursement simulé), EN_ATTENTE devient ANNULE, ECHOUE reste inchangé.
  *
  * Règles d'accès (Phase 3) :
  * - une commande n'est visible que par l'acheteur propriétaire, les producteurs
@@ -73,6 +77,16 @@ public class CommandeService {
             StatutCommande.PRETE, EnumSet.of(StatutCommande.LIVREE),
             StatutCommande.LIVREE, EnumSet.noneOf(StatutCommande.class),
             StatutCommande.ANNULEE, EnumSet.noneOf(StatutCommande.class));
+
+    /**
+     * Règle « paiement avant confirmation » : pour une commande en LIVRAISON, ces cibles
+     * exigent un paiement au statut REUSSI. Elle s'ajoute à {@link #TRANSITIONS_AUTORISEES}
+     * sans la remplacer, et elle vaut pour tous les rôles — producteur concerné comme administrateur.
+     * Une LIVRAISON déjà confirmée avant cette règle reste bloquée à PRETE, tandis que
+     * l'initiation du paiement lui reste ouverte.
+     */
+    private static final Set<StatutCommande> CIBLES_EXIGEANT_UN_PAIEMENT =
+            EnumSet.of(StatutCommande.CONFIRMEE, StatutCommande.PRETE);
 
     private final CommandeRepository commandeRepository;
     private final AcheteurRepository acheteurRepository;
@@ -185,9 +199,11 @@ public class CommandeService {
                     "Transition de statut interdite : " + actuel + " vers " + cible + ".");
         }
 
+        verifierPaiementAvantConfirmation(commande, cible);
+
         if (cible == StatutCommande.ANNULEE) {
             restaurerStock(commande);
-            annulerPaiementEnAttente(commande);
+            rembourserOuAnnulerPaiement(commande);
         }
 
         commande.setStatut(cible);
@@ -303,10 +319,39 @@ public class CommandeService {
         }
     }
 
-    private void annulerPaiementEnAttente(Commande commande) {
+    /**
+     * Règle « paiement avant confirmation » pour les livraisons : CONFIRMEE et PRETE sont
+     * refusées tant que la commande n'a pas un paiement au statut REUSSI. Un paiement en
+     * attente, échoué, remboursé ou annulé ne débloque pas le cycle, et une commande sans
+     * paiement reste soumise à la même exigence.
+     */
+    private void verifierPaiementAvantConfirmation(Commande commande, StatutCommande cible) {
+        if (commande.getModeReception() != ModeReception.LIVRAISON
+                || !CIBLES_EXIGEANT_UN_PAIEMENT.contains(cible)) {
+            return;
+        }
+        boolean payee = paiementRepository.findByCommandeId(commande.getId())
+                .map(paiement -> paiement.getStatut() == StatutPaiement.REUSSI)
+                .orElse(false);
+        if (payee) {
+            return;
+        }
+        throw new BusinessException(cible == StatutCommande.CONFIRMEE
+                ? "Une commande en livraison doit être payée avant d'être confirmée."
+                : "Une commande en livraison doit être payée avant d'être marquée prête.");
+    }
+
+    /**
+     * Solde du paiement à l'annulation : un paiement réussi est remboursé (remboursement
+     * simulé, comme la réussite), un paiement encore en attente est annulé. Les autres
+     * statuts (ECHOUÉ, déjà remboursé ou annulé) restent inchangés.
+     */
+    private void rembourserOuAnnulerPaiement(Commande commande) {
         paiementRepository.findByCommandeId(commande.getId()).ifPresent(paiement -> {
             if (paiement.getStatut() == StatutPaiement.EN_ATTENTE) {
                 paiement.setStatut(StatutPaiement.ANNULE);
+            } else if (paiement.getStatut() == StatutPaiement.REUSSI) {
+                paiement.setStatut(StatutPaiement.REMBOURSE);
             }
         });
     }
