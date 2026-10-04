@@ -16,6 +16,8 @@ import com.sunurecolte.paiement.repository.PaiementRepository;
 import com.sunurecolte.security.ControleAcces;
 import com.sunurecolte.security.UtilisateurPrincipal;
 import com.sunurecolte.user.entity.Producteur;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -59,6 +61,10 @@ public class PaiementService {
     private final CommandeService commandeService;
     private final NotificationService notificationService;
 
+    /** Sert uniquement à recharger la commande sous verrou, jamais à écrire. */
+    @PersistenceContext
+    private EntityManager entityManager;
+
     public PaiementResponse findById(Long id, UtilisateurPrincipal principal) {
         Paiement paiement = trouver(id);
         commandeService.verifierAcces(paiement.getCommande(), principal);
@@ -75,9 +81,17 @@ public class PaiementService {
 
     @Transactional
     public PaiementResponse creer(PaiementRequest request, UtilisateurPrincipal principal) {
+        // Le contrôle d'accès précède toute prise de verrou : un demandeur non autorisé ne doit pas
+        // pouvoir verrouiller une commande qui n'est pas la sienne.
         Commande commande = trouverCommande(request.commandeId());
         ControleAcces.exigerProprietaireOuAdmin(
                 principal, commande.getAcheteur().getUtilisateur().getId());
+
+        // Statut de la commande et existence du paiement se lisent ensuite sous verrou pessimiste en
+        // écriture : un paiement et une annulation simultanés se sérialisent ainsi sur la commande,
+        // au lieu de s'écrire l'un sur l'autre (un paiement réussi laissant derrière lui une commande
+        // annulée, ou une annulation soldant un paiement qu'elle n'a jamais vu exister).
+        verrouillerEtRecharger(commande);
 
         if (commande.getStatut() == StatutCommande.ANNULEE) {
             throw new BusinessException("Impossible d'initier un paiement pour une commande annulée.");
@@ -113,9 +127,10 @@ public class PaiementService {
     }
 
     /**
-     * Deux requêtes simultanées peuvent toutes deux passer le contrôle d'existence : la
-     * contrainte `uq_paiements_commande` refuse alors la seconde à l'écriture. Elle doit
-     * devenir le même message métier 400, jamais une erreur 500.
+     * Le contrôle d'existence se fait sous le verrou de la commande : deux paiements simultanés se
+     * sérialisent et le second voit le premier. La contrainte `uq_paiements_commande` reste un dernier
+     * filet pour une écriture qui contournerait le service ; elle doit devenir le même message métier
+     * 400, jamais une erreur 500.
      */
     private Paiement enregistrerSansDoublon(Paiement paiement) {
         try {
@@ -133,6 +148,22 @@ public class PaiementService {
     private Commande trouverCommande(Long commandeId) {
         return commandeRepository.findById(commandeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Commande", commandeId));
+    }
+
+    private Commande trouverCommandeAvecVerrou(Long commandeId) {
+        return commandeRepository.findByIdForUpdate(commandeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Commande", commandeId));
+    }
+
+    /**
+     * Prend le verrou pessimiste en écriture sur la commande, puis recharge la version commitée dans
+     * l'instance déjà suivie : la requête verrouillée rend la même instance sans y appliquer l'état
+     * relu, et la décision se prendrait sinon sur un statut périmé. L'instance reste suivie, ce qu'un
+     * détachement empêcherait.
+     */
+    private void verrouillerEtRecharger(Commande commande) {
+        trouverCommandeAvecVerrou(commande.getId());
+        entityManager.refresh(commande);
     }
 
     /** Une notification par producteur distinct concerné, comme « Nouvelle commande » à la création. */
