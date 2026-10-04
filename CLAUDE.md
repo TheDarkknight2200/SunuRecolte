@@ -68,6 +68,26 @@ StatutCommande : EN_ATTENTE, CONFIRMEE, PRETE, LIVREE, ANNULEE
 
 ModeReception : RETRAIT, LIVRAISON
 
+Transitions réellement appliquées par `CommandeService.changerStatut` (`TRANSITIONS_AUTORISEES`) :
+EN_ATTENTE → {CONFIRMEE, ANNULEE}, CONFIRMEE → {PRETE, ANNULEE}, PRETE → {LIVREE}, LIVREE et
+ANNULEE terminaux. Un statut déjà atteint et une transition interdite sont deux 400 distincts
+(« La commande est déjà au statut … », « Transition de statut interdite : … vers … »), et ces bornes
+s'appliquent aussi à l'ADMIN.
+
+Règle « paiement avant confirmation » : pour une commande en LIVRAISON, les cibles CONFIRMEE et
+PRETE exigent un paiement au statut REUSSI, quel que soit le rôle qui les demande ; sinon 400 au
+message près : « Une commande en livraison doit être payée avant d'être confirmée. » pour
+CONFIRMEE, et « Une commande en livraison doit être payée avant d'être marquée prête. » pour PRETE.
+Un paiement en attente, échoué, remboursé ou annulé ne débloque pas le cycle, et une
+commande sans paiement reste soumise à la même exigence. La règle ne s'applique pas au RETRAIT.
+Elle est vérifiée après le statut déjà atteint et après la transition interdite, avant toute
+écriture. Une annulation restaure le stock (sous verrou pessimiste, un EPUISEE repasse en
+DISPONIBLE) et solde le paiement.
+
+`CommandeResponse` expose en fin de record `statutPaiement` et `moyenPaiement` : nullables, une
+commande sans paiement rend les deux `null`. En liste, ces paiements sont chargés en une seule
+requête (`findByCommandeIdIn`), quelle que soit la taille de la liste.
+
 ### LigneCommande
 id, commande_id, recolte_id, quantite, prix_unitaire, sous_total
 
@@ -77,7 +97,24 @@ IMPORTANT : prix_unitaire conserve le prix historique de la transaction.
 id, commande_id, reference_transaction, montant, moyen_paiement, statut, date_creation, date_confirmation
 
 MoyenPaiement : WAVE, ORANGE_MONEY
-StatutPaiement : EN_ATTENTE, REUSSI, ECHOUE, ANNULE
+StatutPaiement : EN_ATTENTE, REUSSI, ECHOUE, ANNULE, REMBOURSE
+
+Flux réel du paiement (`PaiementService`, simulation) :
+- `POST /api/paiements` est la seule écriture d'un paiement de l'API. Il refuse une commande
+  ANNULEE (« Impossible d'initier un paiement pour une commande annulée. ») et une commande LIVREE
+  (« Cette commande est déjà livrée. ») par un 400, et refuse un second paiement par un 400
+  (« Un paiement existe déjà pour cette commande. ») ; la contrainte `uq_paiements_commande`
+  traduit la course concurrente en ce même message, jamais en 500.
+- le montant est repris de `commande.getTotal()` calculé côté serveur, jamais de la requête.
+- un paiement enregistré est posé REUSSI, avec une référence `SIMU-<uuid>` et une date de
+  confirmation horodatée par le serveur (`appliquerLaReussiteSimulee`, seul endroit qui écrit
+  REUSSI) : la réussite fait partie de la simulation, aucune transaction réelle n'a lieu.
+- EN_ATTENTE reste la valeur initiale de l'entité mais n'est écrit par aucun endpoint ; ECHOUE
+  n'est écrit par aucun chemin de l'API.
+- l'annulation d'une commande solde son paiement : REUSSI devient REMBOURSE (remboursement simulé,
+  comme la réussite), EN_ATTENTE devient ANNULE, les autres statuts restent inchangés.
+- la migration `V2__paiement_statut_rembourse.sql` remplace la contrainte `ck_paiements_statut` de
+  V1 pour y ajouter REMBOURSE ; elle ne modifie aucune colonne.
 
 ### Notification
 id, utilisateur_id, titre, message, lu, date_creation
@@ -93,9 +130,10 @@ Aucun endpoint de comptage des non-lues, aucune pagination, aucune suppression.
 Création automatique : dans `CommandeService` (une notification « Nouvelle commande » à chaque
 producteur distinct à la création d'une commande, une « Suivi de commande » à l'acheteur à chaque changement
 de statut) et dans `PaiementService` (une notification « Paiement simulé » à chaque producteur distinct
-concerné, à l'enregistrement du paiement). Le message rend le statut **persisté** du paiement (`EN_ATTENTE`
-en pratique) et rappelle qu'aucune transaction réelle n'est effectuée : aucune notification n'affirme un
-paiement « réussi », « payé » ou « reçu », l'API actuelle ne sachant écrire ni `REUSSI` ni `ECHOUE`.
+concerné, à l'enregistrement du paiement). Le message rend le statut **persisté** du paiement
+(`REUSSI`, depuis que la simulation pose la réussite à l'enregistrement) et rappelle qu'aucune
+transaction réelle n'est effectuée : aucune notification n'affirme un paiement réellement reçu ou
+réellement encaissé.
 
 ### PrixMarche
 id, produit, unite, prix_moyen, marche_reference, date_mise_a_jour
@@ -147,9 +185,10 @@ La logique métier importante reste dans les Services.
 - Quantités et prix positifs.
 - La quantité commandée ne peut pas dépasser le stock.
 - Si LIVRAISON : adresse et téléphone obligatoires.
-- Une commande n'est pas considérée comme payée avant confirmation.
-- Paiement réussi → REUSSI.
-- Paiement échoué → ECHOUE.
+- Une commande en livraison ne peut être confirmée ni marquée prête sans un paiement au statut REUSSI ; la règle ne s'applique pas au RETRAIT (voir « Commande »).
+- Paiement réussi → REUSSI. Dans la simulation, l'enregistrement d'un paiement pose REUSSI.
+- Paiement échoué → ECHOUE. Aucun chemin de l'API actuelle n'écrit ECHOUE.
+- Annulation d'une commande payée → REMBOURSE (remboursement simulé, comme la réussite).
 
 ## HORS MVP
 Ne pas ajouter sans validation :
