@@ -9,7 +9,7 @@ Plateforme web de mise en relation directe entre producteurs agricoles et achete
 
 **SunuRecolte** facilite la commercialisation des produits agricoles locaux en éliminant les intermédiaires superflus. La plateforme permet :
 - Aux **producteurs** de publier leurs récoltes disponibles, de gérer leurs stocks et de suivre leurs commandes.
-- Aux **acheteurs** (commerçants, restaurateurs, particuliers) de parcourir le catalogue, filtrer les récoltes, commander (retrait ou livraison) et payer via mobile money.
+- Aux **acheteurs** (commerçants, restaurateurs, particuliers) de parcourir le catalogue, filtrer les récoltes, commander (retrait ou livraison) et enregistrer un paiement **simulé** (Wave ou Orange Money, sans transaction réelle).
 - Aux **administrateurs** de modérer les utilisateurs, les offres de récoltes, et de gérer les prix indicatifs du marché.
 
 ---
@@ -23,7 +23,7 @@ Plateforme web de mise en relation directe entre producteurs agricoles et achete
 - **Sécurité** : Spring Security 6 + JWT (stateless)
 - **Validation** : Jakarta Bean Validation (`@Valid`)
 - **Documentation API** : OpenAPI 3 / Swagger
-- **Paiement** : Approche progressive (Simulation/Sandbox d'abord, puis Wave / Orange Money selon disponibilité API)
+- **Paiement** : **simulation** uniquement (`POST /api/paiements` enregistré `REUSSI` sous référence `SIMU-…`) — aucun prestataire joint, aucun débit réel. Détail dans les notes du §7.
 
 ---
 
@@ -38,7 +38,7 @@ Architecture générale : **Angular → Spring Boot REST API → PostgreSQL**
 4. `Récolte` : produit, quantité disponible, prix unitaire, localisation, statut (`DISPONIBLE`, `EPUISEE`).
 5. `Commande` : statut (`EN_ATTENTE`, `CONFIRMEE`, `PRETE`, `LIVREE`, `ANNULEE`), mode réception (`RETRAIT`, `LIVRAISON`), adresse.
 6. `LigneCommande` : récolte, quantité, prix unitaire historique, sous-total.
-7. `Paiement` : référence, montant, moyen (`WAVE`, `ORANGE_MONEY`), statut (`EN_ATTENTE`, `REUSSI`, `ECHOUE`, `ANNULE`).
+7. `Paiement` : référence, montant, moyen (`WAVE`, `ORANGE_MONEY`), statut (`EN_ATTENTE`, `REUSSI`, `ECHOUE`, `ANNULE`, `REMBOURSE`).
 8. `Notification` : utilisateur destinataire, titre, message, statut de lecture (MVP REST).
 9. `PrixMarche` : prix indicatifs moyens de référence administrés.
 
@@ -197,13 +197,13 @@ appliquée côté serveur. Sauf mention « public », une route exige `Authoriza
 | Récoltes | `POST /api/recoltes` | PRODUCTEUR (propriétaire) ou ADMIN |
 | Récoltes | `PUT /api/recoltes/{id}` | Producteur propriétaire ou ADMIN |
 | Récoltes | `DELETE /api/recoltes/{id}` | Producteur propriétaire ou ADMIN (refusée si la récolte est commandée) |
-| Commandes | `GET /api/commandes` | Connecté — filtre optionnel `acheteurId`, restreint aux ressources accessibles |
-| Commandes | `GET /api/commandes/{id}` | Acheteur propriétaire, producteur concerné ou ADMIN |
+| Commandes | `GET /api/commandes` | Connecté — filtre optionnel `acheteurId`, restreint aux ressources accessibles. La réponse `CommandeResponse` porte `statutPaiement` et `moyenPaiement` (`null` et `null` si aucun paiement n'est enregistré), chargés en une seule requête pour toute la liste |
+| Commandes | `GET /api/commandes/{id}` | Acheteur propriétaire, producteur concerné ou ADMIN — réponse portant les mêmes `statutPaiement` et `moyenPaiement` |
 | Commandes | `POST /api/commandes` | ACHETEUR — total calculé serveur, stock décrémenté et contrôlé |
-| Commandes | `PATCH /api/commandes/{id}/statut` | Acheteur propriétaire, producteur concerné ou ADMIN — l'ADMIN **ne contourne aucune transition métier** : mêmes bornes `TRANSITIONS_AUTORISEES`, mêmes refus `400` (« Transition de statut interdite : … », « La commande est déjà au statut … ») |
-| Paiements | `GET /api/paiements/{id}` | Acheteur propriétaire ou ADMIN |
-| Paiements | `GET /api/paiements/commande/{commandeId}` | Acheteur propriétaire ou ADMIN |
-| Paiements | `POST /api/paiements` | ACHETEUR — paiement **simulé** (WAVE / ORANGE_MONEY, aucune transaction réelle), notifie chaque producteur concerné |
+| Commandes | `PATCH /api/commandes/{id}/statut` | Acheteur propriétaire, producteur concerné ou ADMIN — l'ADMIN **ne contourne aucune transition métier** : mêmes bornes `TRANSITIONS_AUTORISEES`, mêmes refus `400` (« Transition de statut interdite : … », « La commande est déjà au statut … ») ; `LIVRAISON` : paiement `REUSSI` requis (note) |
+| Paiements | `GET /api/paiements/{id}` | Droits de la commande — acheteur propriétaire, producteur concerné ou ADMIN |
+| Paiements | `GET /api/paiements/commande/{commandeId}` | Droits de la commande ; `404` (« Aucun paiement n'existe pour la commande : … ») si aucun paiement n'est enregistré |
+| Paiements | `POST /api/paiements` | Acheteur propriétaire ou ADMIN — paiement **simulé** : `REUSSI` posé à l'enregistrement, référence `SIMU-…`, montant repris du total serveur, aucune transaction réelle ; `400` si `ANNULEE`, déjà `LIVREE` ou déjà payé ; notifie les producteurs (cf. note) |
 | Notifications | `GET /api/notifications` | Connecté — restreint à ses propres notifications (ADMIN : toutes) |
 | Notifications | `GET /api/notifications/{id}` | Destinataire ou ADMIN |
 | Notifications | `PUT /api/notifications/{id}/lue` | Destinataire ou ADMIN |
@@ -223,8 +223,25 @@ appliquée côté serveur. Sauf mention « public », une route exige `Authoriza
 En cas d'erreur, l'API renvoie un JSON du type `{"statut": 404, "message": "...", "timestamp": "..."}`
 (ou `erreurs` par champ en cas d'échec de validation), sans jamais exposer de détails internes.
 
-> Le paiement est une **simulation** pour le MVP : aucune transaction réelle n'est effectuée et aucune
-> intégration Wave / Orange Money n'existe à ce stade.
+> **Paiement simulé — ce qui l'est, ce qui ne l'est pas.**
+> - **Simulé : l'aboutissement du paiement.** `POST /api/paiements` écrit `REUSSI`, une date de confirmation
+>   horodatée par l'application et une référence `SIMU-<uuid>`. La réussite fait partie de la simulation : elle
+>   n'est le retour d'aucun opérateur.
+> - **Réel : tout le reste.** Le montant est repris du total calculé par le serveur, un paiement reste unique
+>   par commande (contrainte `uq_paiements_commande`, même pour deux envois simultanés) sous le message `400`
+>   « Un paiement existe déjà pour cette commande. », les droits d'accès sont ceux de la commande, les
+>   notifications sont réellement créées, et la règle de livraison décrite ci-dessous est réellement appliquée.
+> - **Règle de livraison.** Une commande en `LIVRAISON` ne peut être ni confirmée ni marquée prête sans un
+>   paiement au statut `REUSSI` ; le refus est un `400` dont le message vient du serveur, au mot près :
+>   « Une commande en livraison doit être payée avant d'être confirmée. » (cible `CONFIRMEE`) et
+>   « Une commande en livraison doit être payée avant d'être marquée prête. » (cible `PRETE`). La règle ne
+>   s'applique pas au `RETRAIT` et vaut pour tous les rôles, administrateur compris.
+> - **Remboursement simulé.** Annuler une commande rend d'abord les quantités au stock, puis solde son
+>   paiement : `REUSSI` devient `REMBOURSE`, un paiement encore `EN_ATTENTE` devient `ANNULE`. Aucun
+>   remboursement ne transite réellement.
+> - **Ce qui n'existe pas.** Aucun appel à Wave ou Orange Money, aucun débit, aucun encaissement, aucun
+>   remboursement effectif ; `ECHOUE` n'est écrit par aucun chemin de l'API. Une intégration réelle à un
+>   prestataire n'est ni en cours ni promise ici : elle demanderait une configuration et des tests réels.
 
 ### 7.1 Capacités de l'ADMIN
 

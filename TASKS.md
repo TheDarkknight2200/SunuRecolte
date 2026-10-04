@@ -152,8 +152,10 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [x] Panier (5.5.3 et 5.5.5 : `PanierService` local + page `/acheteur/panier`)
 - [x] Commandes (passer : 5.5.6 ; consulter et annuler : 5.5.7 ; mise à jour des statuts côté producteur :
   5.6 — `EN_ATTENTE → CONFIRMEE → PRETE → LIVREE` via `PATCH /api/commandes/{id}/statut`)
-- [x] Paiement **simulé** (5.5.8 : `/acheteur/paiement/:id` et `POST /api/paiements` ; le serveur n'écrit
-  que `EN_ATTENTE` avec une référence `SIMU-…`, aucun paiement réel n'existe dans le projet)
+- [x] Paiement **simulé** (5.5.8 : `/acheteur/paiement/:id` et `POST /api/paiements`, référence `SIMU-…` ;
+  aucun paiement réel n'existe dans le projet. **Corrigé le 2026-10-04** : cette ligne affirmait que « le
+  serveur n'écrit que `EN_ATTENTE` », ce que le LOT P1 a rendu faux — l'enregistrement d'une simulation pose
+  `REUSSI`, et une annulation solde ce paiement en `REMBOURSE` ; voir la section « Lots paiement P1 → P2d »)
 - [x] Notifications (5.5.9 : écran transversal `/notifications` et compteur d'en-tête, QA navigateur réelle faite ;
   les cases **backend** de la Phase 7 restent en attente d'une décision de l'auteur, voir la note de cette phase)
 - [ ] Responsive (vérifié écran par écran au fil des pages métier)
@@ -1014,6 +1016,92 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 - [ ] **Décision de fusion de `refonte-design`** : la branche porte les commits de conception (quatre préliminaires
   et les lots 1 à 18) et deux lots documentaires ; rien n'a été fusionné dans `main`, et cette décision appartient à
   l'auteur du projet
+
+## Lots paiement P1 → P2d — règle « paiement avant confirmation » (détail réel)
+
+> **Ce que couvre cette section** : les cinq lots menés après la campagne de design, consignés d'après
+> `git log` (messages et dates des commits, aucun hash), le code backend et frontend relu sur `main`, et
+> `FRONTEND_DESIGN.md` §41.7 à §41.9. « P1 », « P2a », « P2b », « P2c », « P2d » sont des **repères de
+> consignes de travail**, dans le même esprit que l'avertissement de numérotation de la section
+> « Sous-phases 5.2 → 5.9-bis ».
+>
+> **Porte de validation de ces cinq lots** : `./mvnw test` sur PostgreSQL réel (aucun mock) pour les deux lots
+> backend, specs Vitest/jsdom + `npx tsc -p tsconfig.spec.json --noEmit` + `npm run build` pour les trois lots
+> frontend. **Aucun de ces écrans n'a été observé dans un navigateur réel pour ces lots**, et les quatre
+> largeurs 375 / 768 / 1024 / 1366 n'y ont pas été jouées. Les comptes de tests sont ceux **rapportés à
+> l'exécution de chaque lot** ; aucune suite n'a été relancée pour la rédaction de cette section.
+
+- [x] **LOT P1 — le paiement avant la confirmation, côté serveur (2026-10-03)** : commit
+  « feat(paiement): exige le paiement avant confirmation des livraisons » — `CommandeService` refuse
+  `CONFIRMEE` et `PRETE` pour une commande en `LIVRAISON` tant que son paiement n'est pas `REUSSI`
+  (deux messages `400` distincts, vérifiés **après** « déjà au statut » et « transition interdite », **avant**
+  toute écriture ; sans effet en `RETRAIT` ; identiques pour un acheteur, un producteur ou l'ADMIN). La
+  simulation pose la réussite à l'enregistrement (`PaiementService.appliquerLaReussiteSimulee` : `REUSSI`,
+  `date_confirmation` horodatée, référence `SIMU-…`), une annulation solde `REUSSI` en `REMBOURSE` et
+  `EN_ATTENTE` en `ANNULE` en plus de restaurer le stock, et la contrainte `uq_paiements_commande` remonte
+  comme le même message métier `400` qu'un contrôle d'existence, jamais en `500`. Migration
+  `V2__paiement_statut_rembourse.sql` : **remplace** `ck_paiements_statut` de V1, aucune colonne touchée.
+  Suite backend : **207 → 220 tests**
+- [x] **LOT P2a — le paiement rendu avec la commande (2026-10-03)** : commit « feat(commande): expose le statut
+  et le moyen de paiement » — `CommandeResponse` porte `statutPaiement` et `moyenPaiement` **en fin de
+  record** (aucun appelant positionnel cassé), `null` et `null` pour une commande sans paiement : l'API
+  n'invente jamais de paiement. En liste, les paiements sont lus par `findByCommandeIdIn`, donc **une seule
+  requête de plus quelle que soit la taille de la liste**. Suite backend : **220 → 228 tests**
+- [x] **LOT P2b — commandes reçues du producteur (2026-10-03)** : commit « feat(frontend): affiche le paiement
+  et bloque la confirmation des livraisons non payées » — une ligne « Paiement » par carte (source unique
+  `libellePaiement()` : « Aucun paiement » si `statutPaiement` est `null`, sinon `Moyen — Statut`, le libellé
+  « Remboursé (simulé) » pour `REMBOURSE`), et bouton d'étape **neutralisé mais resté focusable**
+  (`aria-disabled`, jamais `disabled`) avec son motif en `role="status"` relié par `aria-describedby` quand la
+  règle du LOT P1 s'applique. Le frontend **anticipe** le refus du serveur sans le remplacer : la garde TS
+  (`core/utilitaires/paiement-commande.ts`) reflète `CIBLES_EXIGEANT_UN_PAIEMENT` et reprend les deux phrases
+  du service octet pour octet. Suite frontend : **834 → 871 tests** (42 → 43 fichiers)
+- [x] **LOT P2c — l'acheteur peut payer dès la confirmation (2026-10-04)** : commit « feat(frontend): permet de
+  payer dès la confirmation et affiche le paiement des deux côtés » — le lien « Payer la commande » reste
+  proposé tant que la commande est payable (`EN_ATTENTE`, `CONFIRMEE`, `PRETE`) et qu'aucun paiement n'est
+  enregistré, la fiche de l'acheteur affiche le paiement avec **la même source unique** que celle du
+  producteur (aucun vocabulaire de paiement dupliqué), et une livraison non payée porte l'annonce de la règle.
+  **Trois tests existants** qui interdisaient **tout** vocabulaire de paiement sur la fiche acheteur ont été
+  **re-ciblés** (le paiement s'y affiche désormais) et une assertion de lien retirée ; le commit ne retire
+  aucun test sans remplacement — décompte statique des `it(` : 796 avant, 812 après. Suite frontend :
+  **871 → 906 tests**
+- [x] **LOT P2d — finitions de l'écran producteur (2026-10-04)** : commit « feat(frontend): actualise la liste
+  producteur, formate la date de paiement et documente le paiement » — bouton « Actualiser » en tête de liste,
+  qui relit **sans effacer** ce qui est affiché (`aria-disabled` + garde TS pendant une lecture en vol ou une
+  transition, une seule requête pour deux clics, échec = liste conservée et message rendu), et écouteur
+  `visibilitychange` sur le `document` qui relit au retour de l'onglet et se retire par `DestroyRef` (le seul
+  `addEventListener` hors specs du frontend) ; `date_confirmation` rendue par `formaterDateHeure` sur l'écran
+  de paiement au lieu de l'ISO brute ; règles consignées en `FRONTEND_DESIGN.md` §41.7 à §41.9, **ajout pur**,
+  aucune règle existante modifiée. Suite frontend : **906 → 918 tests**
+- [x] **Clôture Git de la série** : les cinq lots ont été **fusionnés dans `main` par l'auteur** (cinq merges
+  de branche, un par lot, d'après `git log`). À la rédaction de cette section, `main` porte **228 méthodes
+  `@Test`** dans `sunurecolte-backend/src/test` (décompte statique, concordant avec le total rapporté à la
+  clôture du LOT P2a) et **850 déclarations de tests** (`it(` et `it.each(`) dans **43 fichiers** de spec,
+  décompte statique qui n'est pas le total exécuté et n'a pas été rejoué ici
+- [x] **Ce que ces lots rendent obsolètes** : trois affirmations antérieures de cette liste ne décrivent plus
+  l'API — « le serveur n'écrit que `EN_ATTENTE` » (ligne « Paiement simulé » de la Phase 9, **corrigée** car
+  c'est une affirmation au présent), « Aucune route, aucun service, aucun job n'écrit `REUSSI` ni `ECHOUE` »
+  et « Simulation enregistrée — paiement en attente. » (audit et résultat du lot 5.5.8, **laissés en l'état**
+  comme comptes rendus datés du 2026-09-29), et « aucune notification de paiement à afficher (le backend n'en
+  produit pas) » (« Limites connues » de 5.5.9, dépassée dès 5.7). La notification de paiement elle-même reste
+  portée par la note « Divergence signalée (5.5.9) » de la Phase 7.
+
+### Reste à faire à la fin du lot paiement
+
+- [ ] **LOT P3 — test de concurrence** : non engagé. Le double envoi simultané d'un paiement est traité par la
+  contrainte `uq_paiements_commande` remontée en `400`, mais **aucun test exécuté ne fait partir deux requêtes
+  en parallèle** ; ce chemin n'est couvert que par le `catch` de `enregistrerSansDoublon`
+- [ ] **LOT P4 — authentification du paiement** : non engagé, aucun périmètre écrit ni testé dans
+  `sunurecolte-backend/src/main/java/com/sunurecolte/paiement` au-delà du LOT P1
+- [ ] **Chargement groupé des lignes de commande (N+1)** : le LOT P2a a groupé les paiements, **pas les
+  lignes** — le N+1 `lignes → recoltes` de `CommandeService.versResponse` est préexistant et hors périmètre
+  des lots paiement
+- [ ] **QA navigateur réelle de ces trois écrans frontend** : jamais jouée pour P2b, P2c et P2d — aucun rendu
+  observé, aucun clic réel, et les largeurs 375 / 768 / 1024 / 1366 non émules
+- [ ] **Bouton d'annulation côté producteur** : **décision en attente de l'auteur**. `CommandeService`
+  l'admet (une cible `ANNULEE` est acceptée pour toute partie prenante de la commande, donc pour un producteur
+  concerné), mais l'écran « Commandes reçues » n'expose aucune annulation
+- [ ] **Vrai prestataire de paiement** : non engagé, et rien dans ce dépôt ne l'annonce — une intégration Wave
+  ou Orange Money réelle demanderait un accès API effectif, une configuration et des tests
 
 ## Phase 10 — Intégration
 - [ ] Angular ↔ backend
