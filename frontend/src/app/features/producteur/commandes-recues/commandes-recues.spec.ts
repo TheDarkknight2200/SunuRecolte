@@ -645,6 +645,208 @@ describe('CommandesRecues — commandes reçues du producteur', () => {
     expect(http.match(() => true)).toHaveLength(0);
   });
 
+  describe('liste à jour — bouton « Actualiser » et retour de l’onglet', () => {
+    /** Le bouton vit dans la barre de tête, jamais dans une carte. */
+    function boutonActualiser(): HTMLButtonElement {
+      return element<HTMLButtonElement>(racine, '#commandes-recues-actualiser');
+    }
+
+    function reglerVisibilite(etat: 'visible' | 'hidden'): void {
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => etat,
+      });
+    }
+
+    /**
+     * L'unique lecture de liste en vol. `match` **extrait** la requête du contrôleur : la
+     * renvoyer est le seul moyen de la flush après avoir compté combien il y en avait.
+     */
+    function uneLectureEnVol(): TestRequest {
+      const enVol = http.match(URL_COMMANDES);
+      expect(enVol).toHaveLength(1);
+      const requete = enVol[0];
+      if (requete === undefined) {
+        throw new Error('Aucune lecture de liste en vol.');
+      }
+      return requete;
+    }
+
+    // L'override est propre à ce describe : il ne doit pas survivre au-delà de son test.
+    afterEach(() => {
+      delete (document as { visibilityState?: unknown }).visibilityState;
+    });
+
+    it('rend un seul bouton « Actualiser » en tête, hors des cartes et sans le désactiver', () => {
+      ouvrir();
+      charger([commande(512)]);
+
+      const bouton = boutonActualiser();
+      expect(elements(racine, '#commandes-recues-actualiser')).toHaveLength(1);
+      expect(texteDe(bouton)).toBe('Actualiser');
+      expect(bouton.classList.contains('bouton--secondaire')).toBe(true);
+      expect(bouton.closest('.commandes-recues__carte')).toBeNull();
+    });
+
+    it('relance une lecture qui remplace la liste : un paiement débloque « Confirmer »', () => {
+      ouvrir();
+      charger([commande(512, { modeReception: 'LIVRAISON' })]);
+      expect(
+        element<HTMLButtonElement>(racine, '#commande-512-etape').getAttribute('aria-disabled'),
+      ).toBe('true');
+
+      boutonActualiser().click();
+      fixture.detectChanges();
+
+      const relance = demandeListe();
+      expect(relance.request.method).toBe('GET');
+      expect(relance.request.urlWithParams).toBe(URL_COMMANDES);
+      relance.flush([
+        commande(512, {
+          modeReception: 'LIVRAISON',
+          statutPaiement: 'REUSSI',
+          moyenPaiement: 'WAVE',
+        }),
+      ]);
+      fixture.detectChanges();
+
+      expect(
+        element<HTMLButtonElement>(racine, '#commande-512-etape').getAttribute('aria-disabled'),
+      ).toBeNull();
+      expect(elements(racine, '.commandes-recues__champs dd').map(texteDe)).toContain(
+        'Wave — Réussi',
+      );
+    });
+
+    it('pendant l’actualisation la liste reste affichée et le bouton garde son libellé', () => {
+      ouvrir();
+      charger([commande(512)]);
+
+      boutonActualiser().click();
+      fixture.detectChanges();
+
+      expect(elements(racine, '.commandes-recues__carte')).toHaveLength(1);
+      expect(racine.querySelector('.etat')).toBeNull();
+      expect(texteDe(boutonActualiser())).toBe('Actualiser');
+      expect(boutonActualiser().getAttribute('aria-busy')).toBe('true');
+      expect(boutonActualiser().getAttribute('aria-disabled')).toBe('true');
+      // `aria-disabled` et non `disabled` : le bouton reste atteignable au clavier (§39).
+      expect(boutonActualiser().disabled).toBe(false);
+
+      demandeListe().flush([commande(512)]);
+      fixture.detectChanges();
+
+      expect(boutonActualiser().getAttribute('aria-busy')).toBeNull();
+      expect(boutonActualiser().getAttribute('aria-disabled')).toBeNull();
+    });
+
+    it('un échec d’actualisation garde la liste et montre l’erreur du serveur', () => {
+      ouvrir();
+      charger([commande(512), commande(511)]);
+
+      boutonActualiser().click();
+      fixture.detectChanges();
+      demandeListe().flush(
+        { message: 'Une erreur interne est survenue. Veuillez réessayer.', timestamp: 'x' },
+        { status: 500, statusText: 'Internal Server Error' },
+      );
+      fixture.detectChanges();
+
+      expect(texteDe(element(racine, '.message--erreur'))).toContain(
+        'Une erreur interne est survenue.',
+      );
+      expect(elements(racine, '.commandes-recues__carte')).toHaveLength(2);
+      expect(boutonActualiser().getAttribute('aria-busy')).toBeNull();
+    });
+
+    it('deux clics sur « Actualiser » n’émettent qu’une requête', () => {
+      ouvrir();
+      charger([commande(512)]);
+
+      boutonActualiser().click();
+      boutonActualiser().click();
+      fixture.detectChanges();
+
+      uneLectureEnVol().flush([commande(512)]);
+    });
+
+    it('neutralisé pendant un PATCH : l’actualisation attend l’action de la carte', () => {
+      ouvrir();
+      charger([commande(512)]);
+
+      const patch = demander(512);
+      expect(boutonActualiser().getAttribute('aria-disabled')).toBe('true');
+
+      boutonActualiser().click();
+      fixture.detectChanges();
+
+      expect(http.match(URL_COMMANDES)).toHaveLength(0);
+      patch.flush(commande(512, { statut: 'CONFIRMEE' }));
+    });
+
+    it('l’onglet qui redevient visible relance une seule lecture', () => {
+      ouvrir();
+      charger([commande(512)]);
+
+      reglerVisibilite('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      uneLectureEnVol().flush([commande(512)]);
+    });
+
+    it('l’onglet qui se masque n’émet aucune requête', () => {
+      ouvrir();
+      charger([commande(512)]);
+
+      reglerVisibilite('hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(http.match(URL_COMMANDES)).toHaveLength(0);
+    });
+
+    it('un retour d’onglet pendant une lecture en cours ne doublonne pas', () => {
+      ouvrir();
+      charger([commande(512)]);
+
+      boutonActualiser().click();
+      reglerVisibilite('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      uneLectureEnVol().flush([commande(512)]);
+    });
+
+    it('l’écran détruit, l’écouteur est retiré : plus aucune requête au retour de l’onglet', () => {
+      ouvrir();
+      charger([commande(512)]);
+
+      fixture.destroy();
+      reglerVisibilite('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(http.match(URL_COMMANDES)).toHaveLength(0);
+    });
+
+    it('l’actualisation ne déplace pas le focus et n’écrase pas le message de succès', () => {
+      ouvrir();
+      charger([commande(512, { statut: 'PRETE' })]);
+
+      demander(512).flush(commande(512, { statut: 'LIVREE' }));
+      fixture.detectChanges();
+
+      const succes = element(racine, '.message--succes');
+      expect(document.activeElement).toBe(succes);
+
+      boutonActualiser().click();
+      fixture.detectChanges();
+      demandeListe().flush([commande(512, { statut: 'LIVREE' })]);
+      fixture.detectChanges();
+
+      const apres = element(racine, '.message--succes');
+      expect(texteDe(apres)).toBe(texteDe(succes));
+      expect(document.activeElement).toBe(apres);
+    });
+  });
+
   describe('structure de page', () => {
     /**
      * Filet écrit avant tout restylage : un état est bien rendu s’il partage le parent de
