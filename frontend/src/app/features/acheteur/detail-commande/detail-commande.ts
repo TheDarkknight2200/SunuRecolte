@@ -23,6 +23,10 @@ import { CommandeService } from '../../../core/services/commande.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { messageErreurApi } from '../../../core/utilitaires/erreurs-api';
 import {
+  libellePaiement,
+  paiementRequisPour,
+} from '../../../core/utilitaires/paiement-commande';
+import {
   formaterDateHeure,
   formaterMontant,
   formaterQuantite,
@@ -48,6 +52,18 @@ const STATUTS_ANNULABLES: readonly StatutCommande[] = ['EN_ATTENTE', 'CONFIRMEE'
  * relit la commande et vérifie lui-même un paiement déjà enregistré.
  */
 const STATUTS_PAYABLES: readonly StatutCommande[] = ['EN_ATTENTE', 'CONFIRMEE', 'PRETE'];
+
+/**
+ * Ce que l'acheteur doit savoir sur une livraison non payée : le blocage est celui du
+ * producteur, pas de la commande. Phrase d'explication, pas de règle : `CommandeService`
+ * reste seul à autoriser ou refuser la transition. Le mot « simulation » n'y a pas sa place —
+ * rien ici ne parle d'un paiement imaginaire, seulement de l'étape à venir.
+ */
+const MESSAGE_LIVRAISON_A_PAYER =
+  'Cette commande est en livraison : le producteur pourra la confirmer une fois le paiement effectué.';
+
+/** Statuts terminaux : la règle de la confirmation n'a plus rien à annoncer. */
+const STATUTS_TERMINES: readonly StatutCommande[] = ['LIVREE', 'ANNULEE'];
 
 /**
  * Détail d'une commande de l'acheteur (GET /api/commandes/{id}).
@@ -91,7 +107,24 @@ export class DetailCommande {
     return statut !== undefined && STATUTS_PAYABLES.includes(statut);
   });
 
+  /**
+   * Annonce de la règle sur une livraison non payée, `null` dans tous les autres cas :
+   * retrait, paiement déjà rendu par le serveur, commande terminée. La règle est relue
+   * depuis `paiementRequisPour` avec la cible du producteur (`CONFIRMEE`), la même que sur
+   * les commandes reçues — deux écrans, une seule phrase attendue.
+   */
+  protected readonly annoncePaiement = computed(() => {
+    const commande = this.commande();
+    if (commande === null || STATUTS_TERMINES.includes(commande.statut)) {
+      return null;
+    }
+    return paiementRequisPour(commande, 'CONFIRMEE') ? MESSAGE_LIVRAISON_A_PAYER : null;
+  });
+
   protected readonly livraison = computed(() => this.commande()?.modeReception === 'LIVRAISON');
+
+  /** Le mot du paiement vient de la source unique, la même que sur les commandes reçues. */
+  protected readonly libellePaiement = libellePaiement;
 
   protected readonly formaterDateHeure = formaterDateHeure;
   protected readonly formaterMontant = formaterMontant;

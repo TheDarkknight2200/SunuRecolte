@@ -605,9 +605,74 @@ describe('Commande (tunnel acheteur)', () => {
       expect(texteDe(element(racine, '.commande__ligne'))).toContain('2 kg');
       expect(texteDe(element(racine, '.commande__chiffres'))).toContain('28/09/2026 à 10:15');
       expect(texteDe(element(racine, '.badge'))).toBe('En attente');
-      expect(element<HTMLAnchorElement>(racine, '.commande__actions a').getAttribute('href')).toBe(
+      expect(element<HTMLAnchorElement>(racine, '#commande-catalogue').getAttribute('href')).toBe(
         '/recoltes',
       );
+    });
+
+    it('propose le paiement et le détail dès la carte de confirmation, aux href du serveur', () => {
+      jusquaRevision();
+      validerEtRepondre(commande());
+
+      const payer = element<HTMLAnchorElement>(racine, '#commande-payer');
+      expect(texteDe(payer)).toBe('Payer cette commande');
+      expect(payer.getAttribute('href')).toBe('/acheteur/paiement/512');
+      expect(payer.classList.contains('bouton--primaire')).toBe(true);
+
+      const detail = element<HTMLAnchorElement>(racine, '#commande-detail');
+      expect(texteDe(detail)).toBe('Voir ma commande');
+      expect(detail.getAttribute('href')).toBe('/acheteur/commandes/512');
+      expect(detail.classList.contains('bouton--secondaire')).toBe(true);
+
+      const hrefs = elements(racine, '.commande__actions a').map((lien) =>
+        lien.getAttribute('href'),
+      );
+      expect(hrefs).toEqual([
+        '/acheteur/paiement/512',
+        '/acheteur/commandes/512',
+        '/recoltes',
+      ]);
+    });
+
+    it('propose le paiement sur la seule réponse 201, sans requête de plus', () => {
+      jusquaRevision();
+      cliquer('#commande-confirmer');
+      demandeCommande().flush(commande());
+      fixture.detectChanges();
+
+      expect(element<HTMLAnchorElement>(racine, '#commande-payer').getAttribute('href')).toBe(
+        '/acheteur/paiement/512',
+      );
+      expect(http.match(() => true)).toHaveLength(0);
+    });
+
+    it.each(['CONFIRMEE', 'PRETE', 'LIVREE', 'ANNULEE'] as const)(
+      '%s renvoyé par le serveur : ni lien de paiement ni lien de détail',
+      (statut) => {
+        jusquaRevision();
+        validerEtRepondre(commande({ statut }));
+
+        expect(racine.querySelector('#commande-payer')).toBeNull();
+        expect(racine.querySelector('#commande-detail')).toBeNull();
+        expect(element<HTMLAnchorElement>(racine, '#commande-catalogue').getAttribute('href')).toBe(
+          '/recoltes',
+        );
+      },
+    );
+
+    it('ne repasse pas par le paiement quand le serveur en rend déjà un', () => {
+      jusquaRevision();
+      validerEtRepondre(commande({ statutPaiement: 'REUSSI', moyenPaiement: 'WAVE' }));
+
+      expect(racine.querySelector('#commande-payer')).toBeNull();
+      expect(racine.querySelector('#commande-detail')).not.toBeNull();
+    });
+
+    it('laisse le focus sur le titre de succès, liens d’action ajoutés', () => {
+      jusquaRevision();
+      validerEtRepondre(commande());
+
+      expect(document.activeElement?.getAttribute('id')).toBe('titre-succes');
     });
 
     it('rappelle qu’aucun paiement n’a été effectué', () => {

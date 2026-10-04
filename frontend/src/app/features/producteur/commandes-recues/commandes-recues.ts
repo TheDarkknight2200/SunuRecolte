@@ -3,9 +3,7 @@ import { RouterLink } from '@angular/router';
 import { CommandeResponse } from '../../../core/modeles/domaine.modeles';
 import {
   LIBELLES_MODE_RECEPTION,
-  LIBELLES_MOYEN_PAIEMENT,
   LIBELLES_STATUT_COMMANDE,
-  LIBELLES_STATUT_PAIEMENT,
   ModeReception,
   StatutCommande,
   VARIANTES_BADGE_COMMANDE,
@@ -14,6 +12,7 @@ import { CommandeService } from '../../../core/services/commande.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { messageErreurApi } from '../../../core/utilitaires/erreurs-api';
 import {
+  libellePaiement,
   messageDePaiementRequis,
   paiementRequisPour,
 } from '../../../core/utilitaires/paiement-commande';
@@ -187,18 +186,10 @@ export class CommandesRecues {
 
   /**
    * Paiement rendu par le serveur : « Aucun paiement » quand aucun n'a été enregistré,
-   * sinon « moyen — statut ». Rien n'est déduit ici : un statut de paiement n'est jamais posé
-   * par l'écran, et une commande sans paiement n'est jamais présentée comme payée.
+   * sinon « moyen — statut ». La phrase vient de `libellePaiement`, unique source des deux
+   * espaces : rien n'est déduit ici, un statut de paiement n'est jamais posé par l'écran.
    */
-  protected libellePaiement(commande: CommandeResponse): string {
-    if (commande.statutPaiement === null) {
-      return 'Aucun paiement';
-    }
-    const statut = LIBELLES_STATUT_PAIEMENT[commande.statutPaiement];
-    return commande.moyenPaiement === null
-      ? statut
-      : `${LIBELLES_MOYEN_PAIEMENT[commande.moyenPaiement]} — ${statut}`;
-  }
+  protected readonly libellePaiement = libellePaiement;
 
   /**
    * Le motif qui neutralise l'unique action de la carte, `null` quand elle est possible.

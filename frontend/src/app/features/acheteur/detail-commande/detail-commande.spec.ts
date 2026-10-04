@@ -351,6 +351,8 @@ describe('DetailCommande — consultation', () => {
 
   // L'accès au paiement est le reflet des trois statuts que le backend accepte ; proposer
   // le lien ne déclenche aucun appel, la vérification reste côté service paiement.
+  // Reciblé au LOT P2c : la fixture nomme explicitement `statutPaiement: null`, le lien
+  // dépend désormais du statut de la commande ET de l'absence de paiement enregistré.
   it.each([
     ['EN_ATTENTE', true],
     ['CONFIRMEE', true],
@@ -359,14 +361,24 @@ describe('DetailCommande — consultation', () => {
     ['ANNULEE', false],
   ] as const)('%s : accès au paiement %s', (statut, attendu) => {
     ouvrir();
-    repondre(commande({ statut }));
+    repondre(commande({ statut, statutPaiement: null }));
 
     expect(racine.querySelector('#commande-payer') !== null).toBe(attendu);
   });
 
+  it.each(['EN_ATTENTE', 'REUSSI', 'ECHOUE', 'ANNULE', 'REMBOURSE'] as const)(
+    'un paiement %s déjà enregistré retire l’accès au paiement',
+    (statutPaiement) => {
+      ouvrir();
+      repondre(commande({ statut: 'CONFIRMEE', statutPaiement, moyenPaiement: 'WAVE' }));
+
+      expect(racine.querySelector('#commande-payer')).toBeNull();
+    },
+  );
+
   it('le lien de paiement vise l’écran de paiement de cette commande, sans aucun appel', () => {
     ouvrir();
-    repondre(commande({ statut: 'PRETE' }));
+    repondre(commande({ statut: 'PRETE', statutPaiement: null }));
 
     const lien = element<HTMLAnchorElement>(racine, '#commande-payer');
     expect(texteDe(lien)).toBe('Payer la commande');
@@ -383,15 +395,98 @@ describe('DetailCommande — consultation', () => {
     expect(badge.classList.contains('badge--primaire')).toBe(true);
   });
 
-  it('ne montre aucun vocabulaire de paiement sur une commande livrée', () => {
+  it('ne montre aucun vocabulaire de paiement inventé sur une commande livrée', () => {
     ouvrir();
     repondre(commande({ statut: 'LIVREE' }));
 
     const texte = texteDe(racine).toLowerCase();
-    for (const terme of ['payé', 'paiement', 'transaction', 'wave', 'orange money', 'simu-']) {
+    // Reciblé au LOT P2c : l'API rend le paiement, la page doit donc le nommer. Ce qui reste
+    // interdit est l'invention — une transaction, un prestataire, un paiement passé.
+    for (const terme of ['payé', 'transaction', 'wave', 'orange money', 'simu-']) {
       expect(texte).not.toContain(terme);
     }
+    expect(texte).toContain('aucun paiement');
   });
+
+  /** La valeur d'une entrée du résumé, repérée par son libellé. */
+  function valeurChampResume(libelle: string): string {
+    const entrees = elements(
+      racine,
+      '.detail-commande__resume .detail-commande__champs > div',
+    );
+    for (const entree of entrees) {
+      if (texteDe(element(entree, 'dt')) === libelle) {
+        return texteDe(element(entree, 'dd'));
+      }
+    }
+    throw new Error(`Entrée introuvable dans le résumé : ${libelle}`);
+  }
+
+  it('rend le paiement du serveur dans le résumé : « Aucun paiement » à vide', () => {
+    ouvrir();
+    repondre(commande());
+
+    expect(valeurChampResume('Paiement')).toBe('Aucun paiement');
+    expect(valeurChampResume('Mode de réception')).toBe('Retrait');
+  });
+
+  it('nomme le moyen et le statut d’un paiement rendu par le serveur', () => {
+    ouvrir();
+    repondre(commande({ statutPaiement: 'REUSSI', moyenPaiement: 'ORANGE_MONEY' }));
+
+    expect(texteDe(element(racine, '.detail-commande__resume'))).toContain('Orange Money — Réussi');
+  });
+
+  it.each(['EN_ATTENTE', 'CONFIRMEE', 'PRETE'] as const)(
+    'livraison non payée, %s : la règle du producteur est annoncée, le lien au-dessus',
+    (statut) => {
+      ouvrir();
+      repondre(
+        commande({
+          statut,
+          modeReception: 'LIVRAISON',
+          adresseLivraison: 'Rue 10, Sacré-Cœur 3, Dakar',
+        }),
+      );
+
+      const info = element(racine, '.message--info');
+      expect(info.getAttribute('role')).toBe('status');
+      expect(texteDe(info)).toBe(
+        'Cette commande est en livraison : le producteur pourra la confirmer une fois le paiement effectué.',
+      );
+      expect(texteDe(info).toLowerCase()).not.toContain('simul');
+
+      const lien = element(racine, '#commande-payer');
+      expect(lien.compareDocumentPosition(info) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(http.match((requete) => requete.url.startsWith(`${API}/paiements`))).toHaveLength(0);
+    },
+  );
+
+  it('tait la règle de paiement en retrait', () => {
+    ouvrir();
+    repondre(commande({ modeReception: 'RETRAIT' }));
+
+    expect(racine.querySelector('.message--info')).toBeNull();
+  });
+
+  it('tait la règle quand la livraison est payée', () => {
+    ouvrir();
+    repondre(
+      commande({ modeReception: 'LIVRAISON', statutPaiement: 'REUSSI', moyenPaiement: 'WAVE' }),
+    );
+
+    expect(racine.querySelector('.message--info')).toBeNull();
+  });
+
+  it.each(['LIVREE', 'ANNULEE'] as const)(
+    'tait la règle sur une commande %s, même en livraison non payée',
+    (statut) => {
+      ouvrir();
+      repondre(commande({ statut, modeReception: 'LIVRAISON' }));
+
+      expect(racine.querySelector('.message--info')).toBeNull();
+    },
+  );
 });
 
 describe('DetailCommande — annulation', () => {
@@ -697,9 +792,15 @@ describe('DetailCommande — annulation', () => {
     demandePatching().flush(commande({ statut: 'ANNULEE' }));
     fixture.detectChanges();
 
+    /*
+     * Reciblé au LOT P2c : la page nomme désormais le paiement que le serveur rend. La modale
+     * reste muette sur ce sujet, et ce qui est interdit après coup est l'invention — une
+     * transaction, un prestataire, un paiement passé. Le seul mot autorisé est le constat.
+     */
     const texte = texteDe(racine).toLowerCase();
-    for (const terme of ['payé', 'paiement', 'transaction', 'wave', 'orange money', 'simu-']) {
+    for (const terme of ['payé', 'transaction', 'wave', 'orange money', 'simu-']) {
       expect(texte).not.toContain(terme);
     }
+    expect(texte).toContain('aucun paiement');
   });
 });

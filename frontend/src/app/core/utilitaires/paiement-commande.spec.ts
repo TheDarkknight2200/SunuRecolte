@@ -1,5 +1,12 @@
-import { ModeReception, StatutPaiement } from '../modeles/referentiels';
 import {
+  ModeReception,
+  MOYENS_PAIEMENT,
+  MoyenPaiement,
+  STATUTS_PAIEMENT,
+  StatutPaiement,
+} from '../modeles/referentiels';
+import {
+  libellePaiement,
   messageDePaiementRequis,
   paiementRequisPour,
 } from './paiement-commande';
@@ -90,5 +97,40 @@ describe('messageDePaiementRequis — les phrases du serveur', () => {
     expect(message).toContain('livraison');
     expect(message).toContain('payée');
     expect(message).toContain('confirmée');
+  });
+});
+
+/** Le libellé ne lit que ces deux propriétés, comme la règle lit les siennes. */
+function paiement(
+  statutPaiement: StatutPaiement | null,
+  moyenPaiement: MoyenPaiement | null = null,
+): { statutPaiement: StatutPaiement | null; moyenPaiement: MoyenPaiement | null } {
+  return { statutPaiement, moyenPaiement };
+}
+
+describe('libellePaiement — une seule source pour le mot affiché', () => {
+  it('rend le constat du serveur quand aucun paiement n’a été enregistré', () => {
+    expect(libellePaiement(paiement(null))).toBe('Aucun paiement');
+  });
+
+  it('nomme le moyen puis le statut, dans cet ordre', () => {
+    expect(libellePaiement(paiement('REUSSI', 'ORANGE_MONEY'))).toBe('Orange Money — Réussi');
+  });
+
+  it('rend « Wave — Remboursé (simulé) » sur un remboursement, qualification comprise', () => {
+    expect(libellePaiement(paiement('REMBOURSE', 'WAVE'))).toBe('Wave — Remboursé (simulé)');
+  });
+
+  it('rend le statut seul quand le moyen est absent, sans séparateur orphelin', () => {
+    expect(libellePaiement(paiement('ANNULE'))).toBe('Annulé');
+  });
+
+  it.each(STATUTS_PAIEMENT)('%s : aucun couple existant ne rend undefined ni vide', (statut) => {
+    for (const moyen of [...MOYENS_PAIEMENT, null]) {
+      const rendu = libellePaiement(paiement(statut, moyen));
+      expect(rendu).not.toContain('undefined');
+      expect(rendu).not.toContain('null');
+      expect(rendu).not.toBe('');
+    }
   });
 });

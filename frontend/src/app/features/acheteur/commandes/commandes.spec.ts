@@ -115,6 +115,17 @@ describe('Commandes — liste « Mes commandes »', () => {
     fixture.detectChanges();
   }
 
+  /** La valeur d'une entrée du `dl` de la première carte, repérée par son libellé. */
+  function valeurChamp(libelle: string): string {
+    const carte = element(racine, '.commandes__carte');
+    for (const entree of elements(carte, '.commandes__champs > div')) {
+      if (texteDe(element(entree, 'dt')) === libelle) {
+        return texteDe(element(entree, 'dd'));
+      }
+    }
+    throw new Error(`Entrée introuvable dans la carte : ${libelle}`);
+  }
+
   afterEach(() => {
     http.verify();
     localStorage.clear();
@@ -288,14 +299,56 @@ describe('Commandes — liste « Mes commandes »', () => {
     expect(racine.querySelector('.etat')).toBeNull();
   });
 
-  it('ne rend aucun élément de paiement : ni libellé, ni montant de transaction', () => {
+  it('ne rend aucun vocabulaire de paiement inventé sur une commande livrée', () => {
     ouvrir();
     charger([commande(512, { statut: 'LIVREE' })]);
 
+    /*
+     * Reciblé au LOT P2c : `CommandeResponse` rend `statutPaiement` et `moyenPaiement`, la carte
+     * doit donc nommer le paiement. Ce qui reste interdit est l'invention — une transaction,
+     * un prestataire, un paiement passé — et le seul mot autorisé est le constat du serveur.
+     */
     const texte = texteDe(racine).toLowerCase();
-    for (const terme of ['payé', 'paiement', 'transaction', 'wave', 'orange money', 'simu-']) {
+    for (const terme of ['payé', 'transaction', 'wave', 'orange money', 'simu-']) {
       expect(texte).not.toContain(terme);
     }
+    expect(texte).toContain('aucun paiement');
+  });
+
+  it('donne à chaque carte une entrée « Paiement », à la place du constat muet', () => {
+    ouvrir();
+    charger([commande(512)]);
+
+    expect(elements(racine, '.commandes__champs dt').map(texteDe)).toEqual([
+      'Date',
+      'Réception',
+      'Paiement',
+      'Lignes',
+      'Total',
+    ]);
+    expect(valeurChamp('Paiement')).toBe('Aucun paiement');
+  });
+
+  it('rend le moyen et le statut du paiement envoyé par le serveur', () => {
+    ouvrir();
+    charger([commande(512, { statutPaiement: 'REMBOURSE', moyenPaiement: 'WAVE' })]);
+
+    expect(valeurChamp('Paiement')).toBe('Wave — Remboursé (simulé)');
+  });
+
+  it('ne rend jamais undefined dans le libellé de paiement', () => {
+    ouvrir();
+    charger([commande(512, { statutPaiement: 'REUSSI' })]);
+
+    expect(valeurChamp('Paiement')).toBe('Réussi');
+  });
+
+  it('ne porte aucun message de règle de paiement dans la liste', () => {
+    ouvrir();
+    charger([commande(512, { modeReception: 'LIVRAISON', adresseLivraison: 'Rue 10, Dakar' })]);
+
+    expect(racine.querySelector('.message--info')).toBeNull();
+    expect(texteDe(racine)).not.toContain('le producteur pourra la confirmer');
   });
 
   /**

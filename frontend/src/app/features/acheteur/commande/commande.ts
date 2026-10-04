@@ -49,7 +49,8 @@ const LONGUEUR_TELEPHONE = 20;
  * cette page ne calcule ni prix, ni stock, ni total. Elle présente un récapitulatif,
  * recueille le mode de réception, impose une révision, envoie exactement le
  * `CommandeRequest` du DTO, puis affiche la commande réellement retournée par le
- * serveur. Aucun paiement n'est appelé ici : une commande créée est `EN_ATTENTE`.
+ * serveur. Aucun paiement n'est appelé ici : la carte de confirmation ne fait que proposer
+ * d'y aller, par un lien, et le paiement proposé dépend de la commande rendue par le `201`.
  */
 @Component({
   selector: 'app-commande',
