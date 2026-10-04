@@ -1918,3 +1918,121 @@ colonne **hors** du patron `.conteneur`. Chacun portait sa largeur sur la `<sect
   `document.activeElement`.
 - **Non observé en navigateur réel** : les quatre largeurs 375 / 768 / 1024 / 1366 et le centrage effectif du
   plafond — jsdom ne rend pas la cascade SCSS. Les colonnes utiles ci-dessus sont des **calculs**.
+
+### 41.7 Paiement côté producteur : la règle anticipée, jamais décidée (LOT P2b)
+
+`/producteur/commandes` (`CommandesRecues`) rend le paiement que l'API envoie et neutralise l'action qu'un
+serveur refuserait. Rien n'est inventé : `CommandeResponse` porte `statutPaiement` et `moyenPaiement`
+(deux champs nullables exposés par le lot backend `3fb56b5`), l'écran se borne à les nommer.
+
+- **Entrée « Paiement » dans le `dl` de la carte**, entre « Réception » et « Total », sans classe nouvelle :
+  la grille `repeat(auto-fit, minmax(9rem, 1fr))` absorbe la cinquième entrée. La valeur vient de
+  `libellePaiement(commande)` — « Aucun paiement » quand `statutPaiement` est `null`, sinon
+  « Wave — Réussi » ou « Orange Money — Remboursé (simulé) ». `moyenPaiement` est nullable, donc un statut
+  sans moyen s'affiche **seul** : pas de séparateur orphelin, jamais le mot `undefined`.
+- **Blocage de « Confirmer la commande » (cible `CONFIRMEE`) et « Marquer comme prête » (cible `PRETE`)**
+  pour une `LIVRAISON` dont le paiement n'est pas `REUSSI`. Le bouton reste rendu et focusable en
+  `aria-disabled="true"` — jamais `disabled`, §39 : l'indisponibilité se voit et se lit, l'action reste
+  atteignable au clavier. Son motif est un paragraphe `.commandes-recues__notice` en `role="status"`,
+  relié par `aria-describedby="commande-{id}-paiement-requis"` (l'`id` n'existe pas quand il n'y a rien à
+  annoncer : `motifBlocageId` rend `null`, donc aucun `aria-describedby` vide). La garde de
+  `appliquerEtape` n'émet **aucun** `PATCH` sur une action neutralisée. Une commande en RETRAIT ignore la
+  règle : rien ne change pour elle, ni motif ni attribut.
+- **Anticipation, pas autorité** : `motifBlocage` reflète `CommandeService.verifierPaiementAvantConfirmation`,
+  et les deux phrases du backend sont reprises octet pour octet — l'apostrophe y est **droite**, comme dans
+  la source Java — pour que le motif affiché avant l'appel et le `400` reçu après coup se ressemblent
+  exactement. Si le serveur refuse malgré tout (vue périmée entre-temps), son message part dans la notice
+  `ToastService` (§39.2) et la carte garde le statut affiché : aucune réécriture locale, aucune bannière
+  dans la carte.
+- **Règle pure partagée** : `paiementRequisPour`, `messageDePaiementRequis` et `libellePaiement` vivent dans
+  `core/utilitaires/paiement-commande.ts`. Aucun composant ne réécrit la condition ni le mot. La règle ne
+  lit que `modeReception` et `statutPaiement` (les deux seuls éléments que le backend regarde, et aucun
+  statut de commande : la table des transitions est une règle distincte, déjà reflétée écran par écran) ;
+  le libellé ne lit que `statutPaiement` et `moyenPaiement`.
+- **Honnêteté sur la simulation** : le vocabulaire vient des referentiels réels — `REMBOURSE` se lit
+  « Remboursé (simulé) » (§27) — et l'écran de paiement nomme son champ « Référence de simulation » (§34).
+  Aucune phrase du frontend ne laisse croire à une transaction Wave ou Orange Money réellement exécutée.
+- **Compte de référence** : `commandes-recues.spec.ts` tenait **54** tests à l'entrée du LOT P2c — paiement
+  rendu, deux cibles neutralisées avec leur motif et leur `aria-describedby`, quatre statuts de paiement qui
+  ne débloquent rien, clic neutralisé sans requête, retrait inchangé, `400` du serveur dans la notice.
+- **Non vérifié en navigateur réel** : la neutralisation visuelle (`opacity: 0.6`, `cursor: not-allowed`),
+  l'annonce du `role="status"` par un lecteur d'écran et les quatre largeurs 375 / 768 / 1024 / 1366.
+
+### 41.8 Paiement côté acheteur : payer dès la confirmation (LOT P2c)
+
+Le même mot, la même règle, des deux côtés, et un chemin pour payer dès qu'une commande existe.
+
+- **Liste `/acheteur/commandes` et détail `/acheteur/commandes/:id`** reprennent l'entrée « Paiement » et
+  **le même** `libellePaiement` : un acheteur lit exactement ce que son producteur lit, avec le même
+  vocabulaire et la même source. Sur ces deux écrans, la cible est visée par un alias de champ
+  (`protected readonly libellePaiement = libellePaiement;`) — le gabarit appelle un nom de membre, l'utilitaire
+  reste la seule implémentation.
+- **Source unique, déménagée sans casse** : le libellé vivait en méthode dans `CommandesRecues`. Il est passé
+  dans l'utilitaire et le composant producteur ne garde que l'alias, ce qui laisse son gabarit **et** ses 54
+  tests inchangés — la vérification demandée, jouée réellement (215 tests sur les 5 fichiers concernés).
+- **« Payer cette commande » sur la carte de confirmation** (`/acheteur/commande`, après le `201`) :
+  `.bouton--primaire` `#commande-payer` vers `['/acheteur/paiement', commande.id]`, proposé **seulement** si la
+  réponse rend `statut === 'EN_ATTENTE'` **et** `statutPaiement === null`. « Voir ma commande »
+  (`#commande-detail`, `.bouton--secondaire`) et « Retour au catalogue » (`#commande-catalogue`) restent ; le
+  focus va toujours sur `#titre-succes`. **Aucune route nouvelle** et **aucun** `POST /api/paiements` depuis
+  la confirmation : la carte propose d'y aller, elle ne paie rien — le test compte zéro requête en plus.
+- **Le lien du détail se masque dès qu'un paiement existe** : `#commande-payer` n'apparaît que si
+  `payable()` **et** `statutPaiement === null`. Les cinq statuts que l'API peut rendre (`EN_ATTENTE`, `REUSSI`,
+  `ECHOUE`, `ANNULE`, `REMBOURSE`) le retirent — un paiement en attente n'est pas une porte à réemprunter.
+- **Message de règle, détail seulement** : pour une `LIVRAISON` dont `paiementRequisPour(c, 'CONFIRMEE')` est
+  vrai et dont le statut n'est ni `LIVREE` ni `ANNULEE`, `.message message--info` en `role="status"` annonce
+  « Cette commande est en livraison : le producteur pourra la confirmer une fois le paiement effectué. »,
+  posé **après** la rangée d'actions pour que le lien de paiement lu d'abord le précède. Rien en RETRAIT,
+  rien quand le paiement est fait, rien sur une commande terminale, rien dans la liste. Le mot « simulation »
+  n'entre pas dans cette phrase : elle dit une règle de statut, pas la nature du paiement.
+- **Le mot « paiement » reste un constat** : trois tests interdisaient jusqu'ici tout vocabulaire de paiement
+  sur la page ; ils sont **re-ciblés** (et déclarés comme tels) sur ce qui reste interdit — l'invention
+  (`payé`, `transaction`, `wave`, `orange money`, `simu-`) — et exigent désormais le constat rendu par le
+  serveur, « Aucun paiement ». Aucune assertion n'a été supprimée ni affaiblie : une interdiction aveugle a
+  laissé place à une interdiction précise plus une obligation.
+- **Tests** : 871 → **906** (baseline 43 fichiers). Les 4 re-ciblages sont listés dans le rapport du lot.
+
+### 41.9 Liste producteur à jour et date de confirmation lisible (LOT P2d)
+
+- **« Actualiser » en tête de `/producteur/commandes`** : `.bouton--secondaire .bouton--compact`,
+  `#commandes-recues-actualiser`, dans un `<p class="commandes-recues__barre">` — la barre d'écran, au même
+  traitement qu'à `/notifications`. La classe est **propre** et non `.commandes-recues__actions`, qui désigne
+  la rangée d'action **d'une carte** : la reprise de cette classe aurait fait compter le bouton de page par les
+  tests « une seule action » et « aucune action » des cartes. Le bouton vit **hors** des cartes, comme le veut
+  le filet existant sur `.commandes-recues__carte button`.
+- **Relire sans effacer** : `actualiser()` ne passe pas par `chargement`, il pose son propre signal
+  `actualisation`. La liste affichée, le message de succès (§39.2), le focus et l'éventuel motif de blocage
+  restent en place pendant la requête ; `aria-busy="true"` et le libellé « Actualiser » inchangé la signalent.
+  Neutralisation en `aria-disabled` (jamais `disabled`, §39) tant qu'une requête concerne l'écran : la garde
+  `bloqueActualisation()` couvre la première lecture, une actualisation déjà en vol **et** un `PATCH` d'étape en
+  cours — une actualisation n'interrompt jamais une action d'étape engagée.
+- **Échec d'actualisation : la liste reste, seul le message change.** L'erreur est rendue par le bloc existant
+  (`.message message--erreur role="alert"` avec « Réessayer », §11), désormais évalué **avant** la chaîne
+  d'états et donc posé **au-dessus** d'une liste conservée. Le rendu d'un échec sur la première lecture ne
+  change pas : la liste y est vide, et l'état « Aucune commande reçue » reste explicitement gardé par
+  `erreur() === null` pour ne jamais contredire l'erreur affichée.
+- **Retour d'onglet** : un `visibilitychange` avec `document.visibilityState === 'visible'` relance **une**
+  lecture. Aucune requête quand l'onglet se masque, aucune quand une lecture est déjà en vol, **aucun
+  `setInterval` ni polling** (§29) : le réveil n'est pas une interrogation périodique, aucun minuteur n'est
+  posé. L'écouteur est retiré en `DestroyRef.onDestroy`, donc une page détruite ne parle
+  plus au serveur — c'est le premier écouteur `document` du dépôt, et il est le seul à se retirer.
+- **Date de confirmation lisible** : `paiement.html` passe `dateConfirmation` dans `formaterDateHeure` (§30),
+  comme `dateCreation` trois lignes au-dessus ; la fiche du paiement n'a plus une date en ISO brute à côté
+  d'une date formatée. `null` rend toujours `—` : `formaterDateHeure` part de la même sentinelle
+  `VALEUR_ABSENTE` que `ouValeurAbsente`, donc l'absence ne change ni de caractère ni de test.
+- **Rien d'autre ne change** : aucun SCSS global, aucun token, aucune route, aucun guard, `ToastService`,
+  panier et flux de création de paiement intouchés. Dans la sortie de `npm run build`, le chunk lazy
+  `commandes-recues` est à **13,87 kB** brut (JS et styles inlinés) et la commande n'émet **aucune** ligne
+  `warning`, `error`, `budget` ou `exceed` : le budget `anyComponentStyle` (10 kB en avertissement, 14 kB en
+  erreur) n'est déclenché par aucun écran.
+- **Tests** : 906 → **918** (+12 : 11 dans `commandes-recues.spec.ts`, 1 dans `paiement.spec.ts`). **Aucune
+  assertion existante modifiée, supprimée ni assouplie.** Le filet « n'émet aucun second GET après
+  l'ouverture : aucun minuteur, aucun polling » reste vert sans retouche : il compte ce qui part à
+  l'ouverture, et aucun `visibilitychange` n'y est émis. Deux pièges de mesure sont consignés dans le lot :
+  `http.match()` **extrait** les requêtes de la file du contrôleur (compter puis `expectOne` sur la même URL
+  ne retrouve plus rien — d'où un helper qui rend la requête à flusher), et `[attr.aria-busy]` rendu depuis un
+  booléen écrit la chaîne `"false"` au lieu de retirer l'attribut — la liaison teste donc `'true' : null`.
+- **Non vérifié en navigateur réel** : le clic sur « Actualiser » dans un onglet vivant, le vrai passage
+  d'onglet qui déclenche `visibilitychange` (jsdom ne déplace pas l'onglet, c'est l'événement qui est émis à
+  la main), le rendu de la barre à 375 / 768 / 1024 / 1366, et l'annonce du `aria-busy` par un lecteur
+  d'écran. Ces trois finitions sont prouvées par les tests, pas observées.

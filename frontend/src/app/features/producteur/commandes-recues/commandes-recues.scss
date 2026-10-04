@@ -33,6 +33,15 @@
   color: var(--couleur-texte-secondaire);
 }
 
+/* Barre d'écran, au même traitement qu'à `/notifications` : l'action de page est à droite,
+   au-dessus de la liste, et ne se confond pas avec la rangée d'action d'une carte. */
+.commandes-recues__barre {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--espace-3);
+  margin: 0;
+}
+
 .commandes-recues__liste {
   display: flex;
   flex-direction: column;
@@ -150,13 +159,15 @@
 }
 
 /* Zone tactile : compact (36 px) rehaussé à 44 px sur mobile (§12, §33). */
-.commandes-recues__actions .bouton {
+.commandes-recues__actions .bouton,
+.commandes-recues__barre .bouton {
   min-height: 44px;
 }
 
 /* Le blocage passe par `aria-disabled` : le bouton reste focusable, la garde est dans le TS.
    Même traitement que le CTA du catalogue — l'indisponibilité se voit, pas seulement se lit. */
-.commandes-recues__actions .bouton[aria-disabled='true'] {
+.commandes-recues__actions .bouton[aria-disabled='true'],
+.commandes-recues__barre .bouton[aria-disabled='true'] {
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -168,7 +179,8 @@
     justify-content: space-between;
   }
 
-  .commandes-recues__actions .bouton {
+  .commandes-recues__actions .bouton,
+  .commandes-recues__barre .bouton {
     min-height: 36px;
   }
 

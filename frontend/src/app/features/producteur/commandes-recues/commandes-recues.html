@@ -15,11 +15,26 @@
       </a>
     </div>
 
-    @if (chargement()) {
-      <div class="etat" aria-busy="true">
-        <p class="etat__texte">Chargement des commandes reçues…</p>
-      </div>
-    } @else if (erreur(); as message) {
+    <!--
+      Tête de liste : « Actualiser » relit sans effacer la liste, d'où `aria-disabled` et non
+      `disabled`. Classe propre (`__barre`, comme à `/notifications`) pour ne pas confondre cette
+      barre d'écran avec `.commandes-recues__actions`, la rangée d'action d'une carte.
+    -->
+    <p class="commandes-recues__barre">
+      <button
+        type="button"
+        class="bouton bouton--secondaire bouton--compact"
+        id="commandes-recues-actualiser"
+        [attr.aria-disabled]="bloqueActualisation() ? 'true' : null"
+        [attr.aria-busy]="actualisation() ? 'true' : null"
+        (click)="actualiser()"
+      >
+        Actualiser
+      </button>
+    </p>
+
+    <!-- Une actualisation ratée montre l'erreur sans faire disparaître la liste déjà affichée. -->
+    @if (erreur(); as message) {
       <div class="message message--erreur" role="alert">
         <span class="materiel-icone message__icone" aria-hidden="true">&#xf8b6;</span>
         <div>
@@ -36,7 +51,13 @@
           </p>
         </div>
       </div>
-    } @else if (liste().length === 0) {
+    }
+
+    @if (chargement()) {
+      <div class="etat" aria-busy="true">
+        <p class="etat__texte">Chargement des commandes reçues…</p>
+      </div>
+    } @else if (liste().length === 0 && erreur() === null) {
       <div class="etat">
         <p class="etat__titre">Aucune commande reçue pour le moment.</p>
         <p class="etat__texte">
@@ -44,7 +65,7 @@
         </p>
         <a class="bouton bouton--primaire" routerLink="/producteur/recoltes">Voir mes récoltes</a>
       </div>
-    } @else {
+    } @else if (liste().length > 0) {
       <ul class="commandes-recues__liste">
         @for (commande of liste(); track commande.id) {
           <li class="carte commandes-recues__carte">

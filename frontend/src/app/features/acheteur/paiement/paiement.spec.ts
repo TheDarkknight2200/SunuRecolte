@@ -736,6 +736,15 @@ describe('Paiement — écran de paiement simulé', () => {
     expect(valeurFiche('Date de la demande')).toBe('21/09/2026 à 09:17');
   });
 
+  it('rend la date de confirmation formatée, jamais la chaîne ISO du serveur', () => {
+    sansPaiement();
+    reponseServeur(paiement({ statut: 'REUSSI', dateConfirmation: '2026-09-21T09:18:05' }));
+
+    // Le même patron que « Date de la demande » : `JJ/MM/AAAA à HH:MM`, secondes retirées (§30).
+    expect(valeurFiche('Date de confirmation')).toBe('21/09/2026 à 09:18');
+    expect(valeurFiche('Date de confirmation')).not.toMatch(/2026-09-21|T09:18/);
+  });
+
   it('une confirmation absente est un signe, jamais « null » ni case vide', () => {
     sansPaiement();
     reponseServeur(paiement());

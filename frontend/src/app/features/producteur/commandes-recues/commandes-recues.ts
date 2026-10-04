@@ -1,4 +1,12 @@
-import { Component, ElementRef, effect, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  effect,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CommandeResponse } from '../../../core/modeles/domaine.modeles';
 import {
@@ -56,6 +64,9 @@ const ETAPES_SUIVANTES: Partial<
  * (`paiementRequisPour`) : l'action reste visible et focusable, neutralisée par
  * `aria-disabled` et son motif, et la garde empêche l'appel. Le serveur garde le dernier
  * mot ; s'il refuse malgré tout, son message passe par la notice existante.
+ *
+ * La liste est relue à la demande (« Actualiser ») et quand l'onglet redevient visible : ces deux
+ * lectures remplacent les données **sans** effacer l'écran, sans minuteur ni polling (§29).
  */
 @Component({
   selector: 'app-commandes-recues',
@@ -76,6 +87,12 @@ export class CommandesRecues {
   protected readonly succes = signal<{ id: number; message: string } | null>(null);
   protected readonly refus = signal<{ id: number; message: string } | null>(null);
 
+  /**
+   * Lecture relancée sur une liste déjà affichée : distincte du `chargement` initial, qui lui
+   * remplace la liste par l'état « Chargement… ».
+   */
+  protected readonly actualisation = signal(false);
+
   protected readonly formaterDateHeure = formaterDateHeure;
   protected readonly formaterMontant = formaterMontant;
   protected readonly formaterQuantite = formaterQuantite;
@@ -86,6 +103,18 @@ export class CommandesRecues {
 
   constructor() {
     this.charger();
+
+    // Un onglet qui redevient visible est relécu une fois : c'est le seul réveil prévu, aucun
+    // minuteur et aucun polling (§29). L'écouteur est retiré à la destruction du composant.
+    const auRetourDeOnglet = () => {
+      if (document.visibilityState === 'visible') {
+        this.actualiser();
+      }
+    };
+    document.addEventListener('visibilitychange', auRetourDeOnglet);
+    inject(DestroyRef).onDestroy(() =>
+      document.removeEventListener('visibilitychange', auRetourDeOnglet),
+    );
 
     effect(() => {
       const zone = this.zoneSucces();
@@ -120,6 +149,37 @@ export class CommandesRecues {
 
   protected reessayer(): void {
     this.charger();
+  }
+
+  /** Une seule lecture de liste à la fois, quoi qui la déclenche : clic ou retour d'onglet. */
+  protected bloqueActualisation(): boolean {
+    return this.chargement() || this.actualisation() || this.commandeEnCours() !== null;
+  }
+
+  /**
+   * Relit `GET /api/commandes` sans rien effacer : la liste affichée reste en place, le message
+   * de succès et le focus aussi. En cas d'échec, seul le message d'erreur change — une liste
+   * périmée vaut mieux qu'une liste vide. Le serveur reste seul autorité du statut.
+   */
+  protected actualiser(): void {
+    if (this.bloqueActualisation()) {
+      return;
+    }
+    this.actualisation.set(true);
+
+    this.commandes.lister().subscribe({
+      next: (commandes) => {
+        this.liste.set(commandes);
+        this.erreur.set(null);
+        this.actualisation.set(false);
+      },
+      error: (erreur: unknown) => {
+        this.erreur.set(
+          messageErreurApi(erreur, 'Impossible de charger les commandes reçues.'),
+        );
+        this.actualisation.set(false);
+      },
+    });
   }
 
   /** L'unique étape autorisée depuis ce statut, ou `null` : une action impossible n'est jamais affichée. */
