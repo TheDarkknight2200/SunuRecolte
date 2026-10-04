@@ -3,6 +3,7 @@ package com.sunurecolte.exception;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -76,6 +77,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(new ErrorResponse(HttpStatus.FORBIDDEN.value(),
                         "Accès refusé : vous n'avez pas les droits nécessaires pour cette action."));
+    }
+
+    // --- 429 Trop de tentatives (blocage temporaire d'un couple email + adresse) ---
+    // Le couple doit patienter : Retry-After porte le nombre de secondes restantes, pour qu'un
+    // client correct puisse attendre au lieu de réessayer plus fort.
+    @ExceptionHandler(TropDeTentativesException.class)
+    public ResponseEntity<ErrorResponse> handleTropDeTentatives(TropDeTentativesException ex) {
+        log.warn("Tentatives de connexion limitées : {} seconde(s) avant la prochaine tentative.",
+                ex.secondesAvantNouvelleTentative());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.secondesAvantNouvelleTentative()))
+                .body(new ErrorResponse(HttpStatus.TOO_MANY_REQUESTS.value(),
+                        "Trop de tentatives de connexion. Réessayez dans quelques minutes."));
     }
 
     // --- 400 Corps de requête illisible (JSON malformé, valeur d'enum inconnue, type invalide) ---
