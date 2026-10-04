@@ -103,7 +103,7 @@ describe('Inscription', () => {
     saisir(fixture.nativeElement, '#inscription-prenom', 'Moussa');
     saisir(fixture.nativeElement, '#inscription-email', valeurs.email ?? 'moussa.ndiaye@example.sn');
     saisir(fixture.nativeElement, '#inscription-telephone', '771234567');
-    saisir(fixture.nativeElement, '#inscription-mot-de-passe', valeurs.motDePasse ?? 'secret1');
+    saisir(fixture.nativeElement, '#inscription-mot-de-passe', valeurs.motDePasse ?? 'mangue78');
     fixture.detectChanges();
   }
 
@@ -173,17 +173,42 @@ describe('Inscription', () => {
     expect(http.match(() => true)).toHaveLength(0);
   });
 
-  it('signale un mot de passe de moins de six caractères', () => {
+  it('signale un mot de passe de sept caractères et n’envoie rien', () => {
     const fixture = creer();
     choisirRole(fixture.nativeElement, 'PRODUCTEUR');
-    remplirIdentite(fixture, { motDePasse: 'court' });
+    remplirIdentite(fixture, { motDePasse: 'mangue7' });
     choisirOption(fixture.nativeElement, '#inscription-filiere', 'Maraîchage');
 
     soumettre(fixture);
 
     expect(erreurs(fixture)).toEqual([
-      'Le mot de passe doit contenir au moins 6 caractères.',
+      'Le mot de passe doit contenir au moins 8 caractères.',
     ]);
+    expect(http.match(() => true)).toHaveLength(0);
+  });
+
+  it('accepte un mot de passe de huit caractères, limite exacte de la règle', () => {
+    const fixture = creer();
+    choisirRole(fixture.nativeElement, 'PRODUCTEUR');
+    remplirIdentite(fixture, { motDePasse: 'mangue78' });
+    choisirOption(fixture.nativeElement, '#inscription-filiere', 'Maraîchage');
+
+    soumettre(fixture);
+
+    expect(erreurs(fixture)).toEqual([]);
+    const requete = http.expectOne(`${API}/auth/inscription`);
+    expect((requete.request.body as { motDePasse: string }).motDePasse).toBe('mangue78');
+
+    requete.flush(REPONSE);
+  });
+
+  it('annonce la règle de huit caractères dans le champ et son aide', () => {
+    const fixture = creer();
+    const racine = fixture.nativeElement as HTMLElement;
+
+    const champ = element<HTMLInputElement>(racine, '#inscription-mot-de-passe');
+    expect(champ.getAttribute('minlength')).toBe('8');
+    expect(racine.textContent).toContain('8 caractères minimum.');
   });
 
   it('exige la filière d’un producteur et jamais le type d’acheteur', () => {
@@ -215,7 +240,7 @@ describe('Inscription', () => {
       prenom: 'Moussa',
       email: 'moussa.ndiaye@example.sn',
       telephone: '771234567',
-      motDePasse: 'secret1',
+      motDePasse: 'mangue78',
       role: 'PRODUCTEUR',
       filiere: 'MARAICHAGE',
     });
@@ -246,7 +271,7 @@ describe('Inscription', () => {
       prenom: 'Moussa',
       email: 'moussa.ndiaye@example.sn',
       telephone: '771234567',
-      motDePasse: 'secret1',
+      motDePasse: 'mangue78',
       role: 'ACHETEUR',
       typeAcheteur: 'RESTAURATEUR',
     });
