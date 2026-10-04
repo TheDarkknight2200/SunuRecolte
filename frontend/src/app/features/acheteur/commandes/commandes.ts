@@ -10,6 +10,7 @@ import {
 } from '../../../core/modeles/referentiels';
 import { CommandeService } from '../../../core/services/commande.service';
 import { messageErreurApi } from '../../../core/utilitaires/erreurs-api';
+import { libellePaiement } from '../../../core/utilitaires/paiement-commande';
 import { formaterDateHeure, formaterMontant } from '../../../core/utilitaires/formatage';
 
 /**
@@ -35,6 +36,9 @@ export class Commandes {
 
   protected readonly formaterDateHeure = formaterDateHeure;
   protected readonly formaterMontant = formaterMontant;
+
+  /** Le mot du paiement vient de la source unique, la même que sur les commandes reçues. */
+  protected readonly libellePaiement = libellePaiement;
 
   constructor() {
     this.charger();

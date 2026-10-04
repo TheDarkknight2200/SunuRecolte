@@ -96,7 +96,27 @@
         </ul>
 
         <div class="commande__actions">
-          <a class="bouton bouton--secondaire" routerLink="/recoltes">Retour au catalogue</a>
+          @if (commande.statut === 'EN_ATTENTE') {
+            @if (commande.statutPaiement === null) {
+              <a
+                class="bouton bouton--primaire"
+                id="commande-payer"
+                [routerLink]="['/acheteur/paiement', commande.id]"
+              >
+                Payer cette commande
+              </a>
+            }
+            <a
+              class="bouton bouton--secondaire"
+              id="commande-detail"
+              [routerLink]="['/acheteur/commandes', commande.id]"
+            >
+              Voir ma commande
+            </a>
+          }
+          <a class="bouton bouton--secondaire" id="commande-catalogue" routerLink="/recoltes">
+            Retour au catalogue
+          </a>
         </div>
       </div>
     } @else if (estVide()) {

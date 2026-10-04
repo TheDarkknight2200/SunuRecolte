@@ -1,5 +1,9 @@
 import { CommandeResponse } from '../modeles/domaine.modeles';
-import { StatutCommande } from '../modeles/referentiels';
+import {
+  LIBELLES_MOYEN_PAIEMENT,
+  LIBELLES_STATUT_PAIEMENT,
+  StatutCommande,
+} from '../modeles/referentiels';
 
 /**
  * Reflet de `CommandeService.CIBLES_EXIGEANT_UN_PAIEMENT`
@@ -20,6 +24,9 @@ const MESSAGE_AVANT_MISE_PRETE = "Une commande en livraison doit être payée av
 
 /** La règle ne lit que ces deux propriétés ; un appelant passe une `CommandeResponse` complète. */
 type ReceptionEtPaiement = Pick<CommandeResponse, 'modeReception' | 'statutPaiement'>;
+
+/** Les deux champs que le serveur rend sur le paiement d'une commande. */
+type PaiementRendu = Pick<CommandeResponse, 'statutPaiement' | 'moyenPaiement'>;
 
 /**
  * Source unique, côté frontend, de la règle « une livraison doit être payée avant
@@ -50,4 +57,23 @@ export function messageDePaiementRequis(cible: StatutCommande): string | null {
     return MESSAGE_AVANT_MISE_PRETE;
   }
   return null;
+}
+
+/**
+ * Source unique du mot affiché sur le paiement d'une commande, pour les deux espaces :
+ * la liste et le détail de l'acheteur, les commandes reçues du producteur. Rien n'est
+ * déduit ici — seul `null` (aucun paiement enregistré) devient le constat « Aucun paiement » ;
+ * tout autre statut reprend le libellé du serveur, précédé du moyen quand il est rendu.
+ *
+ * La nullabilité de `moyenPaiement` est traitée, pas assumée : un statut sans moyen s'affiche
+ * seul, sans séparateur orphelin ni « undefined » dans la phrase.
+ */
+export function libellePaiement(commande: PaiementRendu): string {
+  if (commande.statutPaiement === null) {
+    return 'Aucun paiement';
+  }
+  const statut = LIBELLES_STATUT_PAIEMENT[commande.statutPaiement];
+  return commande.moyenPaiement === null
+    ? statut
+    : `${LIBELLES_MOYEN_PAIEMENT[commande.moyenPaiement]} — ${statut}`;
 }

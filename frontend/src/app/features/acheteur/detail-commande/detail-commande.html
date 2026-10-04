@@ -61,6 +61,10 @@
             <dt>Mode de réception</dt>
             <dd>{{ libelleReception(c.modeReception) }}</dd>
           </div>
+          <div>
+            <dt>Paiement</dt>
+            <dd>{{ libellePaiement(c) }}</dd>
+          </div>
         </dl>
 
         <p class="detail-commande__total">
@@ -138,7 +142,7 @@
         >
           Retour à mes commandes
         </a>
-        @if (payable()) {
+        @if (payable() && c.statutPaiement === null) {
           <a
             class="bouton bouton--encre bouton--compact"
             id="commande-payer"
@@ -158,6 +162,10 @@
           </button>
         }
       </div>
+
+      @if (annoncePaiement(); as message) {
+        <p class="message message--info" role="status">{{ message }}</p>
+      }
     }
 
     @if (confirmationAnnulation() && commande(); as c) {
