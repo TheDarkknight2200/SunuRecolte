@@ -302,6 +302,98 @@ class ConcurrenceApiTest {
         assertThat(stockFinal).isEqualByComparingTo("5.00");
     }
 
+    // --- f. Paiement et annulation simultanés ---------------------------------
+
+    /**
+     * Une commande EN_ATTENTE reçoit son paiement et son annulation au même instant. Le test
+     * n'impose pas un gagnant : les deux ordres sont recevables. Ce qui ne doit jamais exister est
+     * un état commité incohérent — une commande annulée qui laisse derrière elle un paiement
+     * REUSSI, ou un stock rendu plus d'une fois.
+     */
+    @Test
+    void paiementEtAnnulationSimultanesNeLaissentJamaisUnPaiementReussiSurUneCommandeAnnulee() {
+        Acheteur acheteur = creerAcheteur();
+        Producteur producteur = creerProducteur();
+        Recolte recolte = creerRecolte(producteur, "Gombos de concurrence", "5.00");
+        Long commandeId = creerCommande(acheteur, Map.of(recolte.getId(), "2.00"));
+
+        assertThat(quantiteDisponible(recolte.getId())).isEqualByComparingTo("3.00");
+
+        List<ReponseHttp> reponses = executerEnMemeTemps(2, index ->
+                index == 0 ? payer(acheteur, commandeId) : annuler(acheteur, commandeId));
+
+        aucuneErreurServeur(reponses);
+        for (ReponseHttp reponse : reponses) {
+            assertThat(reponse.statut())
+                    .withFailMessage(() -> "Un paiement et une annulation simultanés ne peuvent produire "
+                            + "qu'un succès ou un refus métier. Reçu " + reponse.statut()
+                            + " : " + reponse.corps())
+                    .isIn(200, 201, 400);
+        }
+
+        String statutCommande = statutCommande(commandeId);
+        String statutPaiement = statutPaiementUnique(commandeId);
+        BigDecimal stockFinal = quantiteDisponible(recolte.getId());
+
+        if ("ANNULEE".equals(statutCommande)) {
+            assertThat(statutPaiement)
+                    .withFailMessage(() -> "Une commande annulée ne peut pas porter un paiement réussi : "
+                            + "paiement " + statutPaiement + ", statut " + statutCommande + ".")
+                    .isIn(null, "REMBOURSE", "ANNULE");
+            assertThat(stockFinal).isEqualByComparingTo("5.00");
+        } else {
+            assertThat(statutCommande).isEqualTo("EN_ATTENTE");
+            assertThat(statutPaiement).isEqualTo("REUSSI");
+            assertThat(stockFinal).isEqualByComparingTo("3.00");
+        }
+    }
+
+    // --- g. Confirmation et annulation simultanées ------------------------------
+
+    /**
+     * Une commande en RETRAIT — donc sans paiement exigé — est confirmée par le producteur et
+     * annulée par l'acheteur au même instant. L'annulation restant autorisée depuis CONFIRMEE, les
+     * deux ordres d'exécution sont légitimes et le test ne désigne aucun gagnant. Ce qui est
+     * interdit est l'état « ANNULÉE puis CONFIRMÉE », qui se lit exactement comme : statut final
+     * CONFIRMEE avec un stock déjà restitué.
+     */
+    @Test
+    void confirmationEtAnnulationSimultaneesNeRendentPasLeStockSousUneCommandeConfirmee() {
+        Acheteur acheteur = creerAcheteur();
+        Producteur producteur = creerProducteur();
+        Recolte recolte = creerRecolte(producteur, "Riz de concurrence", "5.00");
+        Long commandeId = creerCommande(acheteur, Map.of(recolte.getId(), "2.00"));
+
+        assertThat(quantiteDisponible(recolte.getId())).isEqualByComparingTo("3.00");
+
+        List<ReponseHttp> reponses = executerEnMemeTemps(2, index ->
+                index == 0 ? confirmer(producteur, commandeId) : annuler(acheteur, commandeId));
+
+        aucuneErreurServeur(reponses);
+        for (ReponseHttp reponse : reponses) {
+            assertThat(reponse.statut())
+                    .withFailMessage(() -> "Confirmation et annulation simultanées ne peuvent produire "
+                            + "qu'un succès ou un refus métier. Reçu " + reponse.statut()
+                            + " : " + reponse.corps())
+                    .isIn(200, 400);
+        }
+
+        String statutFinal = statutCommande(commandeId);
+        BigDecimal stockFinal = quantiteDisponible(recolte.getId());
+
+        if ("ANNULEE".equals(statutFinal)) {
+            assertThat(stockFinal).isEqualByComparingTo("5.00");
+        } else {
+            assertThat(statutFinal).isEqualTo("CONFIRMEE");
+            assertThat(stockFinal)
+                    .withFailMessage(() -> "Une commande confirmée doit avoir son stock retiré : le stock "
+                            + "n'a donc pas pu être rendu une fois, ou alors la commande a été annulée puis "
+                            + "confirmée. Statut final " + statutFinal + ", stock final " + stockFinal
+                            + " (la commande de préparation avait retiré 2,00 d'un stock de 5,00).")
+                    .isEqualByComparingTo("3.00");
+        }
+    }
+
     // --- Harnais de concurrence -----------------------------------------------
 
     /**
@@ -411,10 +503,19 @@ class ConcurrenceApiTest {
     }
 
     private ReponseHttp annuler(Acheteur acheteur, Long commandeId) {
+        return changerStatut(acheteur.getUtilisateur(), commandeId, "ANNULEE");
+    }
+
+    /** CONFIRMEE relève du producteur concerné : l'acheteur propriétaire n'en a pas le droit. */
+    private ReponseHttp confirmer(Producteur producteur, Long commandeId) {
+        return changerStatut(producteur.getUtilisateur(), commandeId, "CONFIRMEE");
+    }
+
+    private ReponseHttp changerStatut(Utilisateur utilisateur, Long commandeId, String statut) {
         return envoyer(patch("/api/commandes/{id}/statut", commandeId)
-                .with(avecJetonDe(acheteur.getUtilisateur()))
+                .with(avecJetonDe(utilisateur))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("statut", "ANNULEE"))));
+                .content(json(Map.of("statut", statut))));
     }
 
     /**
@@ -501,6 +602,25 @@ class ConcurrenceApiTest {
     private String statutRecolte(Long recolteId) {
         return jdbcTemplate.queryForObject(
                 "SELECT statut FROM recoltes WHERE id = ?", String.class, recolteId);
+    }
+
+    private String statutCommande(Long commandeId) {
+        return jdbcTemplate.queryForObject(
+                "SELECT statut FROM commandes WHERE id = ?", String.class, commandeId);
+    }
+
+    /**
+     * Le statut du paiement de la commande, ou {@code null} quand aucun paiement n'existe. Plus d'une
+     * ligne est en soi une violation : la commande ne peut porter qu'un seul paiement.
+     */
+    private String statutPaiementUnique(Long commandeId) {
+        List<String> statuts = jdbcTemplate.queryForList(
+                "SELECT statut FROM paiements WHERE commande_id = ?", String.class, commandeId);
+        assertThat(statuts)
+                .withFailMessage(() -> "Une commande ne peut porter qu'un seul paiement, "
+                        + statuts.size() + " lignes trouvées pour la commande " + commandeId + ".")
+                .hasSizeLessThanOrEqualTo(1);
+        return statuts.isEmpty() ? null : statuts.get(0);
     }
 
     private int compter(String requete, Object... parametres) {

@@ -27,6 +27,8 @@ import com.sunurecolte.user.entity.Role;
 import com.sunurecolte.user.entity.Utilisateur;
 import com.sunurecolte.user.repository.AcheteurRepository;
 import com.sunurecolte.user.repository.ProducteurRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +52,12 @@ import java.util.stream.Collectors;
  * - prix_unitaire des lignes = prix historique au moment de la commande ;
  * - le stock est décrémenté dans la même transaction, sous verrou pessimiste,
  *   et ne peut jamais devenir négatif ;
+ * - ordre des verrous : une opération qui verrouille à la fois une commande et des récoltes prend
+ *   toujours la commande d'abord, puis les récoltes triées par identifiant (annulation, où le stock
+ *   est rendu après le verrou de la commande ; paiement, qui ne verrouille que la commande). La
+ *   création d'une commande ne verrouille que des récoltes, car sa
+ *   ligne de commande n'existe pas encore. Aucun chemin n'attend une commande en tenant une récolte :
+ *   le graphe d'attente ne peut donc pas boucler ;
  * - transitions de statut autorisées :
  *   EN_ATTENTE → {CONFIRMEE, ANNULEE} ; CONFIRMEE → {PRETE, ANNULEE} ;
  *   PRETE → {LIVREE} ; LIVREE et ANNULEE sont terminaux ;
@@ -99,6 +107,10 @@ public class CommandeService {
     private final RecolteRepository recolteRepository;
     private final PaiementRepository paiementRepository;
     private final NotificationService notificationService;
+
+    /** Sert uniquement à recharger la commande sous verrou, jamais à écrire. */
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public List<CommandeResponse> rechercher(Long acheteurId, UtilisateurPrincipal principal) {
         List<Commande> commandes = switch (principal.getRole()) {
@@ -194,11 +206,18 @@ public class CommandeService {
     @Transactional
     public CommandeResponse changerStatut(Long id, StatutCommandeRequest request,
                                           UtilisateurPrincipal principal) {
+        // Le contrôle d'accès porte sur une lecture sans verrou : un demandeur qui n'est pas partie
+        // prenante ne doit jamais pouvoir prendre le verrou d'une commande qui n'est pas la sienne.
         Commande commande = trouver(id);
+        verifierDroitDeChangerStatut(commande, request.statut(), principal);
+
+        // Tout ce qui décide et tout ce qui écrit se joue ensuite sur la version commitée lue sous
+        // verrou : deux annulations simultanées ne peuvent plus toutes deux se croire EN_ATTENTE et
+        // rendre le stock chacune de leur côté.
+        verrouillerEtRecharger(commande);
+
         StatutCommande actuel = commande.getStatut();
         StatutCommande cible = request.statut();
-
-        verifierDroitDeChangerStatut(commande, cible, principal);
 
         if (cible == actuel) {
             throw new BusinessException("La commande est déjà au statut " + actuel + ".");
@@ -210,6 +229,7 @@ public class CommandeService {
 
         verifierPaiementAvantConfirmation(commande, cible);
 
+        // Sous le verrou de la commande, donc une seule fois par commande.
         if (cible == StatutCommande.ANNULEE) {
             restaurerStock(commande);
             rembourserOuAnnulerPaiement(commande);
@@ -367,6 +387,23 @@ public class CommandeService {
 
     private Commande trouver(Long id) {
         return commandeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
+    }
+
+    /**
+     * Prend le verrou pessimiste en écriture sur la commande, puis recharge la version commitée dans
+     * l'instance déjà suivie. La requête verrouillée rend en effet la même instance sans y appliquer
+     * l'état relu : sans la relecture, la décision se prendrait sur un statut périmé et le verrou ne
+     * protégerait que la ligne. L'instance reste suivie, contrairement à un détachement, qui casserait
+     * les écritures ultérieures de la transaction.
+     */
+    private void verrouillerEtRecharger(Commande commande) {
+        trouverAvecVerrou(commande.getId());
+        entityManager.refresh(commande);
+    }
+
+    private Commande trouverAvecVerrou(Long id) {
+        return commandeRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
     }
 
