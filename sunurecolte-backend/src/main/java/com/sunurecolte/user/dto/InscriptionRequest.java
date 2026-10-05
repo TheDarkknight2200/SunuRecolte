@@ -17,6 +17,10 @@ import jakarta.validation.constraints.Size;
  * L'inscription crée aussi le profil correspondant. Les colonnes filiere
  * (producteur) et type_acheteur (acheteur) sont obligatoires en base :
  * le champ correspondant au rôle choisi est donc exigé par le service.
+ *
+ * Le mot de passe exige au moins 8 caractères à la création. Cette règle n'est pas
+ * reprise dans {@link ConnexionRequest} : un compte créé plus tôt avec 6 ou 7 caractères
+ * doit continuer à pouvoir se connecter.
  */
 public record InscriptionRequest(
 
@@ -38,7 +42,7 @@ public record InscriptionRequest(
         String telephone,
 
         @NotBlank(message = "Le mot de passe est obligatoire")
-        @Size(min = 6, message = "Le mot de passe doit contenir au moins 6 caractères")
+        @Size(min = 8, message = "Le mot de passe doit contenir au moins 8 caractères")
         String motDePasse,
 
         @NotNull(message = "Le rôle est obligatoire")

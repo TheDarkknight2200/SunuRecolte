@@ -9,6 +9,7 @@ import {
   withDisabledInitialNavigation,
 } from '@angular/router';
 import { AuthResponse } from '../../../core/modeles/auth.modeles';
+import { CLE_JETON } from '../../../core/services/auth.service';
 import { Connexion } from './connexion';
 
 const API = 'http://localhost:8080/api';
@@ -174,6 +175,53 @@ describe('Connexion', () => {
     const message = element<HTMLElement>(fixture.nativeElement, '.message--erreur');
     expect(message.textContent).toContain('Email ou mot de passe incorrect.');
     expect(routeur.navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it('n’impose aucune longueur au mot de passe, pour laisser entrer les comptes anciens', () => {
+    const fixture = creer();
+    saisir(fixture.nativeElement, '#connexion-email', 'awa.diop@example.sn');
+    saisir(fixture.nativeElement, '#connexion-mot-de-passe', 'mangue');
+    fixture.detectChanges();
+
+    soumettre(fixture);
+
+    // La règle des huit caractères ne regarde que l'inscription : un compte créé avant doit
+    // pouvoir se connecter, sinon la limitation deviendrait une fermeture de comptes.
+    expect(erreurs(fixture)).toEqual([]);
+    const requete = http.expectOne(`${API}/auth/connexion`);
+    expect(requete.request.body).toEqual({ email: 'awa.diop@example.sn', motDePasse: 'mangue' });
+
+    requete.flush(REPONSE);
+  });
+
+  it('affiche la limite de tentatives renvoyée par le backend sans vider le formulaire', () => {
+    const fixture = creer();
+    identifier(fixture);
+
+    soumettre(fixture);
+
+    http
+      .expectOne(`${API}/auth/connexion`)
+      .flush(
+        {
+          statut: 429,
+          message: 'Trop de tentatives de connexion. Réessayez dans quelques minutes.',
+          timestamp: '2026-01-01T10:00:00',
+        },
+        { status: 429, statusText: 'Too Many Requests' },
+      );
+    fixture.detectChanges();
+
+    const racine = fixture.nativeElement as HTMLElement;
+    expect(element<HTMLElement>(racine, '.message--erreur').textContent).toContain(
+      'Trop de tentatives de connexion. Réessayez dans quelques minutes.',
+    );
+    // Les valeurs saisies restent visibles : l'utilisateur n'a pas tout à ressaisir.
+    expect(element<HTMLInputElement>(racine, '#connexion-email').value).toBe('awa.diop@example.sn');
+    expect(element<HTMLInputElement>(racine, '#connexion-mot-de-passe').value).toBe('secret1');
+    // Un 429 n'est ni un 401 ni un 403 : ni purge de session, ni redirection.
+    expect(routeur.navigateByUrl).not.toHaveBeenCalled();
+    expect(localStorage.getItem(CLE_JETON)).toBeNull();
   });
 
   it('revient à la page demandée après connexion (paramètre retour interne)', () => {

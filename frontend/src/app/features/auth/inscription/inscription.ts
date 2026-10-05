@@ -75,7 +75,7 @@ export class Inscription {
       [Validators.required, Validators.email, domaineEmailComplet, Validators.maxLength(150)],
     ],
     telephone: ['', [Validators.required, Validators.maxLength(20)]],
-    motDePasse: ['', [Validators.required, Validators.minLength(6)]],
+    motDePasse: ['', [Validators.required, Validators.minLength(8)]],
     filiere: this.fb.control<Filiere | null>(null),
     typeAcheteur: this.fb.control<TypeAcheteur | null>(null),
   });
@@ -128,7 +128,7 @@ export class Inscription {
       return MESSAGE_DOMAINE_INCOMPLET;
     }
     if (controle.hasError('minlength')) {
-      return 'Le mot de passe doit contenir au moins 6 caractères.';
+      return 'Le mot de passe doit contenir au moins 8 caractères.';
     }
     if (controle.hasError('maxlength')) {
       return 'Ce champ est trop long.';

@@ -2,6 +2,7 @@ package com.sunurecolte.user.service;
 
 import com.sunurecolte.exception.BusinessException;
 import com.sunurecolte.security.JwtService;
+import com.sunurecolte.security.LimiteTentativesConnexion;
 import com.sunurecolte.security.UtilisateurPrincipal;
 import com.sunurecolte.user.dto.AuthResponse;
 import com.sunurecolte.user.dto.ConnexionRequest;
@@ -30,7 +31,10 @@ import java.util.Locale;
  * - le mot de passe n'est jamais stocké en clair : seul le hash BCrypt est persisté ;
  * - l'inscription publique ne peut créer que PRODUCTEUR ou ACHETEUR (RoleInscription) ;
  * - un email déjà utilisé est refusé (comparaison insensible à la casse) ;
- * - la connexion ne distingue pas « email inconnu » et « mot de passe erroné ».
+ * - la connexion ne distingue pas « email inconnu » et « mot de passe erroné » ;
+ * - cinq tentatives sans succès sur un même couple (email, adresse du client) bloquent
+ *   provisoirement ce couple, et ce contrôle passe avant toute comparaison de mot de passe
+ *   (LimiteTentativesConnexion).
  */
 @Service
 @RequiredArgsConstructor
@@ -41,6 +45,7 @@ public class AuthService {
     private final AcheteurRepository acheteurRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
+    private final LimiteTentativesConnexion limite;
     private final JwtService jwtService;
 
     @Transactional
@@ -77,10 +82,15 @@ public class AuthService {
     }
 
     @Transactional(readOnly = true)
-    public AuthResponse connecter(ConnexionRequest request) {
+    public AuthResponse connecter(ConnexionRequest request, String adresseClient) {
+        String email = normaliserEmail(request.email());
+
+        // Le comptage passe avant l'authentification : pendant la fenêtre de blocage le compte est
+        // inaccessible même à son titulaire, et un email inconnu est traité de la même façon.
+        limite.autoriserTentative(email, adresseClient);
         Authentication authentification = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        normaliserEmail(request.email()), request.motDePasse()));
+                new UsernamePasswordAuthenticationToken(email, request.motDePasse()));
+        limite.reinitialiserApresSucces(email, adresseClient);
         return versResponse((UtilisateurPrincipal) authentification.getPrincipal());
     }
 

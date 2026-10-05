@@ -2,6 +2,7 @@ package com.sunurecolte.api;
 
 import com.sunurecolte.support.IntegrationTestSupport;
 import com.sunurecolte.user.dto.AuthResponse;
+import com.sunurecolte.user.entity.Role;
 import com.sunurecolte.user.entity.Utilisateur;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -133,6 +134,33 @@ class AuthApiTest extends IntegrationTestSupport {
     }
 
     @Test
+    void inscriptionAvecSeptCaracteresRepond400EtAvecHuitCaracteresRepond201() throws Exception {
+        String septCaracteres = "mangue7";
+        String huitCaracteres = "mangue78";
+
+        String emailRefuse = "sept." + suffixeUnique() + "@sunurecolte.sn";
+        mockMvc.perform(post("/api/auth/inscription")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpsInscription(emailRefuse, septCaracteres, "ACHETEUR",
+                                ", \"typeAcheteur\": \"RESTAURATEUR\"")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erreurs.motDePasse")
+                        .value("Le mot de passe doit contenir au moins 8 caractères"));
+
+        assertThat(utilisateurRepository.findByEmail(emailRefuse)).isEmpty();
+
+        String emailAccepte = "huit." + suffixeUnique() + "@sunurecolte.sn";
+        mockMvc.perform(post("/api/auth/inscription")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpsInscription(emailAccepte, huitCaracteres, "ACHETEUR",
+                                ", \"typeAcheteur\": \"RESTAURATEUR\"")))
+                .andExpect(status().isCreated());
+
+        Utilisateur enregistre = utilisateurRepository.findByEmail(emailAccepte).orElseThrow();
+        assertThat(passwordEncoder.matches(huitCaracteres, enregistre.getMotDePasse())).isTrue();
+    }
+
+    @Test
     void inscriptionProducteurSansFiliereRepond400() throws Exception {
         String email = "sansfiliere." + suffixeUnique() + "@sunurecolte.sn";
 
@@ -173,6 +201,38 @@ class AuthApiTest extends IntegrationTestSupport {
         mockMvc.perform(get("/api/notifications")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authentification.token()))
                 .andExpect(status().isOk());
+    }
+
+    /**
+     * Ce test protège les comptes existants : un compte créé avant le relèvement de la
+     * règle d'inscription avec un mot de passe de six caractères doit pouvoir se connecter.
+     * Le compte est écrit directement en base, avec un vrai hash BCrypt, puisque plus aucune
+     * inscription publique n'accepte cette longueur.
+     */
+    @Test
+    void connexionDUnCompteExistantAvecSixCaracteresRepond200() throws Exception {
+        String motDePasseCourt = "mangue";
+        assertThat(motDePasseCourt).hasSize(6);
+
+        String email = "six-caracteres." + suffixeUnique() + "@sunurecolte.sn";
+        Utilisateur ancienCompte = new Utilisateur();
+        ancienCompte.setNom("Ndiaye");
+        ancienCompte.setPrenom("Moussa");
+        ancienCompte.setEmail(email);
+        ancienCompte.setTelephone(telephoneUnique());
+        ancienCompte.setMotDePasse(passwordEncoder.encode(motDePasseCourt));
+        ancienCompte.setRole(Role.ACHETEUR);
+        ancienCompte.setActif(true);
+        utilisateurRepository.save(ancienCompte);
+
+        mockMvc.perform(post("/api/auth/connexion")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "%s", "motDePasse": "%s"}
+                                """.formatted(email, motDePasseCourt)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.role").value("ACHETEUR"));
     }
 
     @Test
