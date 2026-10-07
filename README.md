@@ -120,6 +120,19 @@ migration versionnée (`V2__...`).
 > avec l'URL publique `GET /api/recoltes/{id}`.
 > Les refus renvoient un JSON (`401` sans jeton valide, `403` sans les droits), jamais une page HTML.
 
+> **Limitation des tentatives de connexion** : cinq tentatives sans succès pour un même couple
+> (email normalisé — trimé puis mis en minuscules — et adresse du client telle que le serveur la voit)
+> dans une fenêtre de quinze minutes arment un blocage de quinze minutes sur ce couple ; la tentative
+> suivante est refusée par un `429` (`Trop de tentatives de connexion. Réessayez dans quelques
+> minutes.`) accompagné d'un en-tête `Retry-After` portant les secondes restantes. Le comptage passe
+> **avant** toute comparaison de mot de passe, un email inconnu est compté exactement comme un email
+> connu, et une connexion réussie efface l'historique du couple. **Avec ses limites** : le compteur est
+> un objet **en mémoire** dans une seule instance du serveur — plusieurs instances derrière un même
+> équilibreur comptent chacune de leur côté et un redémarrage remet tout à zéro ; derrière un proxy
+> inverse, sans résolution d'en-têtes de confiance (`server.forward-headers-strategy=FRAMEWORK` avec un
+> proxy déclaré), toutes les requêtes portent l'adresse du proxy et le blocage frapperait tous les
+> clients à la fois ; aucun crédit n'est accordé à `X-Forwarded-For`, qu'un client peut forger.
+
 ### 4. Compte administrateur initial
 
 Aucune migration Flyway ne contient de mot de passe : un compte ADMIN ne peut pas être obtenu depuis le
@@ -129,7 +142,11 @@ dépôt. L'inscription publique, elle, ne peut créer que des comptes PRODUCTEUR
 
 Procédure locale :
 
-1. Choisir une adresse et un mot de passe **locaux** (au moins 6 caractères, comme à l'inscription) ;
+1. Choisir une adresse et un mot de passe **locaux** : l'amorçage refuse un mot de passe de moins de
+   6 caractères (`AdminInitializer`), mais retenez-en au moins 8 — c'est le minimum exigé à
+   l'inscription publique (`@Size(min = 8)` dans `InscriptionRequest`). La connexion, elle, n'impose
+   **aucune** longueur : un compte créé plus tôt avec 6 ou 7 caractères reste accessible, la règle
+   nouvelle n'étant pas rétroactive ;
 2. Les fournir **soit** en variables d'environnement avant de lancer l'API :
 
    ```bash

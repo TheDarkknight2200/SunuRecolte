@@ -859,14 +859,17 @@ commande. » et un lien « Parcourir le catalogue » vers `/recoltes`), liste. S
 `data.roles: ['ACHETEUR']`, chargé paresseusement, atteint par le lien « Payer la commande » de la fiche
 de commande (§33). Titre de page : « SunuRecolte — Paiement simulé ».
 
-**Ce que le backend admet réellement, et rien de plus.** `PaiementService.creer` refuse `ANNULEE` et
-`LIVREE` par un 400, accepte `EN_ATTENTE`, `CONFIRMEE` et `PRETE`, écrit **toujours** un paiement
-`EN_ATTENTE` portant une référence `SIMU-…`, et reprend le montant à `commande.getTotal()`. Dans l'API
-actuelle, **aucun chemin ne produit `REUSSI` ni `ECHOUE`** : l'écran n'écrit donc jamais l'un de ces
-statuts, ne le suggère jamais dans un libellé, et ne propose aucune action qui le ferait croire (§28).
-`STATUTS_PAYABLES` du composant est le reflet de cette table de service, pas une règle concurrente ; la
-seule autorité reste le serveur (403 si la commande n'est pas au titulaire du jeton, 400 si un paiement
-existe déjà).
+**Ce que le backend admet réellement, et rien de plus (correction, octobre 2026).**
+`PaiementService.creer` refuse `ANNULEE` et `LIVREE` par un 400, accepte `EN_ATTENTE`, `CONFIRMEE` et
+`PRETE`, reprend le montant à `commande.getTotal()` et enregistre le paiement **en `REUSSI`** : la
+réussite fait partie de la simulation. `appliquerLaReussiteSimulee` est le seul chemin qui écrive ce
+statut ; il pose une `dateConfirmation` horodatée par le serveur et une référence `SIMU-…`. `ECHOUE`
+n'est écrit par aucun chemin. Une annulation solde le paiement : `REUSSI` devient `REMBOURSE`,
+`EN_ATTENTE` devient `ANNULE`. Pour une commande en `LIVRAISON`, `CONFIRMEE` comme `PRETE` exigent un
+paiement `REUSSI` ; les rendus côté producteur et côté acheteur sont à §41.7 et §41.8 et ne sont pas
+recopiés ici. `STATUTS_PAYABLES` du composant est le reflet de cette table de service, pas une règle
+concurrente ; la seule autorité reste le serveur (403 si la commande n'est pas au titulaire du jeton,
+400 si un paiement existe déjà).
 
 **Deux lectures à l'ouverture, dans cet ordre** : `GET /api/commandes/{id}`, puis
 `GET /api/paiements/commande/{id}` pour savoir si une intention a déjà été enregistrée.

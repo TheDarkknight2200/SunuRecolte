@@ -32,7 +32,12 @@ public class AdminInitializer implements ApplicationRunner {
     /** Téléphone du compte local : aucune fonctionnalité du MVP ne l'utilise. */
     private static final String TELEPHONE_PAR_DEFAUT = "0000000000";
 
-    /** Même longueur minimale que l'inscription publique. */
+    /**
+     * Plancher propre à l'amorçage local : 6 caractères, valeur plus basse que les 8 exigés à
+     * l'inscription publique ({@code InscriptionRequest}). La connexion, elle, n'impose aucune
+     * longueur, pour ne fermer aucun compte créé plus tôt. Renforcement de ce plancher noté dans
+     * TASKS.md, « Reste à faire à la fin du lot paiement ».
+     */
     private static final int LONGUEUR_MINIMALE_MOT_DE_PASSE = 6;
 
     private final UtilisateurRepository utilisateurRepository;
