@@ -1184,6 +1184,83 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   **laissé en l'état** et signalé à l'auteur : ce titre reste mappé sur `EN_ATTENTE` dans le composant, mais le
   serveur écrit `REUSSI` à l'enregistrement.
 
+## LOT STAT-1 — statistiques de vente du producteur (2026-10-08)
+
+> **Ce que couvre cette section** : le premier lot de fonctionnalités utilisateur après les lots
+> concurrence et authentification, consignés d'après le code réellement en place (backend et frontend
+> relus, tests exécutés) et les messages de commits, **aucun hash**.
+>
+> **Porte de validation** : `./mvnw test` sur PostgreSQL réel (aucun mock) pour le backend ; specs
+> Vitest/jsdom + `npx tsc -p tsconfig.app.json --noEmit` + `npx tsc -p tsconfig.spec.json --noEmit` +
+> `npx ng build` pour le frontend. **Aucun de ces rendus n'a été observé dans un navigateur réel** : les
+> trois pastilles de période, les deux graphiques, l'état vide, la notice d'erreur du bas et les largeurs
+> 360 / 768 / 1366 restent à jouer à la main.
+
+- [x] **Backend — `GET /api/producteurs/moi/statistiques`** : paramètre `periode` à trois valeurs
+  (`7j`, `30j` par défaut, `mois`), **réservé PRODUCTEUR** (`SecurityConfig` + recontrôle du
+  rôle dans le service) : un ACHETEUR reçoit `403`, un ADMIN `403`, un anonyme `401`. Le producteur est
+  **toujours déduit du jeton** — aucun identifiant de producteur n'est accepté en paramètre, et un test
+  joue exprès un `producteurId` passé en query pour prouver qu'il est ignoré. Règle exacte écrite dans la
+  Javadoc de `StatistiquesProducteurService` : le grain est la **ligne de commande** jointée à
+  `recolte.producteur`, jamais le `total` de la commande (une commande peut mélanger plusieurs
+  producteurs, vérifié dans `CommandeService.creer`) — un test joue réellement une commande mélangeant
+  les récoltes de **deux producteurs** et vérifie que chacun ne voit que le montant de ses lignes, et que
+  `nombreCommandes` compte cette commande **une seule fois** chez chacun ; `7j` = 7 jours civils courants,
+  `30j` (défaut) =
+  30, `mois` = du 1ᵉʳ du mois courant à aujourd'hui, borne haute exclusive ; une valeur hors de ces trois
+  libellés répond `400` avec un message en français ; les annulées sont **exclues des sommes** et
+  **comptées dans le dénominateur** du taux d'annulation ; `panierMoyen` divise le chiffre d'affaires par
+  les commandes **retenues** (hors annulées) pour que numérateur et dénominateur soient cohérents ;
+  `ventesParJour` rend **une entrée par jour civil, sans trou** (jours à 0 compris) ; `topRecoltes` est
+  limité à **5**, revenu décroissant ; `stockFaible` porte sur l'état **actuel** des récoltes (sous le
+  seuil `5` ou `EPUISEE`, la période ne s'y applique pas) ; `commandesATraiter` compte EN_ATTENTE,
+  CONFIRMEE et PRETE. Cinq projections et un repository dédié (`StatistiquesLigneCommandeRepository`)
+  font le travail en requêtes agrégées : **aucune entité chargée pour calculer une somme, aucun N+1**,
+  aucune dépendance Maven ajoutée. Suite backend : **247 → 262 tests** (`StatistiquesProducteurApiTest`,
+  15 tests, `Failures: 0`)
+- [x] **Frontend — écran `/producteur/statistiques`** : route lazy protégée par `authGuard` puis
+  `roleGuard` (`roles: ['PRODUCTEUR']`), service `StatistiquesService` typé sur les DTO réels, écran en
+  quatre cartes (Chiffre d'affaires, Panier moyen, Commandes, Taux d'annulation), ventes par jour en
+  colonnes, top récoltes en barres horizontales avec **quantité + unité puis revenu**, répartition par
+  statut, stock à surveiller avec lien vers l'édition de la récolte et rappel des commandes à traiter avec
+  lien. **Aucune bibliothèque de graphique** : `app-barres` (`frontend/src/app/partage/graphiques/`) est
+  un composant SVG maison, posé dans le dossier partagé parce que le lot statistiques de l'ADMIN doit le
+  réutiliser. Un SVG **sans `viewBox`** (largeurs en %, hauteurs en px, `font-size` en tokens) pour
+  aucune déformation typographique ; chaque graphique porte `role="img"` + `<title>` et un **tableau
+  alternatif** présent en permanence dans le DOM et masqué visuellement. Palettes et tailles viennent des
+  tokens ; `formaterMontant` et `formaterQuantite` rendent les montants en FCFA. Les trois périodes sont
+  des pastilles du motif catalogue (`aria-pressed`), une région `role="status" aria-live="polite"` rendue
+  **hors condition** annonce le changement de période. Erreur : **notice depuis le bas** (`ToastService`,
+  §39.2) **et** zone actionnable « Réessayer », jamais de bannière ; états chargement et vide (avec lien
+  « Ajouter une récolte ») rendus. Une entrée d'espace ajoutée en markup seul dans `mes-recoltes.html`,
+  au même traitement que « Profil » (§36) ; `/tableau-de-bord` et `mes-recoltes.ts` non touchés.
+  `npx ng build` rendu **sans aucune ligne** `warning|error|budget|exceed`
+- [x] **Limites connues, assumées et non masquées** (écrites dans la Javadoc du service) :
+  **(a)** les commandes **EN_ATTENTE sont incluses** dans le chiffre d'affaires et dans le panier
+  moyen — une commande enregistrée mais pas encore honorée y figure, ce qui surestime les encaissements si
+  l'acheteur renonce ensuite sans annuler ; **(b)** le seuil de stock faible (**5**) est un nombre
+  unique comparé à `quantite_disponible` **quelle que soit l'unité** : 5 kg, 5 bottes ou 5 tonnes
+  déclenchent la même alerte. Sur l'écran, le chiffre d'affaires et le panier moyen sont libellés
+  « Hors commandes annulées. » pour ne pas faire croire à des encaissements définitifs
+- [x] **Tests frontend** : **922 → 955 tests (47 fichiers)**, soit **+33** sur quatre nouveaux fichiers —
+  `statistiques.service.spec.ts` (7 : URL exacte, `periode` seul paramètre, absence par défaut, aucune clé
+  `producteurId`, `403` remonté), `barres.spec.ts` (7 : `role="img"` + `<title>`, tableau alternatif,
+  longueurs de barres exactes, colonnes, zéros sans division par zéro, étiquettes sur un trentième),
+  `statistiques.spec.ts` (17 : trois états, période par défaut `30j`, montants et taux formatés, deux
+  graphiques et leurs entêtes, quantité + unité, aucune requête au second clic sur la pastille active,
+  annonce après changement de période, erreur en notice `type 'erreur'` **et absence de `.message--erreur`**,
+  « Réessayer » et « Actualiser », état vide, répartition, stock, rappel) et
+  `routes-statistiques.spec.ts` (2 : la table de routes lue comme structure, **aucun composant monté**).
+  **Une assertion re-ciblée** : `mes-recoltes.spec.ts` numérotait exactement les liens d'en-tête ; le lien
+  « Statistiques » demandé par le lot s'y insère, le test attend donc cinq liens avec leur identifiant et
+  leur libellé. **Aucune assertion supprimée ni affaiblie** ; la spec du producteur côté commandes reçues
+  est inchangée
+- [x] **Ce qui reste ouvert** : QA navigateur réelle (les huit points du rapport de lot), aucune
+  vérification visuelle des largeurs, le lot statistiques de l'**ADMIN** qui doit réutiliser `app-barres`,
+  et la remise d'aplomb du seuil de stock par unité si l'auteur le valide. Travail porté par la branche
+  `fonctionnalites-statistiques`, en **trois commits** (backend, frontend, tests et documentation),
+  **non poussé**
+
 ## Phase 10 — Intégration
 - [ ] Angular ↔ backend
 - [ ] Flux Producteur → Récolte

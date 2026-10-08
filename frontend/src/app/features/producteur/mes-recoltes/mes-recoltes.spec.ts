@@ -256,7 +256,7 @@ describe('MesRecoltes', () => {
     expect(hrefs).toEqual(['/producteur/recoltes/12/modifier', '/recoltes/12']);
   });
 
-  it('offre une entrée vers les commandes reçues, le profil et les notifications, sans déplacer « Publier une récolte »', () => {
+  it('offre une entrée vers les commandes reçues, le profil, les statistiques et les notifications, sans déplacer « Publier une récolte »', () => {
     ouvrir();
     charger([produit(12)]);
 
@@ -265,12 +265,16 @@ describe('MesRecoltes', () => {
       '/producteur/recoltes/nouvelle',
       '/producteur/commandes',
       '/producteur/profil',
+      '/producteur/statistiques',
       '/notifications',
     ]);
     expect(texteDe(liens[0])).toContain('Publier une récolte');
     expect(texteDe(liens[1])).toBe('Commandes reçues');
     expect(texteDe(liens[2])).toBe('Profil');
-    expect(texteDe(liens[3])).toBe('Notifications');
+    // LOT STAT-1 : une entrée d'espace de plus, au même traitement que « Profil » (§36).
+    expect(liens[3]?.getAttribute('id')).toBe('lien-statistiques');
+    expect(texteDe(liens[3])).toBe('Statistiques');
+    expect(texteDe(liens[4])).toBe('Notifications');
     // La première ancre de l'en-tête reste le déclencheur attendu par le rendu du focus.
     expect(element<HTMLAnchorElement>(racine, '.mes-recoltes__entete a').getAttribute('href')).toBe(
       '/producteur/recoltes/nouvelle',
