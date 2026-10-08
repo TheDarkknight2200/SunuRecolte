@@ -326,3 +326,69 @@ L'URL de l'API est centralisée dans `src/environments/` : `http://localhost:808
 L'identité visuelle, les tokens de design et les règles d'interface font foi dans
 [`FRONTEND_DESIGN.md`](./FRONTEND_DESIGN.md).
 
+### 9. Données de démonstration (profil `demo`)
+
+`DemoDataInitializer` (`src/main/java/com/sunurecolte/config/`) remplit une base locale **vide** : de
+quoi parcourir les écrans et préparer les captures du mémoire — **3 producteurs**, **6 acheteurs**,
+**20 récoltes** et **60 commandes étalées sur les 60 derniers jours**.
+
+```bash
+# Git Bash / Linux / macOS
+cd sunurecolte-backend
+APP_DEMO_MOT_DE_PASSE="un_mot_de_passe_local_d_au_moins_8_caracteres" \
+  ./mvnw spring-boot:run -Dspring-boot.run.arguments=--spring.profiles.active=demo
+```
+
+```powershell
+# Windows PowerShell
+cd sunurecolte-backend
+$env:APP_DEMO_MOT_DE_PASSE = "un_mot_de_passe_local_d_au_moins_8_caracteres"
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=demo"
+```
+
+Le profil peut aussi venir de `SPRING_PROFILES_ACTIVE=demo`, et le mot de passe de la ligne
+`app.demo.mot-de-passe` d'`application-local.properties` (hors Git) plutôt que d'une variable
+d'environnement. Cette valeur sert aussi à **se connecter** aux comptes de démonstration : elle doit
+faire au moins 8 caractères, comme à l'inscription publique.
+
+**Comptes créés** (tous avec le mot de passe fourni — le profil demo ne crée **aucun** ADMIN, l'amorçage
+du §4 reste nécessaire) :
+
+- `producteur1.demo@sunurecolte.sn`, `producteur2.demo@sunurecolte.sn`, `producteur3.demo@sunurecolte.sn`
+  — maraîchère, élevage, et une exploitation céréalière et fruitière ;
+- `acheteur1.demo@sunurecolte.sn` à `acheteur6.demo@sunurecolte.sn` — deux commerçants, deux
+  restaurateurs, deux particuliers.
+
+**Ce que contient le jeu** : 8 + 4 + 8 récoltes selon le producteur, avec un prix unitaire, des
+quantités min/max et une unité réalistes (kg, botte, tête, plateau, litre) ; `EN_ATTENTE` (10),
+`CONFIRMEE` (12), `PRETE` (8), `LIVREE` (22) et `ANNULEE` (8) parmi les commandes ; les trois premières
+commandes mélangent deux producteurs ; les paiements portent `WAVE` et `ORANGE_MONEY`, **simulés** sous
+référence `SIMU-…` comme partout dans le projet ; une récolte est `EPUISEE` et deux sont sous le seuil
+d'alerte de stock faible de l'écran statistiques ; `imageUrl` est vide, donc le catalogue rend son état
+« sans image ». Les dates de commande viennent d'une **graine fixe** : deux bases vides obtiennent les
+mêmes commandes, les mêmes quantités et les mêmes statuts.
+
+**Trois garde-fous** : rien ne s'exécute tant que le profil `demo` n'est pas explicitement activé ;
+`demo` et `prod` actifs ensemble sont **refusés au démarrage**, même si aucun
+`application-prod.properties` n'existe encore ; sans mot de passe fourni (ou trop court), le démarrage
+est refusé — aucune valeur par défaut n'est versionnée, donc aucune n'est inventée. Aucune migration
+Flyway, aucun `data.sql` : le schéma reste la seule autorité, et le jeu de données passe par les
+services réels avec leurs règles métier.
+
+**Idempotence et remise à zéro** : si `producteur1.demo@sunurecolte.sn` existe déjà, un redémarrage ne
+crée rien, ne supprime rien et journalise une ligne INFO. Repartir d'une base vide se fait donc en
+recréant la base locale — **opération destructive, qui efface aussi les données de test déjà saisies** :
+
+```bash
+psql -U postgres -c "DROP DATABASE sunurecolte;"
+psql -U postgres -c "CREATE DATABASE sunurecolte;"
+```
+
+Les migrations Flyway se réappliquent au démarrage suivant.
+
+**Limites consignées** (détail dans `TASKS.md`, LOT DEMO-1) : seules les **commandes** sont étalées dans
+le passé — paiements et notifications gardent l'horodatage de génération ; les statuts de paiement que
+les services ne savent pas écrire (`EN_ATTENTE`, `ECHOUE`, `ANNULE`) ne sont pas simulés par une écriture
+directe, d'où `REUSSI` et `REMBOURSE` seulement ; un compte de démonstration porte le mot de passe commun
+de la variable ; et la génération elle-même n'a pas encore été observée dans un navigateur réel.
+

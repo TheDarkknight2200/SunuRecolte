@@ -1261,6 +1261,99 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   `fonctionnalites-statistiques`, en **trois commits** (backend, frontend, tests et documentation),
   **non poussé**
 
+## LOT DEMO-1 — jeu de données de démonstration derrière un profil (2026-10-08)
+
+> **Ce que couvre cette section** : le mécanisme qui remplit une base locale vide pour parcourir les
+> écrans et préparer les captures du mémoire, consigné d'après le code réellement en place (composant,
+> tests et documentation relus, suite exécutée). **La génération elle-même n'a pas encore été lancée
+> contre une base vide ni observée dans un navigateur** : ce que garantit ce lot, ce sont les tests
+> d'intégration, pas un rendu visuel.
+>
+> **Porte de validation** : `./mvnw test` sur PostgreSQL réel (aucun mock), la classe dédiée jouant le
+> composant dans la transaction du test.
+
+- [x] **Backend — `DemoDataInitializer`** (`config/`, à côté d'`AdminInitializer`) : un
+  `CommandLineRunner` annoté `@Profile("demo")`, donc inerte tant que `spring.profiles.active` ne
+  contient pas `demo`. Trois garde-fous, vérifiés dans cet ordre et **avant** toute écriture : profil
+  à activer explicitement ; `demo` **et** `prod` ensemble refusent le démarrage par une
+  `IllegalStateException` en français — contrôle porté sur l'environnement Spring, donc effectif même
+  si aucun `application-prod.properties` n'existe encore ; mot de passe absent ou de moins de
+  **8 caractères** refuse aussi le démarrage. Le plancher de 8 est celui de l'inscription publique
+  (`InscriptionRequest`), puisque ce mot de passe sert également à se connecter. Aucun `data.sql`,
+  aucune migration Flyway : le schéma reste la seule autorité
+- [x] **Contenu du jeu, écrit par les services réels** : 3 producteurs (maraîchère, élevage, et une
+  exploitation céréalière et fruitière), 6 acheteurs (2 commerçants, 2 restaurateurs, 2 particuliers),
+  20 récoltes (8 + 4 + 8) et 60 commandes. Chaque écriture passe par `AuthService.inscrire` (hash
+  BCrypt, profil créé avec le compte), `ProducteurService.modifierMoi` (profil complet),
+  `RecolteService.creer`, `CommandeService.creer` (prix unitaire et totaux calculés serveur, stock
+  décrémenté sous verrou, passage à `EPUISEE` à zéro, notification de chaque producteur concerné),
+  `PaiementService.creer` (montant repris du total serveur, référence `SIMU-…`) et
+  `CommandeService.changerStatut` (transitions autorisées, paiement exigé avant confirmation d'une
+  livraison, stock rendu et paiement soldé à l'annulation). **Aucune écriture directe en base, aucun
+  contournement** : le modèle approuvé n'admet qu'une filière par producteur, donc l'exploitation
+  « mixte » est `AUTRE` et son détail tient dans la description
+- [x] **États réellement rendus aux écrans, obtenus par la règle et non par une force** : 10
+  `EN_ATTENTE`, 12 `CONFIRMEE`, 8 `PRETE`, 22 `LIVREE`, 8 `ANNULEE` ; les trois **premières** commandes
+  mélangent deux producteurs distincts ; `Piment fort` descend à un stock **piloté** de 0 et devient
+  `EPUISEE` par la règle de `CommandeService`, `Salade` (3,50 botte) et `Mangue` (4,00 kg) s'arrêtent
+  sous le seuil d'alerte **5** de `stockFaible` (LOT STAT-1) — ces trois récoltes sont vendues par des
+  commandes **pilotées** (un rang dédié, une quantité calculée pour tomber juste sur le stock visé) et
+  sont exclues du tirage libre ; les autres récoltes suivent les tirages, sans garantie de rester
+  au-dessus. Le stock restant est suivi côté générateur pour ne **jamais** demander au service
+  plus que le disponible, et une quantité hors stock lève une exception au lieu d'être silencieusement
+  réduite. Les paiements portent `WAVE` et `ORANGE_MONEY`, les deux seuls que connaisse
+  `MoyenPaiement` ; `imageUrl` est vide partout, donc le catalogue rend son état « sans image » — la
+  seule image du dépôt (`frontend/public/images/hero.jpg`) n'est pas une photo de récolte et aucun
+  lien externe n'a été inventé
+- [x] **Génération déterministe et idempotence** : une graine unique (`GRAINE`) rend les mêmes tirages,
+  donc deux bases vides obtiennent les mêmes dates, quantités et statuts. Si le premier compte de
+  démonstration existe déjà (`existsByEmail` sur `producteur1.demo@sunurecolte.sn`), **rien n'est créé
+  et rien n'est supprimé**, une ligne INFO est journalisée ; les journaux ne portent que des adresses
+  email, jamais le mot de passe
+- [x] **Dates étalées — l'arbitrage consenti par l'auteur** : `Commande.dateCreation` retrouve une
+  colonne **modifiable** et le `@PrePersist` ne pose plus qu'une date **absente**. C'est le seul moyen
+  d'étaler les 60 commandes sur les 60 derniers jours sans toucher aux DTO ni à l'API :
+  `CommandeRequest` ne déclare toujours pas cette valeur, aucun chemin d'API n'accepte une date du
+  client. La date est écrite **après** tout le cycle de la commande, sinon le
+  `entityManager.refresh()` du verrou pessimiste (LOT P3) l'écraserait. Un test le prouve : une
+  commande créée par `CommandeService` en usage normal garde l'horodatage du serveur, et la colonne
+  reste malgré tout inscriptible
+- [x] **Tests — `DemoDataInitializerTest`, suite backend 262 → 271** (`Failures: 0`) : 9 tests sur
+  PostgreSQL réel, dans la transaction du test pour rien laisser en base. Effectifs (9 utilisateurs,
+  3 producteurs, 6 acheteurs, 20 récoltes, 60 commandes, notifications non nulles), les cinq statuts
+  avec leurs quantités, commandes mixtes, **aucun stock négatif**, récolte `EPUISEE` et deux récoltes
+  sous le seuil, paiements bornés aux statuts que les services écrivent (`EN_ATTENTE`, `ECHOUE` et
+  `ANNULE` explicitement **absents**, `REMBOURSE` = 4, total = `REUSSI` + 4), étalement des dates
+  (aucune dans le futur, aucune avant les 60 jours, et des commandes aux deux bouts de la fenêtre —
+  au-delà de 30 jours comme dans les 7 derniers ; l'horodatage de référence est pris **après** la
+  génération), deuxième exécution sans doublon, refus `demo` + `prod`, refus sans mot de passe ou trop
+  court **avec rien de créé**. Deux précautions :
+  **aucun test n'active le profil `demo`** (un runner de profil tournerait hors transaction et
+  committerait ses écritures) — le composant est instancié avec les beans réels et un
+  `StandardEnvironment` ; et les compteurs JPQL sont restreints au suffixe `%.demo@sunurecolte.sn`,
+  pour ignorer les données de QA déjà présentes en base locale. Vérifié en sus : aucun autre test du
+  dépôt ne mentionne `@ActiveProfiles` ni `spring.profiles.active`, et la CI ne pose que `JWT_SECRET`
+- [x] **Documentation** : README §9 « Données de démonstration (profil `demo`) » — commande exacte
+  (Git Bash et PowerShell), comptes en **adresses email seulement**, contenu du jeu, trois garde-fous,
+  idempotence, remise à zéro par recréation de la base locale (signalée comme destructive des données
+  de test), limites ; bloc de commentaires dans `application.properties` qui **ne déclare aucune
+  valeur** ; Javadoc du composant portant la méthode et les règles
+- [x] **Limites connues, assumées et non masquées** : **(a)** seules les **commandes** sont étalées —
+  paiements et notifications gardent l'horodatage de génération, une capture de l'historique de
+  paiement ou du centre de notifications les montrera donc tous le même jour ; **(b)** les statuts de
+  paiement `EN_ATTENTE`, `ECHOUE` et `ANNULE` n'existent pas dans le jeu, parce qu'aucun service ne
+  sait les écrire et qu'une écriture directe serait une invention ; **(c)** le mot de passe des neuf
+  comptes est celui de la variable d'environnement, commun à tous — ce jeu n'est pas une démonstration
+  de l'isolation par compte ; **(d)** le profil demo ne crée **aucun** ADMIN, l'amorçage du README §4
+  reste nécessaire pour `/admin` ; **(e)** une récolte dont la vente est pilotée refuse le prélèvement
+  libre, le catalogue des commandes mélangeuses est donc plus restreint sur ces trois lignes ; **(f)**
+  la génération n'a pas encore été lancée contre une base vide ni observée en navigateur
+- [x] **Ce qui reste ouvert** : lancer le profil `demo` sur une base vide et parcourir les écrans
+  (catalogue, statistiques producteur, commandes reçues, espace acheteur, notifications) avant les
+  captures du mémoire ; décider si l'étalement des paiements et des notifications vaut un lot
+  supplémentaire. Travail porté par la branche `fonctionnalites-statistiques`, en **trois commits**
+  (backend, tests, documentation), **non poussé**
+
 ## Phase 10 — Intégration
 - [ ] Angular ↔ backend
 - [ ] Flux Producteur → Récolte
