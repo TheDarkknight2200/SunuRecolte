@@ -94,6 +94,10 @@ public class SecurityConfig {
                         .hasAnyRole("ACHETEUR", "PRODUCTEUR", "ADMIN")
                         // Paiements : un acheteur paie sa commande
                         .requestMatchers(HttpMethod.POST, "/api/paiements").hasAnyRole("ACHETEUR", "ADMIN")
+                        // Statistiques de vente (lot STAT-1) : réservées au producteur. L'identité
+                        // vient du jeton, aucun identifiant de producteur ne passe par l'URL.
+                        .requestMatchers(HttpMethod.GET, "/api/producteurs/moi/statistiques")
+                        .hasRole("PRODUCTEUR")
                         // Administration (Phase 5) : premières routes exclusively ADMIN du projet.
                         // La consultation d'un compte par id reste « propriétaire ou ADMIN » (service).
                         .requestMatchers(HttpMethod.GET, "/api/utilisateurs").hasRole("ADMIN")
