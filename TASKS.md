@@ -1087,21 +1087,102 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 
 ### Reste à faire à la fin du lot paiement
 
-- [ ] **LOT P3 — test de concurrence** : non engagé. Le double envoi simultané d'un paiement est traité par la
-  contrainte `uq_paiements_commande` remontée en `400`, mais **aucun test exécuté ne fait partir deux requêtes
-  en parallèle** ; ce chemin n'est couvert que par le `catch` de `enregistrerSansDoublon`
-- [ ] **LOT P4 — authentification du paiement** : non engagé, aucun périmètre écrit ni testé dans
-  `sunurecolte-backend/src/main/java/com/sunurecolte/paiement` au-delà du LOT P1
-- [ ] **Chargement groupé des lignes de commande (N+1)** : le LOT P2a a groupé les paiements, **pas les
-  lignes** — le N+1 `lignes → recoltes` de `CommandeService.versResponse` est préexistant et hors périmètre
-  des lots paiement
-- [ ] **QA navigateur réelle de ces trois écrans frontend** : jamais jouée pour P2b, P2c et P2d — aucun rendu
-  observé, aucun clic réel, et les largeurs 375 / 768 / 1024 / 1366 non émules
-- [ ] **Bouton d'annulation côté producteur** : **décision en attente de l'auteur**. `CommandeService`
+- [ ] **Bouton « Annuler » côté producteur** : **décision prise, à faire**. `CommandeService`
   l'admet (une cible `ANNULEE` est acceptée pour toute partie prenante de la commande, donc pour un producteur
   concerné), mais l'écran « Commandes reçues » n'expose aucune annulation
+- [ ] **Chargement groupé des lignes de commande (N+1)** : le LOT P2a a groupé les paiements, **pas les
+  lignes** — le N+1 `lignes → recoltes` de `CommandeService.versResponse` est préexistant et hors périmètre
+  des lots paiement ; le groupement se jouerait en deux temps, les lignes puis les récoltes
+- [x] QA manuelle du flux de paiement et du 429 jouée par l'auteur le 2026-10-05 : [Test 429 réalisé et réussi ]
+- [ ] **Préparation du déploiement** : rien n'est engagé — un proxy inverse réel avec sa résolution
+  d'en-têtes (`server.forward-headers-strategy`, sinon le limiteur de connexions lit l'adresse du proxy pour
+  tout le monde et le blocage frapperait tous les clients à la fois), les secrets hors Git
+  (`JWT_SECRET`, `APP_ADMIN_EMAIL`, `APP_ADMIN_PASSWORD`) et une politique de sauvegardes PostgreSQL
+- [ ] **Délai réel de verrou (`lock_timeout`)** : le hint `jakarta.persistence.lock.timeout` est posé par
+  `CommandeRepository` mais **mesuré inerte** sur PostgreSQL avec Hibernate / Spring Boot 3.3.4 (aucune ligne
+  `SET LOCAL lock_timeout` ni `nowait` dans le SQL émis) ; aucun test ne l'exerce, et une expiration de verrou
+  remonterait aujourd'hui au handler générique en `500`
+- [ ] **Mot de passe de l'administrateur initial à renforcer** : l'amorçage local accepte encore 6 caractères
+  (`AdminInitializer`, constante `LONGUEUR_MINIMALE_MOT_DE_PASSE`) alors que l'inscription publique en exige 8
+  depuis le LOT P4 ; remonter ce plancher reste à valider par l'auteur
 - [ ] **Vrai prestataire de paiement** : non engagé, et rien dans ce dépôt ne l'annonce — une intégration Wave
   ou Orange Money réelle demanderait un accès API effectif, une configuration et des tests
+
+## Lots concurrence et authentification P3 → P4 — la règle tient-elle sous la charge (détail réel)
+
+> **Ce que couvre cette section** : les trois lots menés après les lots paiement, consignés d'après `git log`
+> (messages et dates des commits, aucun hash) et le code backend et frontend relu sur `main`. « P3 », « P3b »
+> et « P4 » sont des **repères de consignes de travail**, dans le même esprit que la section
+> « Lots paiement P1 → P2d ».
+>
+> **Porte de validation de ces trois lots** : `./mvnw test` sur PostgreSQL réel (aucun mock) pour les deux lots
+> de concurrence et pour la partie backend du lot d'authentification, specs Vitest/jsdom +
+> `npx tsc -p tsconfig.spec.json --noEmit` + `npm run build` pour sa partie frontend. **Aucun de ces rendus
+> n'a été observé dans un navigateur réel**, et les largeurs 375 / 768 / 1024 / 1366 n'y ont pas été jouées.
+> Les comptes de tests sont ceux **rapportés à l'exécution de chaque lot** (207 → 220 → 228 → 234 puis 236 →
+> 247 backend, 918 → 922 frontend sur la série complète P1 → P4) ; aucune suite n'a été relancée pour la
+> rédaction de cette section.
+
+- [x] **LOT P3 — le stock et le paiement sous requêtes réellement simultanées (2026-10-04)** : commit
+  « test: prouve la tenue du stock et du paiement sous concurrence (annulation concurrente : échec connu) » —
+  `ConcurrenceApiTest`, six tests qui font **partir deux requêtes en parallèle**. La classe n'étend pas
+  `IntegrationTestSupport` : cette base est `@Transactional` donc annulée, et des données rollbackées restent
+  invisibles aux autres connexions ; elle est autonome (préparation par `TransactionTemplate`, état final lu
+  par `JdbcTemplate`, nettoyage `@AfterEach` en ordre de clés étrangères, contrôlé à zéro résidu après 20
+  passages). Stable 20/20 : la dernière unité n'est vendue qu'une seule fois, un stock de trois unités ne se
+  vend pas au-delà de trois commandes, deux commandes sur les mêmes récoltes prises dans l'ordre inverse ne
+  s'interbloquent pas (l'ordre « récoltes triées par identifiant » tient), deux paiements simultanés laissent
+  **un** paiement et un refus métier `400`, et le doublon rejeté par la contrainte `uq_paiements_commande`
+  atteint pour de vrai le `catch` de `enregistrerSansDoublon` et rend le **même** message `400` que le contrôle
+  d'existence, jamais un `500`. Le sixième test — deux annulations simultanées — est commité **rouge** et le
+  reste à chaque exécution. Suite backend : **228 → 234 tests, 1 échec connu**
+- [x] **LOT P3b — l'annulation concurrente rendait le stock deux fois (2026-10-04)** : commit
+  « fix(commande): verrouille la commande pour que l'annulation et le paiement soient sérialisés » — défaut
+  trouvé par le test laissé rouge ci-dessus : `Statuts reçus [200, 200]` et `stock final observé 7.00` là où la
+  règle attend `[200, 400]` et `5.00`. Cause unique : **le statut de la commande est lu et validé sans verrou**,
+  dans `changerStatut` comme dans `PaiementService.creer`. Trois tests portent sur ce mode et leurs taux
+  d'échec ont été mesurés **avant** correctif, dans un worktree détaché : deux annulations simultanées
+  `20/20` rouge, paiement contre annulation `12/20`, confirmation contre annulation `18/20` — les cinq autres
+  n'ont jamais été rouges. Correctif : `findByIdForUpdate` en `@Lock(PESSIMISTIC_WRITE)` dans
+  `CommandeRepository`, contrôle d'accès gardé sur la lecture **sans** verrou (un non-autorisé ne doit pas
+  pouvoir verrouiller une commande qui n'est pas la sienne) puis relecture verrouillée par
+  `entityManager.refresh` pour toute décision et tout effet, et `PaiementService.creer` qui verrouille la
+  commande avant de lire son statut et l'existence d'un paiement. Deux questions restées ouvertes avant
+  l'écriture ont été tranchées par la mesure : le hint `lock.timeout` de Jakarta Persistence est **posé mais
+  inerte** sur PostgreSQL avec Hibernate / Spring Boot 3.3.4 (aucune ligne `SET LOCAL lock_timeout` dans le SQL
+  émis, aucun test ne l'exerce), et une JPQL verrouillée **ne recharge pas** l'instance déjà managée —
+  détacher la lecture d'accès corrigeait la relecture mais cassait la transaction de test partagée. Classe
+  rejouée **20/20 verte
+  sur 20 passages**, huit tests. Suite backend : **234 → 236 tests**
+- [x] **LOT P4 — huit caractères à l'inscription, tentatives de connexion limitées (2026-10-04)** : commits
+  « feat(auth): impose 8 caractères à l'inscription » puis « feat(auth): limite les tentatives de connexion » —
+  `@Size(min = 8)` sur `InscriptionRequest.motDePasse` (« Le mot de passe doit contenir au moins 8 caractères »)
+  et **aucune règle de longueur dans `ConnexionRequest`** : la connexion n'impose rien, pour ne fermer aucun
+  compte créé plus tôt avec 6 ou 7 caractères — un test le vérifie sur un compte réellement écrit en base. Le
+  frontend reprend le même plancher (`Validators.minLength(8)`, attribut `minlength="8"`, aide « 8 caractères
+  minimum. ») et **aucun code de production** n'a été nécessaire pour le `429` : l'intercepteur n'agit que sur
+  `401` et `messageErreurApi` rend déjà le message du serveur. Limitation : `LimiteTentativesConnexion` — cinq
+  tentatives sans succès pour un couple (email normalisé, adresse vue par le serveur) dans une fenêtre de
+  quinze minutes arment quinze minutes de blocage, comptage **atomique sur l'état précédent**, placé **avant**
+  toute comparaison de mot de passe, email inconnu compté comme email connu, connexion réussie effaçant
+  l'historique du couple, refus rendu en `429` avec `Retry-After` en secondes restantes. Limite assumée et
+  écrite en README : compteur **en mémoire dans une seule instance**, remis à zéro au redémarrage, et adresse
+  du proxy partagée par tous les clients sans résolution d'en-têtes de confiance. Le `400` rendu à sept
+  caractères et la séquence `401` cinq fois puis `429` ont été vérifiés en HTTP réel sur l'instance locale le
+  2026-10-05 — pas dans un navigateur. Suite backend : **236 → 247 tests** ; suite frontend :
+  **918 → 922 tests** (43 fichiers)
+- [x] **Clôture Git de cette série** : les deux branches ont été **fusionnées dans `main` par l'auteur**
+  (merges de branche visibles dans `git log`)
+- [x] **Ce que ces lots rendent obsolètes** : trois affirmations de la section précédente ne décrivent plus le
+  code — « **aucun test exécuté ne fait partir deux requêtes en parallèle** » et « ce chemin n'est couvert que
+  par le `catch` de `enregistrerSansDoublon` » (le LOT P3 les joue l'une contre l'autre), et « **LOT P4 —
+  authentification du paiement** : non engagé » (le LOT P4 porte sur l'authentification des comptes, pas sur le
+  module paiement). Le paragraphe de `FRONTEND_DESIGN.md` §34 qui affirmait un paiement **toujours**
+  `EN_ATTENTE` et aucun `REUSSI` possible a été corrigé par le présent lot documentaire ; le passage
+  « Résultat » du même §34, qui donne
+  encore « Simulation enregistrée — paiement en attente. » comme titre rendu après une simulation, est
+  **laissé en l'état** et signalé à l'auteur : ce titre reste mappé sur `EN_ATTENTE` dans le composant, mais le
+  serveur écrit `REUSSI` à l'enregistrement.
 
 ## Phase 10 — Intégration
 - [ ] Angular ↔ backend

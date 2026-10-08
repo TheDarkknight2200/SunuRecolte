@@ -81,8 +81,11 @@ CONFIRMEE, et « Une commande en livraison doit être payée avant d'être marqu
 Un paiement en attente, échoué, remboursé ou annulé ne débloque pas le cycle, et une
 commande sans paiement reste soumise à la même exigence. La règle ne s'applique pas au RETRAIT.
 Elle est vérifiée après le statut déjà atteint et après la transition interdite, avant toute
-écriture. Une annulation restaure le stock (sous verrou pessimiste, un EPUISEE repasse en
-DISPONIBLE) et solde le paiement.
+écriture. Une annulation restaure le stock (un EPUISEE repasse en DISPONIBLE) et solde le paiement. Le
+statut de la commande est lu et validé **sous verrou pessimiste d'écriture** (`findByIdForUpdate`, puis
+relecture de l'instance par `refresh`) : sans lui, deux annulations simultanées rendaient le stock deux
+fois. Ordre des verrous : la commande d'abord, puis les récoltes triées par identifiant. Le délai
+d'attente du verrou (`lock.timeout`) est déclaré mais mesuré inerte sur PostgreSQL avec Hibernate.
 
 `CommandeResponse` expose en fin de record `statutPaiement` et `moyenPaiement` : nullables, une
 commande sans paiement rend les deux `null`. En liste, ces paiements sont chargés en une seule
@@ -171,6 +174,8 @@ La logique métier importante reste dans les Services.
 
 ## Sécurité
 - mots de passe hashés ;
+- 8 caractères minimum exigés à l'inscription (`InscriptionRequest`) ; la connexion n'impose aucune longueur, pour ne fermer aucun compte créé plus tôt avec 6 ou 7 caractères ; l'amorçage local du compte ADMIN accepte encore 6 caractères (`AdminInitializer`) ;
+- tentatives de connexion limitées : cinq échecs pour un couple (email normalisé, adresse vue par le serveur) dans une fenêtre de quinze minutes arment quinze minutes de blocage, refus rendu en 429 avec `Retry-After` ; compteur en mémoire dans une seule instance, remis à zéro au redémarrage ;
 - JWT stateless ;
 - autorisation par rôle côté backend ;
 - validation des entrées ;
