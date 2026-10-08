@@ -30,7 +30,17 @@ public class Commande {
     @JoinColumn(name = "acheteur_id", nullable = false)
     private Acheteur acheteur;
 
-    @Column(name = "date_creation", nullable = false, updatable = false)
+    /**
+     * Date de la commande. Aucun service n'impose de valeur : la colonne garde donc
+     * l'horodatage de {@link #prePersist()} en usage normal.
+     *
+     * La colonne est modifiable ({@code updatable} par défaut) et le {@code @PrePersist}
+     * ne pose une date que si aucune n'a été fournie, pour permettre au seul
+     * {@link com.sunurecolte.config.DemoDataInitializer} d'étaler ses commandes dans le
+     * passé. Aucun chemin d'API n'accepte cette valeur d'un client : le DTO de création
+     * ne la déclare pas.
+     */
+    @Column(name = "date_creation", nullable = false)
     private LocalDateTime dateCreation;
 
     @Enumerated(EnumType.STRING)
@@ -56,8 +66,14 @@ public class Commande {
     @OneToMany(mappedBy = "commande", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<LigneCommande> lignes = new ArrayList<>();
 
+    /**
+     * Pose l'horodatage du serveur quand aucune date n'a été fournie. Le garde laisse passer la
+     * seule écriture volontaire d'une date passée : celle du jeu de démonstration.
+     */
     @PrePersist
     protected void prePersist() {
-        this.dateCreation = LocalDateTime.now();
+        if (this.dateCreation == null) {
+            this.dateCreation = LocalDateTime.now();
+        }
     }
 }
