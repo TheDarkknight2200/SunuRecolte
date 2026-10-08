@@ -108,6 +108,16 @@ export const routes: Routes = [
       import('./features/producteur/profil/profil-producteur').then((m) => m.ProfilProducteur),
   },
   {
+    // GET /api/producteurs/moi/statistiques : le producteur est déduit du jeton par le backend,
+    // l'écran n'envoie aucun identifiant (LOT STAT-1).
+    path: 'producteur/statistiques',
+    title: 'SunuRecolte — Statistiques de vente',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['PRODUCTEUR'] },
+    loadComponent: () =>
+      import('./features/producteur/statistiques/statistiques').then((m) => m.Statistiques),
+  },
+  {
     path: 'acheteur',
     pathMatch: 'full',
     redirectTo: 'acheteur/commandes',

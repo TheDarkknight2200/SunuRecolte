@@ -1,0 +1,237 @@
+<section class="statistiques">
+  <!-- Écran de chiffres : le `.conteneur` global apporte le plafond §20 et les gouttières. -->
+  <div class="conteneur">
+    <div class="statistiques__entete">
+      <div class="statistiques__titre">
+        <p class="statistiques__surtitre">Espace producteur</p>
+        <h1>Statistiques de vente</h1>
+        <p class="statistiques__intro">
+          Ce que vos récoltes ont rapporté sur la période choisie. Les montants viennent du
+          serveur ; l’annulation d’une commande est comptée, sa somme ne l’est pas.
+        </p>
+      </div>
+      <div class="statistiques__entete-actions">
+        <a class="bouton bouton--secondaire" id="lien-mes-recoltes" routerLink="/producteur/recoltes">
+          Voir mes récoltes
+        </a>
+        <a
+          class="bouton bouton--discret bouton--compact"
+          id="lien-commandes-recues"
+          routerLink="/producteur/commandes"
+        >
+          Commandes reçues
+        </a>
+      </div>
+    </div>
+
+    <!--
+      Pastilles de période, au même traitement qu'au catalogue : `aria-pressed` porte le choix,
+      la couleur ne fait que le rendre visible. Le changement relit le même endpoint.
+    -->
+    <div class="statistiques__barre">
+      <div class="champ statistiques__champ" id="periodes" role="group" aria-labelledby="periodes-titre">
+        <span class="champ__libelle" id="periodes-titre">Période</span>
+        <div class="statistiques__pastilles">
+          @for (valeur of periodes; track valeur) {
+            <button
+              type="button"
+              class="bouton"
+              [attr.data-valeur]="valeur"
+              [class.bouton--encre]="valeur === periode()"
+              [class.bouton--secondaire]="valeur !== periode()"
+              [attr.aria-pressed]="valeur === periode()"
+              (click)="choisirPeriode(valeur)"
+            >
+              {{ libellePeriode(valeur) }}
+            </button>
+          }
+        </div>
+      </div>
+      <button
+        type="button"
+        class="bouton bouton--secondaire bouton--compact"
+        id="statistiques-actualiser"
+        [attr.aria-disabled]="chargement() ? 'true' : null"
+        [attr.aria-busy]="chargement() ? 'true' : null"
+        (click)="charger()"
+      >
+        Actualiser
+      </button>
+    </div>
+
+    <!--
+      Région persistante : supprimée puis recréée à chaque lecture, elle n'annoncerait rien.
+      Le texte se vide pendant la requête, ce qui suffit à signaler le changement de période.
+    -->
+    <p class="statistiques__annonce" id="statistiques-annonce" role="status" aria-live="polite">
+      {{ annonce() }}
+    </p>
+
+    @if (chargement()) {
+      <div class="etat" id="statistiques-chargement" aria-busy="true">
+        <p class="etat__texte">Chargement de vos statistiques…</p>
+      </div>
+    } @else if (erreur(); as message) {
+      <!-- La notice du bas (§39.2) porte l'alerte ; ici reste un état vide, avec sa sortie. -->
+      <div class="etat" id="statistiques-erreur">
+        <p class="etat__titre">Statistiques non chargées</p>
+        <p class="etat__texte">{{ message }}</p>
+        <p class="statistiques__etat-actions">
+          <button
+            type="button"
+            class="bouton bouton--primaire bouton--compact"
+            id="statistiques-reessayer"
+            (click)="charger()"
+          >
+            Réessayer
+          </button>
+          <a class="bouton bouton--secondaire bouton--compact" routerLink="/producteur/recoltes">
+            Voir mes récoltes
+          </a>
+        </p>
+      </div>
+    } @else if (vide()) {
+      <div class="etat" id="statistiques-vide">
+        <p class="etat__titre">Pas encore de statistiques</p>
+        <p class="etat__texte">
+          Aucune commande ne touche vos récoltes sur cette période, et aucun stock n’est à
+          surveiller. Publiez une récolte pour commencer à vendre.
+        </p>
+        <p class="statistiques__etat-actions">
+          <a class="bouton bouton--primaire" routerLink="/producteur/recoltes/nouvelle">
+            Ajouter une récolte
+          </a>
+          <a class="bouton bouton--secondaire" routerLink="/producteur/recoltes">
+            Voir mes récoltes
+          </a>
+        </p>
+      </div>
+    } @else if (donnees(); as d) {
+      <div class="statistiques__cartes">
+        <div class="carte statistiques__carte">
+          <p class="statistiques__legende">Chiffre d’affaires</p>
+          <p class="statistiques__valeur statistiques__valeur--dominant">
+            {{ formaterMontant(d.chiffreAffaires) }}
+          </p>
+          <p class="statistiques__precision">Hors commandes annulées.</p>
+        </div>
+        <div class="carte statistiques__carte">
+          <p class="statistiques__legende">Panier moyen</p>
+          <p class="statistiques__valeur">{{ formaterMontant(d.panierMoyen) }}</p>
+          <p class="statistiques__precision">Hors commandes annulées.</p>
+        </div>
+        <div class="carte statistiques__carte">
+          <p class="statistiques__legende">Commandes</p>
+          <p class="statistiques__valeur">{{ d.nombreCommandes }}</p>
+          <p class="statistiques__precision">Commandes annulées comprises.</p>
+        </div>
+        <div class="carte statistiques__carte">
+          <p class="statistiques__legende">Taux d’annulation</p>
+          <p class="statistiques__valeur">{{ formaterQuantite(d.tauxAnnulation, '%') }}</p>
+          <p class="statistiques__precision">
+            Commandes annulées sur {{ d.nombreCommandes }} commande{{ d.nombreCommandes > 1 ? 's' : '' }}.
+          </p>
+        </div>
+      </div>
+
+      <section class="carte statistiques__bloc">
+        <h2 class="carte__titre">Ventes par jour</h2>
+        @if (sansVente()) {
+          <p class="statistiques__precision">
+            Aucune vente enregistrée sur la période ; les journées restent à zéro.
+          </p>
+        } @else {
+          <app-barres
+            orientation="verticale"
+            titre="Montant encaissé par jour sur la période choisie"
+            enteteEtiquette="Jour"
+            enteteValeur="Montant"
+            [series]="ventes()"
+          />
+        }
+      </section>
+
+      <section class="carte statistiques__bloc">
+        <h2 class="carte__titre">Récoltes les plus rémunératrices</h2>
+        @if (recoltes().length === 0) {
+          <p class="statistiques__precision">Aucune récolte vendue sur la période.</p>
+        } @else {
+          <p class="statistiques__precision">
+            Cinq récoltes au plus, classées par revenu décroissant, hors commandes annulées.
+          </p>
+          <app-barres
+            orientation="horizontale"
+            titre="Récoltes les plus rémunératrices de la période, hors commandes annulées"
+            enteteEtiquette="Récolte"
+            enteteValeur="Quantité vendue, puis revenu"
+            [series]="recoltes()"
+          />
+        }
+      </section>
+
+      <section class="carte statistiques__bloc">
+        <h2 class="carte__titre">Répartition des commandes</h2>
+        <ul class="statistiques__repartition">
+          @for (ligne of d.repartitionStatuts; track ligne.statut) {
+            <li class="statistiques__repartition-ligne">
+              <span [class]="classesStatut(ligne.statut)">{{ libelleStatut(ligne.statut) }}</span>
+              <span class="statistiques__nombre">{{ ligne.nombre }}</span>
+            </li>
+          }
+        </ul>
+      </section>
+
+      <section class="carte statistiques__bloc">
+        <h2 class="carte__titre">Stock à surveiller</h2>
+        @if (d.stockFaible.length === 0) {
+          <p class="statistiques__precision">Aucune récolte sous le seuil ni épuisée.</p>
+        } @else {
+          <!-- Le seuil de 5 est une constante du backend, identique quelle que soit l'unité (§ LOT STAT-1). -->
+          <p class="statistiques__precision">
+            Récoltes épuisées ou sous 5 unités, toutes unités confondues.
+          </p>
+          <ul class="statistiques__stock">
+            @for (recolte of d.stockFaible; track recolte.recolteId) {
+              <li class="statistiques__stock-ligne">
+                <a
+                  class="lien-action"
+                  [routerLink]="['/producteur/recoltes', recolte.recolteId, 'modifier']"
+                  >{{ recolte.nom }}</a
+                >
+                <span class="statistiques__nombre">
+                  {{ formaterQuantite(recolte.quantiteDisponible, recolte.unite) }}
+                </span>
+                <span
+                  class="badge"
+                  [class.badge--succes]="recolte.statut === 'DISPONIBLE'"
+                  >{{ libelleStatutRecolte(recolte.statut) }}</span
+                >
+              </li>
+            }
+          </ul>
+          <p class="statistiques__etat-actions">
+            <a class="bouton bouton--secondaire bouton--compact" routerLink="/producteur/recoltes">
+              Modifier une récolte
+            </a>
+          </p>
+        }
+      </section>
+
+      @if (d.commandesATraiter > 0) {
+        <p class="statistiques__rappel" id="rappel-commandes-a-traiter">
+          <span class="statistiques__rappel-texte">
+            {{ d.commandesATraiter }} commande{{ d.commandesATraiter > 1 ? 's' : '' }} en attente
+            d’une action de votre part : confirmation, mise à disposition ou retrait.
+          </span>
+          <a
+            class="bouton bouton--compact bouton--secondaire"
+            id="lien-commandes-a-traiter"
+            routerLink="/producteur/commandes"
+          >
+            Traiter les commandes
+          </a>
+        </p>
+      }
+    }
+  </div>
+</section>

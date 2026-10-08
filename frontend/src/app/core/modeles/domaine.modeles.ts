@@ -16,6 +16,9 @@
 // PaiementRequest : paiement/dto/PaiementRequest.java
 // PaiementResponse : paiement/dto/PaiementResponse.java
 // NotificationResponse : notification/dto/NotificationResponse.java
+// StatistiquesProducteurResponse : statistiques/dto/StatistiquesProducteurResponse.java
+// StatutNombreResponse / VenteJourResponse / TopRecolteResponse / StockFaibleResponse :
+//   statistiques/dto du même nom
 // (BigDecimal -> number, LocalDate -> chaîne « AAAA-MM-JJ »,
 //  LocalDateTime -> chaîne ISO renvoyée par Jackson.
 //  Un champ nullable côté Java — colonne sans nullable = false ou absence de
@@ -272,4 +275,59 @@ export interface NotificationResponse {
   lu: boolean;
   /** LocalDateTime Jackson → chaîne ISO. */
   dateCreation: string;
+}
+
+/** Réponse de GET /api/producteurs/moi/statistiques (statistiques/dto/StatistiquesProducteurResponse.java). */
+export interface StatistiquesProducteurResponse {
+  /** Somme des sous-totaux des lignes du producteur, hors commandes annulées, sur la période. */
+  chiffreAffaires: number;
+  /** Commandes distinctes du producteur sur la période, annulées comprises : dénominateur du taux. */
+  nombreCommandes: number;
+  /** Chiffre d'affaires ÷ commandes non annulées ; 0,00 si aucune. */
+  panierMoyen: number;
+  /** Pourcentage, deux décimales ; 0,00 si aucune commande. */
+  tauxAnnulation: number;
+  /** Ordre du parcours de commande (EN_ATTENTE → ANNULEE), uniquement les statuts rencontrés. */
+  repartitionStatuts: StatutNombreResponse[];
+  /** Une entrée par jour civil de la période, sans trou, les jours sans vente à 0,00. */
+  ventesParJour: VenteJourResponse[];
+  /** 5 maximum, revenu décroissant, hors commandes annulées. */
+  topRecoltes: TopRecolteResponse[];
+  /** Récoltes actuelles sous le seuil de 5 ou épuisées, quantité croissante. */
+  stockFaible: StockFaibleResponse[];
+  /** Commandes de la période aux statuts EN_ATTENTE, CONFIRMEE ou PRETE. */
+  commandesATraiter: number;
+}
+
+/** statistiques/dto/StatutNombreResponse.java. */
+export interface StatutNombreResponse {
+  statut: StatutCommande;
+  nombre: number;
+}
+
+/** statistiques/dto/VenteJourResponse.java. */
+export interface VenteJourResponse {
+  /** LocalDate Jackson → chaîne « AAAA-MM-JJ ». */
+  date: string;
+  montant: number;
+}
+
+/** statistiques/dto/TopRecolteResponse.java. */
+export interface TopRecolteResponse {
+  recolteId: number;
+  /** Recolte.produit. */
+  nom: string;
+  quantiteVendue: number;
+  /** Recolte.unite : la quantité n'est jamais affichée sans son unité. */
+  unite: string;
+  revenu: number;
+}
+
+/** statistiques/dto/StockFaibleResponse.java. */
+export interface StockFaibleResponse {
+  recolteId: number;
+  nom: string;
+  quantiteDisponible: number;
+  unite: string;
+  statut: StatutRecolte;
 }
