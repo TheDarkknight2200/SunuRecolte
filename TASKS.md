@@ -1547,6 +1547,88 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   statistiques **ADMIN** qui doit réutiliser `app-barres`. Travail porté par la branche
   `fonctionnalites-statistiques`, **non poussé**
 
+## LOT STAT-2 — statistiques de la plateforme pour l'ADMIN (2026-10-09)
+
+> **Ce que couvre cette section** : le second écran de statistiques, celui de l'administration —
+> une route de lecture seule, un écran Angular qui ne fait que la rendre, et les deux jeux de tests
+> qui verrouillent l'un et l'autre. Les règles de calcul communes avec LOT STAT-1 sont **extraites**,
+> pas dupliquées : le producteur et l'administrateur lisent la même fenêtre, les mêmes statuts retenus,
+> le même arrondi et le même plafond de top 5.
+
+- [x] **Backend — `GET /api/admin/statistiques`** : **première route du préfixe `/api/admin`**, jusqu'ici
+  inexistant (les écrans ADMIN étaient greffés sur `/api/utilisateurs`, `/api/prix-marche` et
+  `PATCH /api/recoltes/{id}/statut`). Réponse `StatistiquesAdminResponse` : comptes (total, producteurs,
+  acheteurs), récoltes au statut `DISPONIBLE`, nombre de commandes et volume d'affaires de la période, inscriptions
+  par semaine civile, répartitions par filière / zone / moyen de paiement, deux top 5, nombre de
+  remboursements. Paramètre `periode` = `7j`, `30j` (défaut) ou `mois`, toute autre valeur répond `400`
+  du même message que l'écran producteur
+- [x] **Règles communes extraites dans `ReglesStatistiques`** : `bornes()` (fenêtres, défaut, rejet),
+  `STATUTS_RETENUS`, `NOMBRE_TOP`, `arrondir()`, `lundiDeLaSemaine()` et `normaliser()`.
+  `StatistiquesProducteurService` les appelle désormais au lieu de les redéfinir — **aucune règle modifiée,
+  les 18 tests de `statistiques.spec.ts` (écran producteur) sont restés verts sans retouche**
+- [x] **Accès** : `SecurityConfig` réserve la route à `ADMIN` (`hasRole`) et `StatistiquesAdminService`
+  rappelle `ControleAcces.exigerAdmin(principal)` ; `401` anonyme, `403` PRODUCTEUR, `403` ACHETEUR, testés
+  les trois. Aucun identifiant en entrée : la portée transverse vient du rôle, pas d'un paramètre
+- [x] **Requêtes** : dix agrégats portés par `StatistiquesAdminLectureRepository` (projections + `@Query`),
+  **aucun N+1** — la réponse est construite en un nombre fixe de requêtes, indépendant du nombre de comptes ;
+  les sommes sont lues sur `lignes_commande.sous_total`, **jamais** sur `commandes.total` (règle LOT STAT-1)
+- [x] **Trois décisions d'arbitrage consignées dans le code et la doc** : le total des comptes vaut
+  producteurs + acheteurs, **ADMIN exclu** (il ne passe pas par l'inscription publique) ; la **zone** est le
+  champ libre `localisation_exploitation` — orthographe normalisée, **8 zones au plus**, le reste regroupé
+  sous « Autres zones », valeurs nulles ou vides omises (ce n'est **pas** un référentiel) ; `MoyenPaiement`
+  ne comptant que `WAVE` et `ORANGE_MONEY`, il n'existe **aucune** ligne « autre moyen de paiement »
+- [x] **Confidentialité de la réponse** : le corps JSON brut est testé comme ne contenant **ni « @ », ni
+  champ `motDePasse`, `telephone`, `email`, ni jeton** ; les deux tops n'exposent que nom et identifiant,
+  vérifiés champ par champ (`Set.of(...)` exact)
+- [x] **Tests backend — 275 → 292** : `StatistiquesAdminApiTest` (17). Les compteurs transverses ne sont pas
+  assertables en absolu sur la base de dev partagée : la spec procède **par écarts** (lire, écrire, relire),
+  référence par fenêtre, méthode écrite dans son Javadoc. Couverts : les trois rôles et l'anonyme, le défaut
+  `30j` et le rejet d'une période inconnue, volume hors annulées / nombre les comprenant, commande mixte,
+  remboursement simulé hors volume, tops ordonnés et plafonnés à cinq, récoltes actives = `DISPONIBLE`
+  seulement, semaines civiles sans trou, filière réellement portée, zones regroupées et plafonnées,
+  répartitions par moyen et remboursés, et l'absence de donnée personnelle dans le corps
+- [x] **Frontend — écran `/admin/statistiques`** : route lazy `authGuard` puis `roleGuard` (`roles: ['ADMIN']`),
+  titre « SunuRecolte — Statistiques de la plateforme ». Six cartes (dont volume d'affaires en mesure
+  dominante), trois graphiques rendus par `app-barres` **réutilisé sans modification** (semaines en colonnes
+  avec repère de maximum, producteurs et récoltes en barres horizontales), trois listes de répartition,
+  sélecteur de période à trois pastilles `aria-pressed`, annonce `aria-live`, états chargement / vide /
+  erreur, notice du bas §39.2 pour l'erreur (jamais de bannière), « Réessayer » et « Actualiser », alternative
+  tableau pour chaque graphique, et le texte de limite des zones rendu à l'écran
+- [x] **Frontend — navigation** : quatrième onglet « Statistiques » dans `app-admin-navigation` (les trois
+  autres inchangés) et quatrième carte sur `/admin`, présentée comme de la **consultation seule** ; le
+  Javadoc de `EspaceAdmin`, qui affirmait qu'« aucun endpoint de comptage ou de statistique » n'existe, a été
+  corrigé puisqu'il est désormais faux
+- [x] **Tests frontend — 963 → 992 (47 → 49 fichiers)** : `statistiques-admin.spec.ts` (19 : trois états,
+  `periode` seul paramètre, six cartes et leurs précisions, somme des comptes, trois graphiques et leurs
+  entêtes, semaines conservées y compris à zéro, arrondi entier contre quantité à décimale, pastilles,
+  erreur + notice + « Réessayer », « Actualiser », vide, répartitions et plafond des zones, remboursements au
+  bon nombre, filière hors référentiel affichée telle quelle, classements absents quand rien n'est retenu),
+  `statistiques-admin.service.spec.ts` (7), `routes-statistiques.spec.ts` 2 → 4 et `routes-admin.spec.ts`
+  7 → 8. **Huit assertions existantes re-ciblées**, toutes parce que la liste des écrans ADMIN s'allonge d'un
+  membre et non parce qu'une règle aurait changé : deux dans `routes-admin.spec.ts` (la liste des chemins de
+  « ne laisse aucune route d'administration ouverte » et celle de la boucle « réserve ces cinq routes »),
+  trois dans `admin-navigation.spec.ts` (les quatre `href`, les quatre libellés, `toHaveLength(3)` → `4`),
+  trois dans `espace-admin.spec.ts` (les quatre titres de carte, les quatre `href`, les quatre libellés).
+  **Aucune assertion supprimée ni affaiblie** ; les specs de LOT STAT-1 (`statistiques.spec.ts` 18,
+  `barres.spec.ts` 12, `formatage.spec.ts` 16) sont sorties inchangées de la suite
+- [x] **Validations réellement exécutées** : suite backend PostgreSQL réelle **292 tests, 0 échec** ;
+  `npm test -- --no-watch` **992 tests / 49 fichiers, 0 échec** ; `npm run build` sans avertissement de
+  budget ; contrôle des caractères hors latin (CJK, cyrillique) fait sur l'ensemble du diff, aucun trouvé
+- [x] **Limites de ce lot** : la **QA navigateur de cet écran n'a pas été jouée** (elle suppose la base de
+  démonstration régénérée, tâche restée à la main de l'auteur) ; les largeurs 360 / 375 / 768 / 1366 px ne
+  sont donc pas observées à l'œil ; les compteurs absolus ne sont testables **que par écarts** sur la base
+  de dev partagée ; « une plateforme vide rend des zéros » n'est pas testable en absolu ici et repose sur
+  `arrondir(null) → 0,00` et sur l'écart nul mesuré ; les zones restent un champ libre, la normalisation
+  ne peut que rapprocher « Thies » de « Thiès », pas corriger une localité mal orthographiée d'une autre ;
+  `recoltesActives` est un état instantané du catalogue et ne suit pas la période choisie
+- [x] **Ce qui reste ouvert** : régénération de la base `sunurecolte_demo` puis **comparaison écran ↔ SQL**
+  (le fichier de contrôle `verif-stat2.sql` est remis à la racine du dépôt, hors suivi Git, `psql` refusant
+  de se connecter sans mot de passe et la consigne étant de ne jamais taper ce secret dans un outil) ;
+  QA navigateur de `/admin/statistiques` et de ses quatre largeurs ; l'écart d'arrondi d'un FCFA constaté au
+  LOT QA-STAT-1 n'est pas tranché — il ne se reproduit pas sur cet écran, qui ne découpe aucun montant en
+  valeurs quotidiennes, mais il y concerne les mêmes formatteurs. Travail porté par la branche
+  `fonctionnalites-statistiques`, **non poussé**
+
 ## Phase 10 — Intégration
 - [ ] Angular ↔ backend
 - [ ] Flux Producteur → Récolte
