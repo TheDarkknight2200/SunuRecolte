@@ -33,7 +33,8 @@ import java.util.List;
  * - ADMIN : accès transverse en écriture sur les récoltes, les commandes et les
  *   paiements (même doctrine que les contrôles d'ownership des services), et seul rôle
  *   des routes d'administration : liste des comptes, activation d'un compte, modération
- *   du statut d'une récolte, écriture des prix indicatifs ;
+ *   du statut d'une récolte, écriture des prix indicatifs, tableau de bord statistiques
+ *   de la plateforme (/api/admin/statistiques, premier endpoint de ce préfixe) ;
  * - tout le reste exige une authentification, puis un contrôle de propriété
  *   dans les services (403 sinon).
  *
@@ -98,6 +99,9 @@ public class SecurityConfig {
                         // vient du jeton, aucun identifiant de producteur ne passe par l'URL.
                         .requestMatchers(HttpMethod.GET, "/api/producteurs/moi/statistiques")
                         .hasRole("PRODUCTEUR")
+                        // Statistiques de la plateforme (lot STAT-2) : premier endpoint du préfixe
+                        // /api/admin, les autres routes ADMIN restant greffées sur leur ressource.
+                        .requestMatchers(HttpMethod.GET, "/api/admin/statistiques").hasRole("ADMIN")
                         // Administration (Phase 5) : premières routes exclusively ADMIN du projet.
                         // La consultation d'un compte par id reste « propriétaire ou ADMIN » (service).
                         .requestMatchers(HttpMethod.GET, "/api/utilisateurs").hasRole("ADMIN")

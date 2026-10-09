@@ -1,7 +1,6 @@
 package com.sunurecolte.statistiques.service;
 
 import com.sunurecolte.commande.entity.StatutCommande;
-import com.sunurecolte.exception.BusinessException;
 import com.sunurecolte.recolte.entity.StatutRecolte;
 import com.sunurecolte.recolte.repository.RecolteRepository;
 import com.sunurecolte.security.ControleAcces;
@@ -48,15 +47,13 @@ import java.util.TreeMap;
  *       mixte est donc comptée <b>une fois</b> dans {@code nombreCommandes} de chaque producteur
  *       concerné, avec le seul montant de ses lignes à lui ;
  *   <li><b>Période</b> — filtre sur {@code commande.dateCreation} (aucune date portée par une ligne),
- *       bornes en jours civils : {@code 7j} = les 7 jours civils courants, {@code 30j} (défaut) = les
- *       30 jours civils courants, {@code mois} = du 1ᵉʳ du mois courant à aujourd'hui. Borne basse
- *       incluse à 00:00, borne haute exclusive au lendemain d'aujourd'hui à 00:00. Une valeur hors de
- *       ces trois libellés répond 400 ;
+ *       bornes en jours civils, valeur inconnue en 400 : les trois libellés et leurs bornes sont
+ *       définis dans {@link ReglesStatistiques#bornes(String)}, communs au lot STAT-2 ;
  *   <li><b>Chiffre d'affaires</b> — somme des {@code sous_total} des lignes du producteur dont la
- *       commande est EN_ATTENTE, CONFIRMEE, PRETE ou LIVREE. <b>Les commandes annulées sont exclues</b> :
- *       dans le modèle approuvé aucun statut « refusée » n'existe, et {@code REMBOURSE} est un statut de
- *       <i>paiement</i> que seule l'annulation écrit — exclure ANNULEE exclut donc de fait les
- *       commandes remboursées ;
+ *       commande est dans {@link ReglesStatistiques#STATUTS_RETENUS} (EN_ATTENTE, CONFIRMEE, PRETE,
+ *       LIVREE). <b>Les commandes annulées sont exclues</b> : dans le modèle approuvé aucun statut
+ *       « refusée » n'existe, et {@code REMBOURSE} est un statut de <i>paiement</i> que seule
+ *       l'annulation écrit — exclure ANNULEE exclut donc de fait les commandes remboursées ;
  *   <li><b>nombreCommandes</b> — commandes distinctes contenant au moins une ligne du producteur sur la
  *       période, <b>tous statuts confondus</b> (annulées comprises) : c'est le dénominateur du taux
  *       d'annulation et ce que reflète {@code repartitionStatuts}, rendue dans l'ordre du parcours
@@ -98,18 +95,6 @@ public class StatistiquesProducteurService {
     /** Seuil d'alerte du stock, en unité de la récolte — identique quelle que soit cette unité. */
     static final int SEUIL_STOCK_FAIBLE = 5;
 
-    /** Nombre de récoltes exposées dans le classement des revenus. */
-    static final int NOMBRE_TOP_RECOLTES = 5;
-
-    private static final String PERIODE_SEPT_JOURS = "7j";
-    private static final String PERIODE_TRENTE_JOURS = "30j";
-    private static final String PERIODE_MOIS = "mois";
-
-    /** Statuts dont les lignes contribuent aux sommes (annulées exclues). */
-    private static final Set<StatutCommande> STATUTS_RETENUS =
-            EnumSet.of(StatutCommande.EN_ATTENTE, StatutCommande.CONFIRMEE,
-                    StatutCommande.PRETE, StatutCommande.LIVREE);
-
     /** Statuts où le producteur a une action à produire. */
     private static final Set<StatutCommande> STATUTS_A_TRAITER =
             EnumSet.of(StatutCommande.EN_ATTENTE, StatutCommande.CONFIRMEE, StatutCommande.PRETE);
@@ -126,14 +111,15 @@ public class StatistiquesProducteurService {
      */
     public StatistiquesProducteurResponse statistiques(String periode, UtilisateurPrincipal principal) {
         Producteur producteur = producteurDuJeton(principal);
-        Bornes bornes = bornes(periode);
-        LocalDateTime debut = bornes.debut().atStartOfDay();
-        LocalDateTime fin = bornes.fin().plusDays(1).atStartOfDay();
+        ReglesStatistiques.Bornes bornes = ReglesStatistiques.bornes(periode);
+        LocalDateTime debut = bornes.debutInstant();
+        LocalDateTime fin = bornes.finInstant();
         Long producteurId = producteur.getId();
+        Set<StatutCommande> statutsRetenus = ReglesStatistiques.STATUTS_RETENUS;
 
         TotauxVenteProjection totaux =
-                statistiques.totauxVente(producteurId, STATUTS_RETENUS, debut, fin);
-        BigDecimal chiffreAffaires = arrondir(totaux.getChiffreAffaires());
+                statistiques.totauxVente(producteurId, statutsRetenus, debut, fin);
+        BigDecimal chiffreAffaires = ReglesStatistiques.arrondir(totaux.getChiffreAffaires());
         long commandesRetenues = totaux.getNombreCommandes();
 
         List<StatutNombreProjection> repartition =
@@ -159,9 +145,9 @@ public class StatistiquesProducteurService {
                 panierMoyen,
                 tauxAnnulation,
                 versRepartition(repartition),
-                versVentesParJour(statistiques.montantsParCommande(producteurId, STATUTS_RETENUS, debut, fin),
+                versVentesParJour(statistiques.montantsParCommande(producteurId, statutsRetenus, debut, fin),
                         bornes),
-                versTopRecoltes(statistiques.topRecoltes(producteurId, STATUTS_RETENUS, debut, fin)),
+                versTopRecoltes(statistiques.topRecoltes(producteurId, statutsRetenus, debut, fin)),
                 versStockFaible(recolteRepository.trouverStockFaible(
                         producteurId, BigDecimal.valueOf(SEUIL_STOCK_FAIBLE), StatutRecolte.EPUISEE)),
                 statistiques.nombreCommandesATraiter(producteurId, STATUTS_A_TRAITER, debut, fin));
@@ -176,18 +162,6 @@ public class StatistiquesProducteurService {
                 .orElseThrow(ControleAcces::accesRefuse);
     }
 
-    private Bornes bornes(String periode) {
-        LocalDate aujourdhui = LocalDate.now();
-        String valeur = (periode == null || periode.isBlank()) ? PERIODE_TRENTE_JOURS : periode;
-        return switch (valeur) {
-            case PERIODE_SEPT_JOURS -> new Bornes(aujourdhui.minusDays(6), aujourdhui);
-            case PERIODE_TRENTE_JOURS -> new Bornes(aujourdhui.minusDays(29), aujourdhui);
-            case PERIODE_MOIS -> new Bornes(aujourdhui.withDayOfMonth(1), aujourdhui);
-            default -> throw new BusinessException("Période inconnue : « " + valeur
-                    + " ». Valeurs admises : 7j, 30j, mois.");
-        };
-    }
-
     /** Ordre du parcours de commande (EN_ATTENTE → ANNULEE) : un rendu stable, trié côté service. */
     private List<StatutNombreResponse> versRepartition(List<StatutNombreProjection> repartition) {
         return repartition.stream()
@@ -197,7 +171,8 @@ public class StatistiquesProducteurService {
     }
 
     /** Une entrée par jour civil de la période, les jours sans vente à zéro, en ordre chronologique. */
-    private List<VenteJourResponse> versVentesParJour(List<CommandeMontantProjection> montants, Bornes bornes) {
+    private List<VenteJourResponse> versVentesParJour(List<CommandeMontantProjection> montants,
+                                                      ReglesStatistiques.Bornes bornes) {
         Map<LocalDate, BigDecimal> parJour = new TreeMap<>();
         for (LocalDate jour = bornes.debut(); !jour.isAfter(bornes.fin()); jour = jour.plusDays(1)) {
             parJour.put(jour, BigDecimal.ZERO);
@@ -207,30 +182,25 @@ public class StatistiquesProducteurService {
             parJour.merge(jour, montant.getMontant(), BigDecimal::add);
         }
         List<VenteJourResponse> ventes = new ArrayList<>(parJour.size());
-        parJour.forEach((jour, cumul) -> ventes.add(new VenteJourResponse(jour, arrondir(cumul))));
+        parJour.forEach((jour, cumul) -> ventes.add(new VenteJourResponse(jour,
+                ReglesStatistiques.arrondir(cumul))));
         return List.copyOf(ventes);
     }
 
     private List<TopRecolteResponse> versTopRecoltes(List<TopRecolteProjection> projections) {
         return projections.stream()
-                .limit(NOMBRE_TOP_RECOLTES)
+                .limit(ReglesStatistiques.NOMBRE_TOP)
                 .map(ligne -> new TopRecolteResponse(ligne.getRecolteId(), ligne.getNom(),
-                        arrondir(ligne.getQuantiteVendue()), ligne.getUnite(), arrondir(ligne.getRevenu())))
+                        ReglesStatistiques.arrondir(ligne.getQuantiteVendue()), ligne.getUnite(),
+                        ReglesStatistiques.arrondir(ligne.getRevenu())))
                 .toList();
     }
 
     private List<StockFaibleResponse> versStockFaible(List<StockFaibleProjection> projections) {
         return projections.stream()
                 .map(ligne -> new StockFaibleResponse(ligne.getRecolteId(), ligne.getNom(),
-                        arrondir(ligne.getQuantiteDisponible()), ligne.getUnite(), ligne.getStatut()))
+                        ReglesStatistiques.arrondir(ligne.getQuantiteDisponible()), ligne.getUnite(),
+                        ligne.getStatut()))
                 .toList();
     }
-
-    /** Un null du SQL (aucune ligne retenue) devient un zéro à deux décimales, jamais un montant inventé. */
-    private static BigDecimal arrondir(BigDecimal valeur) {
-        return (valeur == null ? BigDecimal.ZERO : valeur).setScale(2, RoundingMode.HALF_UP);
-    }
-
-    /** Bornes civiles inclusives de la période demandée. */
-    private record Bornes(LocalDate debut, LocalDate fin) {}
 }
