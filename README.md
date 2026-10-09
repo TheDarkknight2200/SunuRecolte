@@ -331,7 +331,8 @@ L'identité visuelle, les tokens de design et les règles d'interface font foi d
 
 `DemoDataInitializer` (`src/main/java/com/sunurecolte/config/`) remplit une base locale **vide** : de
 quoi parcourir les écrans et préparer les captures du mémoire — **3 producteurs**, **6 acheteurs**,
-**20 récoltes** et **60 commandes étalées sur les 60 derniers jours**.
+**20 récoltes** et **60 commandes étalées sur les 60 derniers jours**. Comptes, récoltes et paiements
+sont reculés avec leurs commandes : le jeu a un historique, pas seulement une date du jour.
 
 > **Avertissement — ne jamais lancer le profil `demo` sur une base contenant des données réelles.** Le
 > jeu passe par les services réels et écrit commandes, paiements et notifications comme s'ils étaient
@@ -381,9 +382,21 @@ quantités min/max et une unité réalistes (kg, botte, tête, plateau, litre) e
 larges — de 12 à 300 selon le produit ; `EN_ATTENTE` (10), `CONFIRMEE` (12), `PRETE` (8), `LIVREE` (22)
 et `ANNULEE` (8) parmi les commandes ; les trois premières commandes mélangent deux producteurs ; les
 paiements portent `WAVE` et `ORANGE_MONEY`, **simulés** sous référence `SIMU-…` comme partout dans le
-projet ; `imageUrl` est vide, donc le catalogue rend son état « sans image ». Les dates de commande
-viennent d'une **graine fixe** : deux bases vides obtiennent les mêmes commandes, les mêmes quantités et
-les mêmes statuts.
+projet ; `imageUrl` est vide, donc le catalogue rend son état « sans image ».
+
+**Dates étalées** : les dates de commande viennent d'une **graine fixe** — deux bases vides obtiennent
+les mêmes commandes, les mêmes quantités et les mêmes statuts —, puis une passe finale recule les
+comptes, les récoltes et les paiements avec leurs commandes, dans leur **propre graine** pour ne
+décaler aucun tirage du catalogue. Sur le jeu produit (invariants verrouillés par
+`DemoDataInitializerTest`, effectifs relevés le 2026-10-09) :
+neuf comptes sur **vingt-neuf jours civils d'amplitude**, le plus ancien soixante-deux jours avant le
+lancement et jamais au-delà de soixante-trois ; chaque compte au moins **trois jours civils avant** la
+plus ancienne commande qu'il rend possible ; vingt récoltes publiées entre le compte de leur producteur
+et leur première vente, `date_disponibilite` posée sur ce même jour ; trente-sept paiements à **une
+heure** après leur commande et confirmés douze minutes plus tard ; rien dans le futur. La passe écrit en
+SQL (`JdbcTemplate`) après un `flush()` des dépôts, et les colonnes de date restent figées après
+insertion : `commandes.date_creation` a retrouvé `updatable = false`, le générateur ne passant plus par
+le setter. Une seconde exécution ne déplace aucune date.
 
 **Deux mécanismes rendent l'écran statistiques lisible** sans toucher aux règles métier : une récolte ne
 peut céder en ventes libres que **45 % de son stock initial** (les `ANNULEE` en sont dispensées, puisque
@@ -415,9 +428,16 @@ psql -U postgres -c "CREATE DATABASE sunurecolte_demo;"
 
 Les migrations Flyway se réappliquent au démarrage suivant.
 
-**Limites consignées** (détail dans `TASKS.md`, LOT DEMO-1) : seules les **commandes** sont étalées dans
-le passé — paiements et notifications gardent l'horodatage de génération ; les statuts de paiement que
-les services ne savent pas écrire (`EN_ATTENTE`, `ECHOUE`, `ANNULE`) ne sont pas simulés par une écriture
-directe, d'où `REUSSI` et `REMBOURSE` seulement ; un compte de démonstration porte le mot de passe commun
-de la variable ; et la génération elle-même n'a pas encore été observée dans un navigateur réel.
+**Limites consignées** (détail dans `TASKS.md`, lots DEMO-1 et DEMO-2) : `notifications.date_creation`
+garde l'horodatage de génération — la table ne porte aucune référence à la commande annoncée, seulement
+un destinataire, et la rattacher serait une invention ; **aucun des neuf comptes ne tombe dans la fenêtre
+des trente derniers jours** (mesuré : zéro sur neuf), donc le graphique « inscriptions par semaine » de
+l'administration rend des semaines à zéro sur ce jeu, tandis que les historiques de ventes sont bien
+nourris (vingt-neuf commandes sur soixante en fenêtre) ; la règle de cohérence **prime sur la bande de
+tirage**, d'où l'ordre « producteurs avant acheteurs » **non tenu** — cinq des six acheteurs sont plus
+anciens que le second producteur, et le compte le plus ancien du jeu est un acheteur ; les statuts de
+paiement que les services ne savent pas écrire (`EN_ATTENTE`, `ECHOUE`, `ANNULE`) ne sont pas simulés par
+une écriture directe, d'où `REUSSI` et `REMBOURSE` seulement ; un compte de démonstration porte le mot de
+passe commun de la variable ; et la génération elle-même n'a pas encore été observée dans un navigateur
+réel.
 

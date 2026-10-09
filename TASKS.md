@@ -1312,7 +1312,10 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   démonstration existe déjà (`existsByEmail` sur `producteur1.demo@sunurecolte.sn`), **rien n'est créé
   et rien n'est supprimé**, une ligne INFO est journalisée ; les journaux ne portent que des adresses
   email, jamais le mot de passe
-- [x] **Dates étalées — l'arbitrage consenti par l'auteur** : `Commande.dateCreation` retrouve une
+- [x] **Dates étalées — l'arbitrage consenti par l'auteur** *(depuis **dépassé par le LOT DEMO-2** :
+  `updatable = false` a été rétabli et l'étalement passe par un `JdbcTemplate` ; ce texte reste écrit
+  tel quel parce qu'il décrit l'état de l'époque, et la section DEMO-2 plus bas dit pourquoi il n'est
+  plus nécessaire)* : `Commande.dateCreation` retrouve une
   colonne **modifiable** et le `@PrePersist` ne pose plus qu'une date **absente**. C'est le seul moyen
   d'étaler les 60 commandes sur les 60 derniers jours sans toucher aux DTO ni à l'API :
   `CommandeRequest` ne déclare toujours pas cette valeur, aucun chemin d'API n'accepte une date du
@@ -1349,7 +1352,8 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   valeur** ; Javadoc du composant portant la méthode et les règles
 - [x] **Limites connues, assumées et non masquées** : **(a)** seules les **commandes** sont étalées —
   paiements et notifications gardent l'horodatage de génération, une capture de l'historique de
-  paiement ou du centre de notifications les montrera donc tous le même jour ; **(b)** les statuts de
+  paiement ou du centre de notifications les montrera donc tous le même jour *(paiements alignés depuis
+  par le LOT DEMO-2 ; les notifications restent concernées, arbitrage du 2026-10-09)* ; **(b)** les statuts de
   paiement `EN_ATTENTE`, `ECHOUE` et `ANNULE` n'existent pas dans le jeu, parce qu'aucun service ne
   sait les écrire et qu'une écriture directe serait une invention ; **(c)** le mot de passe des neuf
   comptes est celui de la variable d'environnement, commun à tous — ce jeu n'est pas une démonstration
@@ -1362,7 +1366,9 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   (catalogue, commandes reçues, espace acheteur, notifications) avant les captures du mémoire, et
   **régénérer la base** pour qu'elle porte l'arrondi au demi-unité décidé au LOT QA-STAT-1 — la
   régénération est destructive, donc menée par l'auteur ; décider si l'étalement des paiements et des
-  notifications vaut un lot supplémentaire. Travail porté par la branche
+  notifications vaut un lot supplémentaire — **tranché le 2026-10-09 : le LOT DEMO-2 fait celui des
+  paiements, celui des notifications est écarté** (voir sa section et la limite (a) ci-dessus). Travail
+  porté par la branche
   `fonctionnalites-statistiques`, **non poussé**
 
 ### Ajustement du jeu demandé par l'écran statistiques (2026-10-09)
@@ -1627,6 +1633,108 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   QA navigateur de `/admin/statistiques` et de ses quatre largeurs ; l'écart d'arrondi d'un FCFA constaté au
   LOT QA-STAT-1 n'est pas tranché — il ne se reproduit pas sur cet écran, qui ne découpe aucun montant en
   valeurs quotidiennes, mais il y concerne les mêmes formatteurs. Travail porté par la branche
+  `fonctionnalites-statistiques`, **non poussé**
+
+## LOT DEMO-2 — comptes, récoltes et paiements reculés avec leurs commandes (2026-10-09)
+
+> **Ce que couvre cette section** : la passe finale qui étale dans le passé les dates que LOT DEMO-1
+> avait laissées à l'horodatage de génération, pourquoi elle passe par un `JdbcTemplate`, ce que la
+> mesure a réellement donné sur le jeu produit, et **les trois écarts signalés au lieu d'être masqués**.
+> Aucune règle métier, aucun DTO, aucune route et aucune migration n'ont été touchés.
+>
+> **Porte de validation** : `./mvnw -o clean test` sur PostgreSQL réel (aucun mock), le composant
+> restant instancié à la main dans la transaction annulée du test — jamais par `@ActiveProfiles("demo")`,
+> qui le ferait tourner hors transaction et committerait dans la base locale réelle.
+
+- [x] **Condition A vérifiée avant de coder** : `@Scheduled` et `@EnableScheduling` sont **absents** de
+  `src/main/java` (contrôle porté sur tout l'arbre), et les seuls lecteurs de `commandes.date_creation`
+  sont le tri `ORDER BY c.dateCreation DESC` de `CommandeRepository`, la fenêtre des deux écrans de
+  statistiques et le `CommandeResponse`. **Aucune annulation automatique, aucune expiration, aucune
+  relance** ne dépend de cette date : la reculer ne désarme aucune règle
+- [x] **`recoltes.date_disponibilite` validée dans le code avant d'y toucher** : la colonne est lue par
+  `RecolteResponse` et rendue par trois écrans sous le libellé « **Disponible à partir du** … »
+  (`accueil`, `catalogue`, `mes-recoltes`, plus `recoltes-admin`) ; elle est écrite par
+  `RecolteService` depuis la requête du producteur. Elle ne filtre **aucune** requête, ne porte **aucun**
+  tri, n'est la cible d'**aucune** validation métier, et aucune tâche planifiée ne l'examine. C'est donc
+  bien un début de disponibilité : elle est reculée, posée sur le **jour civil** de `date_creation` de
+  sa récolte (mesuré : 20 récoltes sur 20 concordantes). Seules deux colonnes de date de récolte sont
+  touchées : `recoltes.date_creation` (horodatage) et `recoltes.date_disponibilite` (jour)
+- [x] **Passe SQL finale, aucune exception sur une entité de production** : `etalerDansLePasse()` s'exécute
+  **après** la génération complète, avec quatre `jdbcTemplate.batchUpdate` ciblés —
+  `commandes` (par identifiant), `utilisateurs` (par adresse en `.demo@sunurecolte.sn`), `recoltes`
+  (`date_creation` et `date_disponibilite`), `paiements` (`date_creation` et `date_confirmation`). Un
+  `commandeRepository.flush()` précède la passe : sans lui, le vidage de fin de transaction réécrirait
+  `date_confirmation` — colonne inscriptible, elle — par-dessus les dates natives. **Aucune entité
+  n'ajoute de comportement, aucun `@Setter(AccessLevel.NONE)`, aucune nouvelle exception de mappage**
+- [x] **Deux graines, et la condition D est tenue** : `GRAINE` reste `20261008L` pour le catalogue et les
+  commandes ; la passe a sa propre `GRAINE_ETALAGE` (`20261009L`). L'étalement ne décale donc d'aucun
+  cran la suite aléatoire du tirage — vérifié par le test de non-régression des deux écrans, et par
+  `uneDeuxiemeExecutionNeDeplaceAucuneDate`
+- [x] **Règle de cohérence, écrite avant les bandes de tirage** : `recul(compte)` = le plus grand entre la
+  bande tirée (producteurs 40–59 jours, acheteurs 10–39) et **le recul de sa plus ancienne commande,
+  augmenté de trois jours civils** (`MARGE_JOURS_COMPTE`). Une récolte est publiée entre le compte de son
+  producteur et sa première vente. Un paiement suit sa commande d'**une heure**, sa confirmation vient
+  **douze minutes** après ; tout est ramené dans le passé, jamais après l'instant du lancement
+- [x] **`Commande.date_creation` a retrouvé `updatable = false`** : la colonne est de nouveau figée après
+  insertion, comme celles d'`Utilisateur`, `Recolte`, `Paiement` et `Notification`, et le `@PrePersist`
+  pose à nouveau l'horodatage sans condition. Le test « la colonne reste inscriptible » a été **remplacé
+  par l'inverse** : `CommandeService` garde son horodatage serveur, `entite.setDateCreation(...)` puis
+  `flush()` ne change **rien** en base, et seul un `UPDATE` direct — le chemin de la passe — recule la
+  date. Le setter Lombok demeure (il vient du `@Setter` de classe, et le retirer serait l'exception
+  demandée à l'auteur) : c'est le mappage qui est inerte, et le test le prouve
+- [x] **Conditions B et C tenues par des tests, pas par une relecture** : la passe est annulée avec le
+  `run()` (`transactionManager.getDataSource()` **identique** à celle du `JdbcTemplate`, puis rouleback
+  forcé d'une transaction `REQUIRES_NEW` — il ne subsiste ni compte, ni commande, ni paiement de
+  démonstration) ; et les deux écrans sont comparés avant/après dans le même test
+- [x] **Valeurs réellement mesurées sur le jeu produit** (instant du test 2026-10-09 21 h) : neuf comptes
+  sur **vingt-neuf jours civils d'amplitude** (plancher demandé : plus de quatre semaines), le plus ancien
+  soixante-deux jours avant le lancement, aucun dans le futur, aucun avant soixante-trois jours, aucun à
+  moins de trois jours civils de sa plus ancienne commande ; **trente-sept paiements, tous à exactement
+  une heure de leur commande et confirmés douze minutes plus tard, aucun dans le futur** ; vingt récoltes
+  dont `date_disponibilite` est le jour de leur `date_creation` ; **vingt-neuf commandes sur soixante dans
+  la fenêtre de trente jours, et zéro sur le jour frontière** — c'est ce qui rend les valeurs attendues
+  exactes quelle que soit l'heure du test
+- [x] **Non-régression des deux écrans (condition B)** — écran producteur, premier producteur, fenêtre de
+  trente jours, en **valeurs exactes** : chiffre d'affaires **87 425,00**, **18** commandes, taux
+  d'annulation **11,11 %**, panier moyen **5 464,06**, **9** commandes à traiter. Écran administration :
+  la base de développement porte la QA, les compteurs absolus n'y sont donc pas assertables, le test
+  procède **par écarts imputables au seul jeu de démonstration** — **+9** utilisateurs, **+3** producteurs,
+  **+6** acheteurs, **+19** récoltes actives, **+29** commandes de période, **+1 020 250,00** de volume
+  d'affaires, **+2** paiements remboursés
+- [x] **Tests — `DemoDataInitializerTest` 13 → 19, suite backend 292 → 298** (`./mvnw -o clean test`,
+  PostgreSQL réel, `Failures: 0`, `Errors: 0`, BUILD SUCCESS) : six nouveaux verrous
+  (`lesComptesSontEtalesSur…`,
+  `lesPaiementsSontAlignesSur…`, `lesRecoltesSontPublieesEntre…`, `uneDeuxiemeExecutionNeDeplaceAucuneDate`,
+  `laPasseSqlPartageLaTransactionDuRun…`, `letalageNeChangeAucuneValeur…`) plus le test de colonne inversé.
+  **Aucune assertion existante n'a été supprimée, affaiblie ni sautée** : les treize premières sont
+  sorties inchangées de la suite, et le compte total de la classe est passé de 13 à 19 sans qu'un seul
+  test existant soit retiré
+- [x] **Une assertion reformulée, déclarée ici** : la comparaison « la colonne n'a pas bougé » lisait
+  d'abord l'objet géré et attendait une **égalité stricte** avec l'horodatage du serveur. Rouge constaté à
+  l'exécution : PostgreSQL **arrondit** l'horodatage à la microseconde là où l'horloge JVM rend des
+  nanosecondes (`…168696,5` devenu `…168697`). L'assertion compare désormais la **colonne** et affirme
+  l'invariant — `isNotEqualTo(date passée)` **et** `isBetween(instant du test, maintenant)` : ce n'est pas
+  un affaiblissement, la date de douze jours en arrière est explicitement refusée et l'appartenance au
+  moment du serveur est contrôlée, alors que l'égalité simple était seulement fausse
+- [x] **Trois écarts signalés, non masqués** : **(a)** `notifications.date_creation` n'est pas touchée
+  (arbitrage de l'auteur) — la table ne porte qu'un destinataire, aucune référence à la commande annoncée,
+  et la rattacher serait une invention ; **(b)** l'ordre « producteurs avant acheteurs » **n'est pas
+  tenu** : la cohérence prime sur la bande, donc **cinq des six acheteurs** sont plus anciens que le
+  second producteur (première vente à quarante-six jours, compte à quarante-neuf), et le compte le plus
+  ancien du jeu est un acheteur ; pousser les producteurs devant eût regroupé les trois sur un seul jour
+  et dépendu de l'heure du test — refusé, et dit ; **(c)** **aucun des neuf comptes ne tombe dans la
+  fenêtre des trente derniers jours** (mesuré : zéro sur neuf), donc le graphique « inscriptions par
+  semaine » de l'administration rend ses semaines à **zéro** sur ce jeu, alors que les historiques de
+  ventes sont bien nourris. Ces trois points sont écrits dans le README §9 et dans la Javadoc du
+  composant
+- [x] **Un Javadoc de repository corrigé parce qu'il était devenu faux** : `repartitionParMoyenPaiement`
+  affirmait que la date de la commande faisait foi « et, sur le jeu de démonstration, celui de la
+  génération ». L'alignement des paiements rend les deux lectures coïncidentes sur la période ; la règle
+  écrite est maintenant la seule autorité, sans prétention nouvelle
+- [x] **Ce qui n'est PAS dans ce lot, et reste à la main de l'auteur** : la régénération de la base
+  `sunurecolte_demo` (destructive), la relecture de `verif-stat1.sql` et `verif-stat2.sql` contre cette
+  base régénérée, la comparaison écran ↔ SQL et la **QA navigateur de `/admin/statistiques`** ; l'écart
+  d'arrondi d'un FCFA du LOT QA-STAT-1 n'est pas tranché. Travail porté par la branche
   `fonctionnalites-statistiques`, **non poussé**
 
 ## Phase 10 — Intégration
