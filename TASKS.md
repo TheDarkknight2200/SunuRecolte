@@ -1255,11 +1255,12 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   « Statistiques » demandé par le lot s'y insère, le test attend donc cinq liens avec leur identifiant et
   leur libellé. **Aucune assertion supprimée ni affaiblie** ; la spec du producteur côté commandes reçues
   est inchangée
-- [x] **Ce qui reste ouvert** : QA navigateur réelle (les huit points du rapport de lot — reprise par
-  le **LOT QA-STAT-1** ci-dessous, qui en traite trois), aucune
-  vérification visuelle des largeurs, le lot statistiques de l'**ADMIN** qui doit réutiliser `app-barres`,
-  et la remise d'aplomb du seuil de stock par unité si l'auteur le valide. Travail porté par la branche
-  `fonctionnalites-statistiques`, **non poussé**
+- [x] **Ce qui reste ouvert** : QA navigateur réelle — **jouée** sur cet écran et reprise par le
+  **LOT QA-STAT-1** ci-dessous, qui en traite **cinq** défauts (les huit points du rapport de lot
+  n'ont pas été redéroulés un par un) ; les largeurs ont été **mesurées** dans ce même lot, pas
+  observées à l’œil hors de la fenêtre pilotée ; reste le lot statistiques de l'**ADMIN** qui doit
+  réutiliser `app-barres`, et la remise d'aplomb du seuil de stock par unité si l'auteur le valide.
+  Travail porté par la branche `fonctionnalites-statistiques`, **non poussé**
 
 ## LOT DEMO-1 — jeu de données de démonstration derrière un profil (2026-10-08)
 
@@ -1356,7 +1357,7 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   reste nécessaire pour `/admin` ; **(e)** une récolte dont la vente est pilotée refuse le prélèvement
   libre, le catalogue des commandes mélangeuses est donc plus restreint sur ces trois lignes ; **(f)**
   depuis la génération du jeu, **seul `/producteur/statistiques` a été observé en navigateur** — et il y
-  a montré trois défauts, traités par le LOT QA-STAT-1 ci-dessous
+  a montré cinq défauts, traités par le LOT QA-STAT-1 ci-dessous
 - [x] **Ce qui reste ouvert** : parcourir en navigateur les autres écrans que le jeu doit nourrir
   (catalogue, commandes reçues, espace acheteur, notifications) avant les captures du mémoire, et
   **régénérer la base** pour qu'elle porte l'arrondi au demi-unité décidé au LOT QA-STAT-1 — la
@@ -1366,10 +1367,12 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
 
 ## LOT QA-STAT-1 — corrections demandées par l’écran réel (2026-10-09)
 
-> **Ce que couvre cette section** : les trois défauts constatés sur `/producteur/statistiques` rendu
+> **Ce que couvre cette section** : les **cinq** défauts constatés sur `/producteur/statistiques` rendu
 > par le navigateur, la correction de chacun, et ce que les tests verrouillent. Les constats viennent
-> de **captures réelles** de l’écran, pas d’une relecture de code ; les proportions des graphiques
-> n’ont pas été touchées, seule la mise en page et l’écriture des nombres le sont.
+> de **captures réelles** et d’une **QA jouée dans le navigateur**, pas d’une relecture de code : les
+> trois premiers se lisaient sur les captures, les deux derniers (constats 4 et 5) ne sont apparus
+> qu’en mesurant l’écran rendu. Les proportions des graphiques n’ont pas été touchées, seule la mise
+> en page et l’écriture des nombres le sont.
 >
 > **Porte de validation** : `npm test -- --no-watch` et `npm run build` côté frontend,
 > `./mvnw -o test` côté backend, sur PostgreSQL réel.
@@ -1407,30 +1410,78 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   vite et faisait tomber le jeu à **50 commandes sur 60** (deux tests en échec, `ANNULEE` absent,
   `REMBOURSE` à 0). Le repli d’un tirage trop petit prend donc le plus petit prélèvement du jeu
   (0,5), et non la totalité du stock restant
-- [x] **Tests frontend — 955 → 962 (47 fichiers)** : `barres.spec.ts` **7 → 11** (association
+- [x] **Constat 4 — les étiquettes de l’axe des colonnes se chevauchent (constaté en réel, à 353 px)** :
+  « 05/10 » et « 09/10 » étaient écrits l’un sur l’autre. La borne finale de la période est toujours
+  rendue (décision de LOT STAT-1, gardée) et le pas d’intervalles tombait juste avant elle. **Dans le
+  composant partagé**, `etiquetteColonne()` arrête désormais le pas à un pas de colonne de la dernière
+  étiquette : les deux bornes se lisent, aucune ne touche sa voisine. Mesuré après correction :
+  30 jours → 6 étiquettes (10/09, 15/09, 20/09, 25/09, 30/09, 09/10), 7 jours → 4, « ce mois » (9 jours)
+  → 5, **aucun chevauchement** aux quatre largeurs observées
+- [x] **Constat 5 — une barre de défilement horizontale apparaissait à 375 px (constaté en réel)** :
+  le voile qui masque le tableau alternatif était posé **sur le `<table>` lui-même**, or une table ne
+  peut pas être plus étroite que son contenu — `width: 1px` est ignoré, le tableau rendait 549 px et
+  élargissait la page (`scrollWidth` 605 pour 338 px visibles). Le voile est devenu un `<div>` parent :
+  la table garde sa sémantique de tableau, ses valeurs restent dans l’arbre d’accessibilité (vérifié
+  sur le snapshot après correction) et `scrollWidth` est revenu à la largeur visible. **Le futur lot
+  ADMIN hérite des deux corrections, faites dans `app-barres` et non dans l’écran**
+- [x] **Écart assumé et non masqué — 1 FCFA entre la carte et la somme des jours** : la carte annonce
+  « Chiffre d’affaires 375 886 FCFA » et les trente montants quotidiens affichés somment à
+  **375 887 FCFA**. Cause identifiée : chaque jour est arrondi **indépendamment** à l’affichage
+  (`formaterMontantEntier`), pas la somme. L’écart ne vient pas du serveur — il est d’arrondi visible,
+  et il peut rester après régénération du jeu puisqu’un sous-total peut légitimement porter une
+  décimale. **La décision reste à l’auteur** : consigner l’écart, ou rendre aux valeurs quotidiennes
+  leurs décimales exactes (le graphique et son tableau alternatif, pas la synthèse)
+- [x] **Tests frontend — 955 → 963 (47 fichiers)** : `barres.spec.ts` **7 → 12** (association
   structurelle libellé-barre, géométrie sans chevauchement, infobulles, repère de maximum présent et
-  muet à zéro) et `statistiques.spec.ts` +1 (montants entiers, quantité gardant sa décimale) et +2
+  muet à zéro, étiquettes d’axe à distance de la borne finale, voile parent du tableau) et
+  `statistiques.spec.ts` +1 (montants entiers, quantité gardant sa décimale) et +2
   assertions (repère sur le graphique des ventes, absent du second). **Sept assertions re-ciblées**,
   toutes déclarées ici parce qu’elles portent sur la géométrie que le lot corrige volontairement :
   trois largeurs de barres `46/23/11,5 %` → `100/50/25 %`, une largeur et un `x` du second test
-  (`46 %` → `100 %`, `34 %` → `0`), et la paire d’assertions d’étiquettes de colonnes (6 → **7**, les
-  deux bornes de la période se lisent toujours). Les autres changements (`transform` de ligne, hauteur
-  du `<svg>`) sont des **assertions ajoutées**, pas d’existant retouché. **Aucune assertion supprimée
+  (`46 %` → `100 %`, `34 %` → `0`), et la paire d’assertions d’étiquettes de colonnes, retouchée **deux
+  fois** (6 → 7 quand les deux bornes se lisent, puis 7 → 6 après le constat 4). Les autres changements
+  (`transform` de ligne, hauteur du `<svg>`, parent du tableau alternatif) sont des **assertions
+  ajoutées**, pas d’existant retouché. **Aucune assertion supprimée
   ni affaiblie** ; `formatage.spec.ts` passe à 16 tests et vérifie le caractère échappé (`U+00A0`
   présent, `U+202F` absent)
 - [x] **Tests backend — 271 → 272** (`Failures: 0` sur les deux suites) : `DemoDataInitializerTest`
   vérifie que **toute** quantité vendue est multiple de 0,5 ; les effectifs du jeu (60 commandes, cinq
   statuts, 4 remboursements) restent exacts avec l’arrondi
-- [x] **Limites de ce lot** : les corrections de géométrie et de nombres n’ont **pas encore été
-  re-jouées dans le navigateur** à l’écriture de ces lignes, et le contrôle visuel des deux graphiques
-  aux deux largeurs, la console et le réseau sont un point ouvert ci-dessous, pas un résultat acquis ;
-  la base de démonstration porte encore le jeu à deux décimales, sa **régénération est destructive**
-  donc à la main de l’auteur ; le repère de maximum n’existe que sur le graphique vertical, le
-  graphique horizontal garde ses valeurs écrites sur chaque ligne
-- [x] **Ce qui reste ouvert** : vérification SQL indépendante des agrégats affichés (aucun écart
-  toléré ni masqué), QA navigateur après régénération du jeu, et le lot statistiques **ADMIN** qui
-  doit réutiliser `app-barres`. Travail porté par la branche `fonctionnalites-statistiques`,
-  **non poussé**
+- [x] **QA navigateur réellement jouée sur `/producteur/statistiques`** (profil `demo`, base
+  `sunurecolte_demo`, compte `producteur1.demo@sunurecolte.sn`) :
+  **association libellé ↔ barre** mesurée ligne par ligne — 44 à 54 px d’air entre le libellé et la
+  valeur, **la barre rendue sous les deux** sur les cinq lignes, et des largeurs de barres
+  225/213/56/21/17 px pour des revenus 151 736/144 000/38 025/14 400/11 570 FCFA, soit exactement les
+  proportions du serveur (le calcul n’est pas touché) ; **repère de maximum** présent au-dessus des
+  colonnes (« Maximum encaissé sur une journée : 93 220 FCFA ») ; **séparateur de milliers** vérifié au
+  codepoint (`1` `U+00A0` `274`), plus de chiffre agglutiné ; **montants entiers** à la synthèse et aux
+  deux graphiques, **quantité gardant sa décimale** (233,44 kg, jeu non régénéré) ; les **trois
+  périodes** changent réellement la fenêtre (7 jours → 7 colonnes et 4 étiquettes, 30 jours → 30
+  colonnes et 6, « ce mois » → 9 colonnes et 5) avec l’annonce mise à jour et l’état `aria-pressed`
+  qui suit ; **console sans erreur** (uniquement les journaux Vite et le mode développement) ;
+  **réseau** : à l’ouverture une seule `GET /api/producteurs/moi/statistiques?periode=30j` (200) avec le
+  `GET /api/notifications` de l’en-tête, et le clic sur « 7 derniers jours » n’émet **rien d’autre** que
+  `?periode=7j` en 200. **Comment les largeurs ont été obtenues** : 353 px est la largeur **réelle** de la fenêtre
+  pilotée (la sienne, non contrôlable par l’agent) ; les passes 375, 768, 1024 et 1366 px ont été
+  mesurées dans une **iframe de même origine** chargée sur le même écran — la mise en page est réelle
+  (les cartes passent de 4 par ligne à 1 colonne empilée à 375 px) mais le rendu n’est pas une fenêtre
+  native, et le contrôle visuel à l’œil de ces quatre largeurs **reste à faire par l’auteur**
+- [x] **Marges résiduelles mesurées, déclarées** : à 353 px les six étiquettes d’axe laissent **3 à 6 px
+  d’air** entre elles (aucun chevauchement, mais lisible de justesse — à 375 px mesurées en iframe,
+  7 à 9 px) ; et l’espace entre le montant et « FCFA » reste une **espace simple U+0020** (seul le
+  séparateur de milliers a été remplacé), hérité des quinze écrans qui appellent les formatteurs
+- [x] **Limites de ce lot** : la base de démonstration porte encore le jeu à deux décimales, sa
+  **régénération est destructive** donc à la main de l’auteur, et les mesures ci-dessus ont été prises
+  **avant** cette régénération ; le repère de maximum n’existe que sur le graphique vertical, le
+  graphique horizontal garde ses valeurs écrites sur chaque ligne ; une seule identité de producteur a
+  été observée (celle du compte connecté), les autres comptes du jeu non
+- [x] **Ce qui reste ouvert** : vérification SQL indépendante des agrégats affichés — les trois blocs
+  de requêtes ont été **remis à l’auteur**, `psql` refusant de se connecter sans mot de passe et la
+  consigne étant de **ne jamais taper ce secret dans un outil** ; aucun écart toléré ni masqué, et
+  l’écart d’arrondi de 1 FCFA signalé ci-dessus attend sa décision ; régénération du jeu puis
+  re-contrôle visuel ; parcourir en navigateur les autres écrans que le jeu nourrit ; et le lot
+  statistiques **ADMIN** qui doit réutiliser `app-barres`. Travail porté par la branche
+  `fonctionnalites-statistiques`, **non poussé**
 
 ## Phase 10 — Intégration
 - [ ] Angular ↔ backend
