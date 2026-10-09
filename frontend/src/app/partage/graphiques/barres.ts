@@ -130,9 +130,15 @@ export class Barres {
   }
 
   protected etiquetteColonne(index: number): boolean {
+    const pas = this.pasEtiquettes();
     const derniere = this.series().length - 1;
     // Les deux bornes de la période se lisent toujours, même quand les colonnes sont trop serrées.
-    return index === 0 || index === derniere || index % this.pasEtiquettes() === 0;
+    if (index === 0 || index === derniere) {
+      return true;
+    }
+    // Une étiquette posée à moins d'un pas de la borne finale se heurte à elle sur un écran étroit :
+    // le pas s'arrête avant, la dernière date lue reste celle du jour présent.
+    return index % pas === 0 && derniere - index >= pas;
   }
 
   /** Une ligne horizontale = un groupe translaté : tout ce qu'elle contient suit le même pas. */

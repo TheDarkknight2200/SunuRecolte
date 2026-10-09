@@ -160,7 +160,7 @@ describe('Barres', () => {
     expect(texte(fixture.nativeElement.querySelector('tbody td'))).toBe('0 FCFA');
   });
 
-  it('n’affiche qu’une étiquette sur cinq, tout en gardant les deux bornes de la période', () => {
+  it('n’affiche qu’une étiquette sur cinq, à distance suffisante de la borne finale', () => {
     const trenteJours = Array.from({ length: 30 }, (_, index) => ({
       etiquette: `${index + 1}`,
       valeur: index + 1,
@@ -169,11 +169,38 @@ describe('Barres', () => {
     configurer(trenteJours, 'verticale');
 
     const etiquettes = fixture.nativeElement.querySelectorAll('.graphique-barres__etiquette');
-    expect(etiquettes).toHaveLength(7);
-    expect([...etiquettes].map(texte)).toEqual(['1', '6', '11', '16', '21', '26', '30']);
+    expect(etiquettes).toHaveLength(6);
+    expect([...etiquettes].map(texte)).toEqual(['1', '6', '11', '16', '21', '30']);
     expect(fixture.nativeElement.querySelectorAll('rect')).toHaveLength(30);
     // Trente lignes dans le tableau alternatif : toutes les valeurs restent lisibles autrement.
     expect(fixture.nativeElement.querySelectorAll('tbody tr')).toHaveLength(30);
+
+    // Chaque étiquette est centrée sur sa colonne : le pourcentage rendu dit de quelle colonne il
+    // s'agit. Aucun couple ne doit se trouver à moins d'un pas de cinq colonnes, sans quoi la
+    // précédente empiète sur la date du jour — ce que la capture à 353 px a montré.
+    const largeurColonne = 100 / trenteJours.length;
+    const colonnes = [...etiquettes].map((etiquette) =>
+      Math.round(Number.parseFloat(etiquette.getAttribute('x')) / largeurColonne - 0.5),
+    );
+    expect(colonnes).toEqual([0, 5, 10, 15, 20, 29]);
+    const ecarts = colonnes.slice(1).map((colonne, index) => colonne - colonnes[index]);
+    expect(Math.min(...ecarts)).toBeGreaterThanOrEqual(5);
+  });
+
+  it('garde la dernière date quand le pas tomberait juste avant elle', () => {
+    // Douze colonnes, pas de deux : la borne finale étant à l'indice 11, l'indice 10 est écarté.
+    configurer(
+      Array.from({ length: 12 }, (_, index) => ({
+        etiquette: `${index + 1}`,
+        valeur: index + 1,
+        valeurFormatee: `${index + 1} FCFA`,
+      })),
+      'verticale',
+    );
+
+    expect(
+      [...fixture.nativeElement.querySelectorAll('.graphique-barres__etiquette')].map(texte),
+    ).toEqual(['1', '3', '5', '7', '9', '12']);
   });
 
   it('ajoute une barre à une série vide sans géométrie invalide', () => {
