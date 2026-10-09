@@ -1255,19 +1255,20 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   « Statistiques » demandé par le lot s'y insère, le test attend donc cinq liens avec leur identifiant et
   leur libellé. **Aucune assertion supprimée ni affaiblie** ; la spec du producteur côté commandes reçues
   est inchangée
-- [x] **Ce qui reste ouvert** : QA navigateur réelle (les huit points du rapport de lot), aucune
+- [x] **Ce qui reste ouvert** : QA navigateur réelle (les huit points du rapport de lot — reprise par
+  le **LOT QA-STAT-1** ci-dessous, qui en traite trois), aucune
   vérification visuelle des largeurs, le lot statistiques de l'**ADMIN** qui doit réutiliser `app-barres`,
   et la remise d'aplomb du seuil de stock par unité si l'auteur le valide. Travail porté par la branche
-  `fonctionnalites-statistiques`, en **trois commits** (backend, frontend, tests et documentation),
-  **non poussé**
+  `fonctionnalites-statistiques`, **non poussé**
 
 ## LOT DEMO-1 — jeu de données de démonstration derrière un profil (2026-10-08)
 
 > **Ce que couvre cette section** : le mécanisme qui remplit une base locale vide pour parcourir les
 > écrans et préparer les captures du mémoire, consigné d'après le code réellement en place (composant,
-> tests et documentation relus, suite exécutée). **La génération elle-même n'a pas encore été lancée
-> contre une base vide ni observée dans un navigateur** : ce que garantit ce lot, ce sont les tests
-> d'intégration, pas un rendu visuel.
+> tests et documentation relus, suite exécutée). **Le jeu a depuis été généré contre une base locale
+> vide et parcouru dans le navigateur** : ce que garantit cette section, ce sont les tests
+> d'intégration, et les défauts que l'écran a montrés sont traités et consignés par le **LOT QA-STAT-1**
+> ci-dessous.
 >
 > **Porte de validation** : `./mvnw test` sur PostgreSQL réel (aucun mock), la classe dédiée jouant le
 > composant dans la transaction du test.
@@ -1317,7 +1318,14 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   client. La date est écrite **après** tout le cycle de la commande, sinon le
   `entityManager.refresh()` du verrou pessimiste (LOT P3) l'écraserait. Un test le prouve : une
   commande créée par `CommandeService` en usage normal garde l'horodatage du serveur, et la colonne
-  reste malgré tout inscriptible
+  reste malgré tout inscriptible.
+  **Pourquoi le retrait de `updatable = false` est indispensable** (et non un réflexe de confort) :
+  `@GeneratedValue(strategy = IDENTITY)` force l'INSERT dès `commandeRepository.save(...)` dans
+  `CommandeService.creer`, donc le `@PrePersist` fige `dateCreation` **avant** que le générateur
+  connaisse l'identifiant — aucune écriture antérieure au premier persist n'est possible sans déclarer
+  une date dans `CommandeRequest`, ce qui serait un champ accepté du client, proscrit. Le test a été
+  rejoué avec l'attribut rétabli : **2 échecs sur 9**, et surtout **aucune erreur Hibernate** — la
+  colonne est silencieusement exclue de l'UPDATE, l'étalement redevient inopérant sans rien prévenir.
 - [x] **Tests — `DemoDataInitializerTest`, suite backend 262 → 271** (`Failures: 0`) : 9 tests sur
   PostgreSQL réel, dans la transaction du test pour rien laisser en base. Effectifs (9 utilisateurs,
   3 producteurs, 6 acheteurs, 20 récoltes, 60 commandes, notifications non nulles), les cinq statuts
@@ -1347,12 +1355,82 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   de l'isolation par compte ; **(d)** le profil demo ne crée **aucun** ADMIN, l'amorçage du README §4
   reste nécessaire pour `/admin` ; **(e)** une récolte dont la vente est pilotée refuse le prélèvement
   libre, le catalogue des commandes mélangeuses est donc plus restreint sur ces trois lignes ; **(f)**
-  la génération n'a pas encore été lancée contre une base vide ni observée en navigateur
-- [x] **Ce qui reste ouvert** : lancer le profil `demo` sur une base vide et parcourir les écrans
-  (catalogue, statistiques producteur, commandes reçues, espace acheteur, notifications) avant les
-  captures du mémoire ; décider si l'étalement des paiements et des notifications vaut un lot
-  supplémentaire. Travail porté par la branche `fonctionnalites-statistiques`, en **trois commits**
-  (backend, tests, documentation), **non poussé**
+  depuis la génération du jeu, **seul `/producteur/statistiques` a été observé en navigateur** — et il y
+  a montré trois défauts, traités par le LOT QA-STAT-1 ci-dessous
+- [x] **Ce qui reste ouvert** : parcourir en navigateur les autres écrans que le jeu doit nourrir
+  (catalogue, commandes reçues, espace acheteur, notifications) avant les captures du mémoire, et
+  **régénérer la base** pour qu'elle porte l'arrondi au demi-unité décidé au LOT QA-STAT-1 — la
+  régénération est destructive, donc menée par l'auteur ; décider si l'étalement des paiements et des
+  notifications vaut un lot supplémentaire. Travail porté par la branche
+  `fonctionnalites-statistiques`, **non poussé**
+
+## LOT QA-STAT-1 — corrections demandées par l’écran réel (2026-10-09)
+
+> **Ce que couvre cette section** : les trois défauts constatés sur `/producteur/statistiques` rendu
+> par le navigateur, la correction de chacun, et ce que les tests verrouillent. Les constats viennent
+> de **captures réelles** de l’écran, pas d’une relecture de code ; les proportions des graphiques
+> n’ont pas été touchées, seule la mise en page et l’écriture des nombres le sont.
+>
+> **Porte de validation** : `npm test -- --no-watch` et `npm run build` côté frontend,
+> `./mvnw -o test` côté backend, sur PostgreSQL réel.
+
+- [x] **Constat 1 — les barres horizontales ne rattachent plus leur libellé** : chaque barre partait à
+  34 % de la largeur et chaque étiquette était posée **22 px au-dessus** de sa barre, de l’autre côté
+  du texte de valeur aligné à droite. La règle de LOT STAT-1 (« une classe n’existe que si un écran
+  l’utilise ») est respectée : le défaut est **dans le composant partagé** `app-barres`, donc la
+  correction y est faite et non dans l’écran, pour que le futur lot ADMIN en profite
+- [x] **Correction — `partage/graphiques/barres.ts` et `.html`** : une ligne horizontale devient un
+  `<g transform="translate(0 …)">` qui porte son libellé à gauche, sa valeur à droite et sa barre
+  **sous les deux**, sur la pleine largeur (`longueur()` = `pourcentage()` sans partage avec le
+  texte). Le pas de ligne passe de 34 à 52 pour que le texte et la barre ne se chevauchent jamais.
+  **`pourcentage()` est inchangé** : les proportions affichées restent exactement celles calculées.
+  Chaque `<rect>` vertical porte un `<title>libellé : valeur</title>` (confort visuel seulement, `role
+  = "img"` tenant la subtree hors de l’arbre accessible — le tableau alternatif reste la voie machine)
+  et un **repère de maximum** en HTML au-dessus de la trace, alimenté par une `etiquetteMaximum()`
+  fournie par l’appelant : aucun mot de métier n’entre dans le composant partagé
+- [x] **Constat 3 et correction — `core/utilitaires/formatage.ts`** : `Intl.NumberFormat('fr-FR')`
+  rend le séparateur de milliers en **fine insécable U+202F**, glyphe absente de la police du projet,
+  donc « 151 736 » se lisait « 151736 » pendant qu’un nombre sans millier restait espacé. Le
+  séparateur est maintenant écrit à la main (`formatToParts` puis remplacement des parties `group`
+  par U+00A0). Un **écart assumé et signalé** : les deux formatteurs sont appelés par une quinzaine
+  d’écrans (catalogue, détail, panier, tiroir, commande, commandes, paiement, admin, accueil), qui
+  changent tous de caractère de séparateur, sans aucune autre modification
+- [x] **Décimales de la synthèse** : `formaterMontantEntier` s’ajoute pour un écran de chiffres —
+  chiffre d’affaires, panier moyen, montants des deux graphiques, tableau alternatif et annonce —
+  tandis qu’une **quantité vendue garde sa décimale** (`formaterQuantite`, 233,5 kg reste lisible).
+  L’arrondi n’est que d’affichage : la valeur du serveur reste exacte et `StatistiquesProducteurService`
+  n’est pas touché
+- [x] **Backend — `DemoDataInitializer`** : le tirage libre est arrondi **au demi-unité inférieur**
+  (`PAS_DE_VENTE`), jamais à deux décimales, pour qu’une ligne ne sorte plus à 233,44 kg et qu’un
+  sous-total garde au plus une décimale. **Un plancher tenté puis écarté, consigné pour ne pas y
+  revenir** : borner chaque prélèvement au `quantiteMin` de la récolte vidait les petites récoltes trop
+  vite et faisait tomber le jeu à **50 commandes sur 60** (deux tests en échec, `ANNULEE` absent,
+  `REMBOURSE` à 0). Le repli d’un tirage trop petit prend donc le plus petit prélèvement du jeu
+  (0,5), et non la totalité du stock restant
+- [x] **Tests frontend — 955 → 962 (47 fichiers)** : `barres.spec.ts` **7 → 11** (association
+  structurelle libellé-barre, géométrie sans chevauchement, infobulles, repère de maximum présent et
+  muet à zéro) et `statistiques.spec.ts` +1 (montants entiers, quantité gardant sa décimale) et +2
+  assertions (repère sur le graphique des ventes, absent du second). **Sept assertions re-ciblées**,
+  toutes déclarées ici parce qu’elles portent sur la géométrie que le lot corrige volontairement :
+  trois largeurs de barres `46/23/11,5 %` → `100/50/25 %`, une largeur et un `x` du second test
+  (`46 %` → `100 %`, `34 %` → `0`), et la paire d’assertions d’étiquettes de colonnes (6 → **7**, les
+  deux bornes de la période se lisent toujours). Les autres changements (`transform` de ligne, hauteur
+  du `<svg>`) sont des **assertions ajoutées**, pas d’existant retouché. **Aucune assertion supprimée
+  ni affaiblie** ; `formatage.spec.ts` passe à 16 tests et vérifie le caractère échappé (`U+00A0`
+  présent, `U+202F` absent)
+- [x] **Tests backend — 271 → 272** (`Failures: 0` sur les deux suites) : `DemoDataInitializerTest`
+  vérifie que **toute** quantité vendue est multiple de 0,5 ; les effectifs du jeu (60 commandes, cinq
+  statuts, 4 remboursements) restent exacts avec l’arrondi
+- [x] **Limites de ce lot** : les corrections de géométrie et de nombres n’ont **pas encore été
+  re-jouées dans le navigateur** à l’écriture de ces lignes, et le contrôle visuel des deux graphiques
+  aux deux largeurs, la console et le réseau sont un point ouvert ci-dessous, pas un résultat acquis ;
+  la base de démonstration porte encore le jeu à deux décimales, sa **régénération est destructive**
+  donc à la main de l’auteur ; le repère de maximum n’existe que sur le graphique vertical, le
+  graphique horizontal garde ses valeurs écrites sur chaque ligne
+- [x] **Ce qui reste ouvert** : vérification SQL indépendante des agrégats affichés (aucun écart
+  toléré ni masqué), QA navigateur après régénération du jeu, et le lot statistiques **ADMIN** qui
+  doit réutiliser `app-barres`. Travail porté par la branche `fonctionnalites-statistiques`,
+  **non poussé**
 
 ## Phase 10 — Intégration
 - [ ] Angular ↔ backend
