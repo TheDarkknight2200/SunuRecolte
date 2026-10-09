@@ -1,6 +1,13 @@
 /* Barres du lot STAT-1 : un tracé sobre, aucune couleur en dur, tout vient des tokens.
    Le tableau alternatif reste dans le DOM pour les lecteurs d'écran mais ne se voit pas. */
 .graphique-barres {
+  &__repere {
+    margin: 0 0 var(--espace-1);
+    color: var(--couleur-texte-secondaire);
+    font-size: var(--taille-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
   &__svg {
     display: block;
     width: 100%;

@@ -10,15 +10,14 @@ export interface BarreStatistique {
 
 /* Géométrie en pixels. Le SVG n'a pas de `viewBox` : une unité vaut un pixel, le texte garde sa
    taille réelle et rien ne se déforme quand l'utilisateur agrandit la police du navigateur. */
-const PAS_LIGNE = 34;
+const PAS_LIGNE = 52;
 const HAUTEUR_TRACE = 110;
 const HAUTEUR_AXE = 20;
-const DECALAGE_TRACE = 18;
 const EPAISSEUR_BARRE = 10;
 
-/** Parts de largeur (en pourcentage) d'une barre horizontale : l'étiquette, le tracé, la valeur. */
-const PART_ETIQUETTE = 34;
-const PART_BARRE = 46;
+/** Une ligne horizontale : le texte (libellé et valeur) sur sa ligne de base, la barre juste après. */
+const BASE_ETIQUETTE = 11;
+const HAUT_BARRE = 18;
 
 /** Un identifiant par instance : `aria-labelledby` doit désigner le bon `<title>`. */
 let compteurInstances = 0;
@@ -29,11 +28,18 @@ let compteurInstances = 0;
  * Un seul composant pour les deux rendus demandés : colonnes verticales (ventes par jour) et
  * barres horizontales (top récoltes). Il n'interprète rien : l'écran appelant fournit les valeurs
  * déjà formatées, et le graphique ne fait que les reporter en longueurs relatives à la plus
- * grande d'entre elles.
+ * grande d'entre elles, tracée sur toute la largeur.
+ *
+ * Une ligne horizontale est un seul groupe : libellé à gauche et valeur à droite sur la même ligne
+ * de base, barre pleine largeur juste en dessous. L'écart entre deux groupes doit rester
+ * nettement plus grand que l'écart entre le libellé et sa barre, sinon le lecteur ne sait plus
+ * quelle barre appartient à quelle ligne.
  *
  * Accessibilité : le `<svg>` porte `role="img"` et un `<title>` qui dit ce qu'il montre, les
  * chiffres eux-mêmes sont dans un tableau alternatif présent en permanence dans le DOM — une
- * barre ne porte jamais l'information seule.
+ * barre ne porte jamais l'information seule. En colonnes, chaque barre porte aussi un `<title>`
+ * pour l'infobulle native ; ce titre reste un confort visuel, `role="img"` tenant le contenu du
+ * SVG hors de l'arbre consulté par un lecteur d'écran — le tableau demeure la voie machine.
  *
  * Le lot administration doit le réutiliser : aucune couleur en dur, tout vient des tokens, et
  * aucun texte de métier n'est écrit ici.
@@ -52,9 +58,17 @@ export class Barres {
   readonly enteteValeur = input.required<string>();
   readonly series = input.required<readonly BarreStatistique[]>();
 
+  /**
+   * Légende du repère de valeur maximal, affichée au-dessus des colonnes. `null` (par défaut) le
+   * retire : un appelant qui n'a rien à promettre sur l'échelle ne montre rien. Le texte vient de
+   * l'écran appelant — le graphique n'écrit aucun mot de métier.
+   */
+  readonly etiquetteMaximum = input<string | null>(null);
+
   protected readonly identifiant = `barres-${(compteurInstances += 1)}`;
   protected readonly epaisseur = EPAISSEUR_BARRE;
-  protected readonly debutBarre = `${PART_ETIQUETTE}%`;
+  protected readonly baseEtiquette = BASE_ETIQUETTE;
+  protected readonly hautBarre = HAUT_BARRE;
   protected readonly sol = HAUTEUR_TRACE;
   protected readonly ligneBase = HAUTEUR_TRACE + HAUTEUR_AXE - 6;
 
@@ -62,6 +76,16 @@ export class Barres {
 
   protected readonly max = computed(() =>
     this.series().reduce((plus, barre) => Math.max(plus, barre.valeur), 0),
+  );
+
+  /** Le repère rend la valeur déjà formatée de la plus haute barre : rien n'est recalculé ici. */
+  protected readonly valeurMaxFormatee = computed(() => {
+    const laPlusHaute = this.series().find((barre) => barre.valeur === this.max());
+    return laPlusHaute?.valeurFormatee ?? '';
+  });
+
+  protected readonly repereVisible = computed(
+    () => this.verticale() && this.etiquetteMaximum() !== null && this.max() > 0,
   );
 
   protected readonly hauteurSvg = computed(() =>
@@ -106,18 +130,18 @@ export class Barres {
   }
 
   protected etiquetteColonne(index: number): boolean {
-    return index % this.pasEtiquettes() === 0;
+    const derniere = this.series().length - 1;
+    // Les deux bornes de la période se lisent toujours, même quand les colonnes sont trop serrées.
+    return index === 0 || index === derniere || index % this.pasEtiquettes() === 0;
   }
 
-  protected yEtiquette(index: number): number {
-    return index * PAS_LIGNE + 12;
+  /** Une ligne horizontale = un groupe translaté : tout ce qu'elle contient suit le même pas. */
+  protected transformLigne(index: number): string {
+    return `translate(0 ${index * PAS_LIGNE})`;
   }
 
-  protected yBarre(index: number): number {
-    return index * PAS_LIGNE + DECALAGE_TRACE;
-  }
-
+  /** La plus grande valeur occupe toute la largeur : la barre n'est plus partagée avec le texte. */
   protected longueur(barre: BarreStatistique): string {
-    return `${(this.pourcentage(barre.valeur) * PART_BARRE) / 100}%`;
+    return `${this.pourcentage(barre.valeur)}%`;
   }
 }

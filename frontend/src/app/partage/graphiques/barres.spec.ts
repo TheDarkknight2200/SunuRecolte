@@ -54,15 +54,45 @@ describe('Barres', () => {
 
   it('rend une barre horizontale et sa valeur formatée par série, sans interpréter le nombre', () => {
     configurer(TROIS_BARRRES);
+    const lignes = fixture.nativeElement.querySelectorAll('.graphique-barres__ligne');
     const rects = fixture.nativeElement.querySelectorAll('rect');
     const valeurs = [...fixture.nativeElement.querySelectorAll('.graphique-barres__valeur')];
 
     expect(rects).toHaveLength(3);
     expect(valeurs.map(texte)).toEqual(['6 000 FCFA', '3 000 FCFA', '1 500 FCFA']);
-    // La longueur est relative à la plus grande valeur : 100 %, 50 %, 25 % de la trace.
-    expect(rects[0].getAttribute('width')).toBe('46%');
-    expect(rects[1].getAttribute('width')).toBe('23%');
-    expect(rects[2].getAttribute('width')).toBe('11.5%');
+    // La longueur est relative à la plus grande valeur : 100 %, 50 %, 25 % de la largeur.
+    expect(rects[0].getAttribute('width')).toBe('100%');
+    expect(rects[1].getAttribute('width')).toBe('50%');
+    expect(rects[2].getAttribute('width')).toBe('25%');
+
+    // L'association se lit dans la structure : libellé, valeur et barre appartiennent au même groupe.
+    expect(lignes).toHaveLength(3);
+    expect(texte(lignes[1].querySelector('.graphique-barres__etiquette'))).toBe('Oignon');
+    expect(texte(lignes[1].querySelector('.graphique-barres__valeur'))).toBe('3 000 FCFA');
+    expect(lignes[1].querySelector('.graphique-barres__barre')).toBe(rects[1]);
+  });
+
+  it('pose la barre sous son libellé, à nettement plus près de lui que de la ligne suivante', () => {
+    configurer(TROIS_BARRRES);
+    const lignes = fixture.nativeElement.querySelectorAll('.graphique-barres__ligne');
+
+    expect(lignes[1].getAttribute('transform')).toBe('translate(0 52)');
+    expect(lignes[2].getAttribute('transform')).toBe('translate(0 104)');
+    expect(fixture.nativeElement.querySelector('svg').getAttribute('height')).toBe('156');
+
+    // Le libellé et sa valeur partagent la même ligne de base, la barre vient après les deux.
+    const premiere = lignes[0];
+    const baseLabel = Number(premiere.querySelector('.graphique-barres__etiquette').getAttribute('y'));
+    const baseValeur = Number(premiere.querySelector('.graphique-barres__valeur').getAttribute('y'));
+    const hautBarre = Number(premiere.querySelector('rect').getAttribute('y'));
+    const basBarre = hautBarre + Number(premiere.querySelector('rect').getAttribute('height'));
+    expect(baseValeur).toBe(baseLabel);
+    expect(hautBarre).toBeGreaterThan(baseLabel);
+
+    // 7 px entre un libellé et sa barre, 35 px jusqu'au libellé de la ligne suivante : le
+    // rattachement se voit de lui-même, sans avoir à compter les pixels sur l'écran.
+    expect(hautBarre - baseLabel).toBe(7);
+    expect(52 + baseLabel - basBarre).toBeGreaterThan(hautBarre - baseLabel);
   });
 
   it('en colonnes, rapporte la hauteur à la plus grande valeur et garde le sol', () => {
@@ -77,6 +107,47 @@ describe('Barres', () => {
     expect(rects[2].getAttribute('height')).toBe('28');
   });
 
+  it('donne une infobulle à chaque colonne, avec la date et la valeur déjà formatée', () => {
+    configurer(
+      [
+        { etiquette: '07/10', valeur: 6000, valeurFormatee: '6 000 FCFA' },
+        { etiquette: '08/10', valeur: 3000, valeurFormatee: '3 000 FCFA' },
+      ],
+      'verticale',
+    );
+    const titres = [...fixture.nativeElement.querySelectorAll('.graphique-barres__barre title')];
+
+    expect(titres.map(texte)).toEqual(['07/10 : 6 000 FCFA', '08/10 : 3 000 FCFA']);
+  });
+
+  it('annonce le maximum de l’axe des colonnes quand l’appelant fournit une légende', () => {
+    fixture = TestBed.createComponent(Barres);
+    fixture.componentRef.setInput('titre', 'Montant encaissé par jour');
+    fixture.componentRef.setInput('enteteEtiquette', 'Jour');
+    fixture.componentRef.setInput('enteteValeur', 'Montant');
+    fixture.componentRef.setInput('orientation', 'verticale');
+    fixture.componentRef.setInput('etiquetteMaximum', 'Maximum encaissé sur une journée');
+    fixture.componentRef.setInput('series', [
+      { etiquette: '07/10', valeur: 900, valeurFormatee: '900 FCFA' },
+      { etiquette: '08/10', valeur: 1800, valeurFormatee: '1 800 FCFA' },
+    ]);
+    fixture.detectChanges();
+
+    expect(texte(fixture.nativeElement.querySelector('.graphique-barres__repere'))).toBe(
+      'Maximum encaissé sur une journée : 1 800 FCFA',
+    );
+  });
+
+  it('rend le repère muet sans légende fournie, et absent quand toutes les valeurs sont nulles', () => {
+    configurer(TROIS_BARRRES, 'verticale');
+    expect(fixture.nativeElement.querySelector('.graphique-barres__repere')).toBeNull();
+
+    configurer([{ etiquette: '08/10', valeur: 0, valeurFormatee: '0 FCFA' }], 'verticale');
+    fixture.componentRef.setInput('etiquetteMaximum', 'Maximum encaissé sur une journée');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.graphique-barres__repere')).toBeNull();
+  });
+
   it('ne divise jamais par zéro : une période sans vente produit des barres nulles', () => {
     configurer([
       { etiquette: '07/10', valeur: 0, valeurFormatee: '0 FCFA' },
@@ -89,7 +160,7 @@ describe('Barres', () => {
     expect(texte(fixture.nativeElement.querySelector('tbody td'))).toBe('0 FCFA');
   });
 
-  it('n’affiche qu’une étiquette sur cinq quand les colonnes sont trop serrées', () => {
+  it('n’affiche qu’une étiquette sur cinq, tout en gardant les deux bornes de la période', () => {
     const trenteJours = Array.from({ length: 30 }, (_, index) => ({
       etiquette: `${index + 1}`,
       valeur: index + 1,
@@ -98,8 +169,8 @@ describe('Barres', () => {
     configurer(trenteJours, 'verticale');
 
     const etiquettes = fixture.nativeElement.querySelectorAll('.graphique-barres__etiquette');
-    expect(etiquettes).toHaveLength(6);
-    expect([...etiquettes].map(texte)).toEqual(['1', '6', '11', '16', '21', '26']);
+    expect(etiquettes).toHaveLength(7);
+    expect([...etiquettes].map(texte)).toEqual(['1', '6', '11', '16', '21', '26', '30']);
     expect(fixture.nativeElement.querySelectorAll('rect')).toHaveLength(30);
     // Trente lignes dans le tableau alternatif : toutes les valeurs restent lisibles autrement.
     expect(fixture.nativeElement.querySelectorAll('tbody tr')).toHaveLength(30);
@@ -109,7 +180,7 @@ describe('Barres', () => {
     configurer([{ etiquette: 'Tomate', valeur: 450, valeurFormatee: '450 FCFA' }]);
     const rect = fixture.nativeElement.querySelector('rect');
 
-    expect(rect.getAttribute('width')).toBe('46%');
-    expect(rect.getAttribute('x')).toBe('34%');
+    expect(rect.getAttribute('width')).toBe('100%');
+    expect(rect.getAttribute('x')).toBe('0');
   });
 });

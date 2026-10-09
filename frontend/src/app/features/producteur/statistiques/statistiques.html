@@ -111,13 +111,13 @@
         <div class="carte statistiques__carte">
           <p class="statistiques__legende">Chiffre d’affaires</p>
           <p class="statistiques__valeur statistiques__valeur--dominant">
-            {{ formaterMontant(d.chiffreAffaires) }}
+            {{ formaterMontantEntier(d.chiffreAffaires) }}
           </p>
           <p class="statistiques__precision">Hors commandes annulées.</p>
         </div>
         <div class="carte statistiques__carte">
           <p class="statistiques__legende">Panier moyen</p>
-          <p class="statistiques__valeur">{{ formaterMontant(d.panierMoyen) }}</p>
+          <p class="statistiques__valeur">{{ formaterMontantEntier(d.panierMoyen) }}</p>
           <p class="statistiques__precision">Hors commandes annulées.</p>
         </div>
         <div class="carte statistiques__carte">
@@ -146,6 +146,7 @@
             titre="Montant encaissé par jour sur la période choisie"
             enteteEtiquette="Jour"
             enteteValeur="Montant"
+            etiquetteMaximum="Maximum encaissé sur une journée"
             [series]="ventes()"
           />
         }

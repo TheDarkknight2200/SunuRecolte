@@ -16,7 +16,7 @@ import { StatistiquesService } from '../../../core/services/statistiques.service
 import { ToastService } from '../../../core/services/toast.service';
 import { messageErreurApi } from '../../../core/utilitaires/erreurs-api';
 import {
-  formaterMontant,
+  formaterMontantEntier,
   formaterQuantite,
 } from '../../../core/utilitaires/formatage';
 import { BarreStatistique, Barres } from '../../../partage/graphiques/barres';
@@ -55,7 +55,8 @@ export class Statistiques {
   protected readonly chargement = signal(true);
   protected readonly erreur = signal<string | null>(null);
 
-  protected readonly formaterMontant = formaterMontant;
+  /** Un écran de synthèse lit des entiers : les montants sont arrondis à l'affichage, jamais en base. */
+  protected readonly formaterMontantEntier = formaterMontantEntier;
   protected readonly formaterQuantite = formaterQuantite;
 
   /** Une entrée par jour civil de la période, sans trou : le graphique ne trie ni ne comble rien. */
@@ -63,7 +64,7 @@ export class Statistiques {
     (this.donnees()?.ventesParJour ?? []).map((vente) => ({
       etiquette: this.jour(vente.date),
       valeur: vente.montant,
-      valeurFormatee: formaterMontant(vente.montant),
+      valeurFormatee: formaterMontantEntier(vente.montant),
     })),
   );
 
@@ -73,7 +74,7 @@ export class Statistiques {
     (this.donnees()?.topRecoltes ?? []).map((recolte) => ({
       etiquette: recolte.nom,
       valeur: recolte.revenu,
-      valeurFormatee: `${formaterQuantite(recolte.quantiteVendue, recolte.unite)} — ${formaterMontant(recolte.revenu)}`,
+      valeurFormatee: `${formaterQuantite(recolte.quantiteVendue, recolte.unite)} — ${formaterMontantEntier(recolte.revenu)}`,
     })),
   );
 
@@ -105,7 +106,7 @@ export class Statistiques {
     const pluriel = donnees.nombreCommandes > 1 ? 's' : '';
     return (
       `Période : ${this.libellePeriode(this.periode())}. Chiffre d’affaires ` +
-      `${formaterMontant(donnees.chiffreAffaires)} pour ${donnees.nombreCommandes} commande${pluriel}.`
+      `${formaterMontantEntier(donnees.chiffreAffaires)} pour ${donnees.nombreCommandes} commande${pluriel}.`
     );
   });
 

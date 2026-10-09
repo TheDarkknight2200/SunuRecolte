@@ -159,6 +159,10 @@ describe('Statistiques (écran producteur)', () => {
     expect(graphiques).toHaveLength(2);
     expect(graphiques[0]?.orientation()).toBe('verticale');
     expect(graphiques[1]?.orientation()).toBe('horizontale');
+    // Seules les colonnes portent un repère de valeur : les barres horizontales affichent déjà
+    // leur montant sur la ligne du libellé.
+    expect(graphiques[0]?.etiquetteMaximum()).toBe('Maximum encaissé sur une journée');
+    expect(graphiques[1]?.etiquetteMaximum()).toBeNull();
     expect(
       [...racine().querySelectorAll('.graphique-barres__alternative thead th')].map((entete) =>
         (entete.textContent ?? '').trim(),
@@ -179,6 +183,34 @@ describe('Statistiques (écran producteur)', () => {
     expect(jours).toEqual(['900FCFA', '450FCFA', '0FCFA']);
     expect(recoltes).toEqual(['60kg—900FCFA', '3sac—450FCFA']);
     expect(texte('.statistiques__stock-ligne .statistiques__nombre')).toBe('3 sac');
+  });
+
+  it('arrondit les montants de la synthèse à l’entier, la quantité vendue gardant sa décimale', () => {
+    ouvrir(
+      donnees({
+        chiffreAffaires: 375885.5,
+        panierMoyen: 22110.91,
+        ventesParJour: [
+          { date: '2026-10-07', montant: 375885.5 },
+          { date: '2026-10-08', montant: 22110.91 },
+        ],
+        topRecoltes: [
+          { recolteId: 12, nom: 'Tomate', quantiteVendue: 233.5, unite: 'kg', revenu: 350160.25 },
+        ],
+      }),
+    );
+
+    const valeurs = [...racine().querySelectorAll('.statistiques__carte .statistiques__valeur')];
+    expect(sansEspace(valeurs[0].textContent ?? '')).toBe('375886FCFA');
+    expect(sansEspace(valeurs[1].textContent ?? '')).toBe('22111FCFA');
+    expect(sansEspace(valeurs[0].textContent ?? '')).not.toContain(',');
+
+    const tableaux = racine().querySelectorAll('.graphique-barres__alternative tbody');
+    expect([...tableaux[0].querySelectorAll('td')].map((cellule) =>
+      sansEspace(cellule.textContent ?? ''),
+    )).toEqual(['375886FCFA', '22111FCFA']);
+    expect(sansEspace(tableaux[1].querySelector('td')?.textContent ?? '')).toBe('233,5kg—350160FCFA');
+    expect(texte('#statistiques-annonce')).toContain('375 886 FCFA pour 3 commandes');
   });
 
   it('n’affiche aucune barre quand la période n’a rapporté que des zéros', () => {
