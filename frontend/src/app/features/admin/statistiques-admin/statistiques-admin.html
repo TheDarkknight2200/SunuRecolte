@@ -1,0 +1,286 @@
+<section class="statistiques-admin page--surface">
+  <!-- Écran de chiffres : le `.conteneur` global apporte le plafond §20 et les gouttières. -->
+  <div class="conteneur">
+    <div class="statistiques-admin__entete">
+      <div class="statistiques-admin__titre">
+        <p class="statistiques-admin__surtitre">Espace administrateur</p>
+        <h1 id="statistiques-admin-titre">Statistiques de la plateforme</h1>
+        <p class="statistiques-admin__intro">
+          Ce que la plateforme compte, et ce que ses récoltes ont rapporté sur la période choisie.
+          Les chiffres viennent du serveur ; aucun n’est recalculé ici.
+        </p>
+      </div>
+      <div class="statistiques-admin__entete-actions">
+        <button
+          type="button"
+          class="bouton bouton--secondaire bouton--compact"
+          id="statistiques-admin-actualiser"
+          [attr.aria-disabled]="chargement() ? 'true' : null"
+          [attr.aria-busy]="chargement() ? 'true' : null"
+          (click)="charger()"
+        >
+          Actualiser
+        </button>
+        <a class="bouton bouton--discret bouton--compact" routerLink="/notifications">
+          Notifications
+        </a>
+      </div>
+    </div>
+
+    <app-admin-navigation />
+
+    <!--
+      Pastilles de période, au même traitement qu'au catalogue : `aria-pressed` porte le choix,
+      la couleur ne fait que le rendre visible. Le changement relit le même endpoint.
+    -->
+    <div class="statistiques-admin__barre">
+      <div
+        class="champ statistiques-admin__champ"
+        id="periodes"
+        role="group"
+        aria-labelledby="periodes-titre"
+      >
+        <span class="champ__libelle" id="periodes-titre">Période</span>
+        <div class="statistiques-admin__pastilles">
+          @for (valeur of periodes; track valeur) {
+            <button
+              type="button"
+              class="bouton"
+              [attr.data-valeur]="valeur"
+              [class.bouton--encre]="valeur === periode()"
+              [class.bouton--secondaire]="valeur !== periode()"
+              [attr.aria-pressed]="valeur === periode()"
+              (click)="choisirPeriode(valeur)"
+            >
+              {{ libellePeriode(valeur) }}
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!--
+      Région persistante : supprimée puis recréée à chaque lecture, elle n'annoncerait rien.
+      Le texte se vide pendant la requête, ce qui suffit à signaler le changement de période.
+    -->
+    <p
+      class="statistiques-admin__annonce"
+      id="statistiques-admin-annonce"
+      role="status"
+      aria-live="polite"
+    >
+      {{ annonce() }}
+    </p>
+
+    @if (chargement()) {
+      <div class="etat" id="statistiques-admin-chargement" aria-busy="true">
+        <p class="etat__texte">Chargement des statistiques de la plateforme…</p>
+      </div>
+    } @else if (erreur(); as message) {
+      <!-- La notice du bas (§39.2) porte l'alerte ; ici reste un état vide, avec sa sortie. -->
+      <div class="etat" id="statistiques-admin-erreur">
+        <p class="etat__titre">Statistiques non chargées</p>
+        <p class="etat__texte">{{ message }}</p>
+        <p class="statistiques-admin__etat-actions">
+          <button
+            type="button"
+            class="bouton bouton--primaire bouton--compact"
+            id="statistiques-admin-reessayer"
+            (click)="charger()"
+          >
+            Réessayer
+          </button>
+          <a class="bouton bouton--secondaire bouton--compact" routerLink="/admin/utilisateurs">
+            Voir les comptes
+          </a>
+        </p>
+      </div>
+    } @else if (vide()) {
+      <div class="etat" id="statistiques-admin-vide">
+        <p class="etat__titre">Rien à compter pour l’instant</p>
+        <p class="etat__texte">
+          Aucun compte inscrit, aucune récolte publiée, aucune commande passée. Les statistiques
+          parleront d’elles-mêmes dès que la plateforme aura une activité.
+        </p>
+        <p class="statistiques-admin__etat-actions">
+          <a class="bouton bouton--primaire bouton--compact" routerLink="/admin/utilisateurs">
+            Voir les comptes
+          </a>
+          <a class="bouton bouton--secondaire bouton--compact" routerLink="/admin/recoltes">
+            Modérer les récoltes
+          </a>
+        </p>
+      </div>
+    } @else if (donnees(); as d) {
+      <div class="statistiques-admin__cartes">
+        <div class="carte statistiques-admin__carte">
+          <p class="statistiques-admin__legende">Volume d’affaires</p>
+          <p class="statistiques-admin__valeur statistiques-admin__valeur--dominant">
+            {{ formaterMontantEntier(d.volumeAffaires) }}
+          </p>
+          <p class="statistiques-admin__precision">Hors commandes annulées.</p>
+        </div>
+        <div class="carte statistiques-admin__carte">
+          <p class="statistiques-admin__legende">Commandes</p>
+          <p class="statistiques-admin__valeur">{{ d.commandesPeriode }}</p>
+          <p class="statistiques-admin__precision">Commandes annulées comprises.</p>
+        </div>
+        <div class="carte statistiques-admin__carte">
+          <p class="statistiques-admin__legende">Comptes</p>
+          <p class="statistiques-admin__valeur">{{ d.utilisateursTotal }}</p>
+          <p class="statistiques-admin__precision">
+            Producteurs et acheteurs, hors administrateurs.
+          </p>
+        </div>
+        <div class="carte statistiques-admin__carte">
+          <p class="statistiques-admin__legende">Producteurs</p>
+          <p class="statistiques-admin__valeur">{{ d.producteurs }}</p>
+          <p class="statistiques-admin__precision">Répartis par filière et par zone ci-dessous.</p>
+        </div>
+        <div class="carte statistiques-admin__carte">
+          <p class="statistiques-admin__legende">Acheteurs</p>
+          <p class="statistiques-admin__valeur">{{ d.acheteurs }}</p>
+          <p class="statistiques-admin__precision">Comptes ouverts par l’inscription publique.</p>
+        </div>
+        <div class="carte statistiques-admin__carte">
+          <p class="statistiques-admin__legende">Récoltes disponibles</p>
+          <p class="statistiques-admin__valeur">{{ d.recoltesActives }}</p>
+          <p class="statistiques-admin__precision">
+            État du catalogue à l’instant de la requête, la période ne s’y applique pas.
+          </p>
+        </div>
+      </div>
+
+      <section class="carte statistiques-admin__bloc">
+        <h2 class="carte__titre">Comptes inscrits par semaine</h2>
+        <app-barres
+          orientation="verticale"
+          titre="Comptes inscrits par semaine civile, du lundi au dimanche, sur la période choisie"
+          enteteEtiquette="Semaine du lundi"
+          enteteValeur="Comptes inscrits"
+          etiquetteMaximum="Maximum de comptes sur une semaine"
+          [series]="inscriptions()"
+        />
+        <p class="statistiques-admin__precision">
+          Une semaine sans inscription reste à zéro. Les administrateurs ne sont comptés nulle part
+          : ils ne passent pas par l’inscription publique.
+        </p>
+      </section>
+
+      <section class="carte statistiques-admin__bloc">
+        <h2 class="carte__titre">Producteurs les plus actifs</h2>
+        @if (producteurs().length === 0) {
+          <p class="statistiques-admin__precision">
+            Aucune commande retenue sur la période : aucun producteur à classer.
+          </p>
+        } @else {
+          <p class="statistiques-admin__precision">
+            Cinq producteurs au plus, classés par volume apporté, hors commandes annulées.
+          </p>
+          <app-barres
+            orientation="horizontale"
+            titre="Producteurs apportant le plus de volume sur la période, hors commandes annulées"
+            enteteEtiquette="Producteur"
+            enteteValeur="Volume apporté, puis nombre de commandes"
+            [series]="producteurs()"
+          />
+        }
+      </section>
+
+      <section class="carte statistiques-admin__bloc">
+        <h2 class="carte__titre">Récoltes les plus rémunératrices</h2>
+        @if (recoltes().length === 0) {
+          <p class="statistiques-admin__precision">Aucune récolte vendue sur la période.</p>
+        } @else {
+          <p class="statistiques-admin__precision">
+            Cinq récoltes au plus sur toute la plateforme, classées par revenu décroissant, hors
+            commandes annulées.
+          </p>
+          <app-barres
+            orientation="horizontale"
+            titre="Récoltes les plus rémunératrices de la plateforme, hors commandes annulées"
+            enteteEtiquette="Récolte"
+            enteteValeur="Quantité vendue, puis revenu"
+            [series]="recoltes()"
+          />
+        }
+      </section>
+
+      <div class="statistiques-admin__repartitions">
+        <section class="carte statistiques-admin__bloc">
+          <h2 class="carte__titre">Producteurs par filière</h2>
+          @if (d.repartitionParFiliere.length === 0) {
+            <p class="statistiques-admin__precision">Aucun producteur inscrit.</p>
+          } @else {
+            <ul class="statistiques-admin__liste">
+              @for (ligne of d.repartitionParFiliere; track ligne.nom) {
+                <li class="statistiques-admin__ligne">
+                  <span>{{ libelleFiliere(ligne.nom) }}</span>
+                  <span class="statistiques-admin__nombre">{{ ligne.nombre }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </section>
+
+        <section class="carte statistiques-admin__bloc">
+          <h2 class="carte__titre">Producteurs par zone</h2>
+          @if (d.repartitionParZone.length === 0) {
+            <p class="statistiques-admin__precision">
+              Aucune localisation d’exploitation renseignée.
+            </p>
+          } @else {
+            <ul class="statistiques-admin__liste">
+              @for (ligne of d.repartitionParZone; track ligne.nom) {
+                <li class="statistiques-admin__ligne">
+                  <span>{{ ligne.nom }}</span>
+                  <span class="statistiques-admin__nombre">{{ ligne.nombre }}</span>
+                </li>
+              }
+            </ul>
+            <!-- Le regroupement et le plafond viennent du backend : la source est un champ libre. -->
+            <p class="statistiques-admin__precision">
+              Localités déclarées par les producteurs, orthographe normalisée. Huit zones au plus,
+              le reste sous « Autres zones » ; une exploitation sans localisation renseignée n’est
+              pas comptée.
+            </p>
+          }
+        </section>
+
+        <section class="carte statistiques-admin__bloc">
+          <h2 class="carte__titre">Paiements par moyen</h2>
+          @if (d.repartitionParMoyenPaiement.length === 0) {
+            <p class="statistiques-admin__precision">
+              Aucun paiement sur les commandes de la période.
+            </p>
+          } @else {
+            <ul class="statistiques-admin__liste">
+              @for (ligne of d.repartitionParMoyenPaiement; track ligne.moyen) {
+                <li class="statistiques-admin__ligne">
+                  <span>{{ libelleMoyen(ligne.moyen) }}</span>
+                  <span class="statistiques-admin__valeur-ligne">
+                    {{ formaterMontantEntier(ligne.montant) }}
+                  </span>
+                  <span class="statistiques-admin__nombre">
+                    {{ ligne.nombre }} paiement{{ ligne.nombre > 1 ? 's' : '' }}
+                  </span>
+                </li>
+              }
+            </ul>
+          }
+          <p class="statistiques-admin__precision">
+            Paiements simulés, rattachés aux commandes de la période, annulées comprises&nbsp;:
+            {{ d.nombreRembourses }} remboursement{{ d.nombreRembourses > 1 ? 's' : '' }}
+            {{ d.nombreRembourses > 1 ? 'comptés' : 'compté' }} sur cette période.
+          </p>
+        </section>
+      </div>
+
+      <p class="statistiques-admin__actions">
+        <a class="bouton bouton--secondaire bouton--compact" routerLink="/admin">
+          Retour à l’administration
+        </a>
+      </p>
+    }
+  </div>
+</section>

@@ -47,12 +47,13 @@ describe('EspaceAdmin', () => {
     localStorage.clear();
   });
 
-  it('donne une entrée par domaine administré, pas de fausses statistiques', () => {
+  it('donne une entrée par domaine administré, et aucune valeur chiffrée', () => {
     expect(texteDe(element(racine, 'h1'))).toBe('Administration');
     expect(elements<HTMLElement>(racine, '.espace-admin__carte .carte__titre').map(texteDe)).toEqual([
       'Utilisateurs',
       'Récoltes',
       'Prix indicatifs',
+      'Statistiques',
     ]);
   });
 
@@ -72,11 +73,13 @@ describe('EspaceAdmin', () => {
       '/admin/utilisateurs',
       '/admin/recoltes',
       '/admin/prix-marche',
+      '/admin/statistiques',
     ]);
     expect(liens.map(texteDe)).toEqual([
       'Gérer les utilisateurs',
       'Modérer les récoltes',
       'Gérer les prix indicatifs',
+      'Voir les statistiques',
     ]);
   });
 

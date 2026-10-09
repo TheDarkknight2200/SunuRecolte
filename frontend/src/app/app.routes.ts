@@ -201,6 +201,19 @@ export const routes: Routes = [
       import('./features/admin/prix-marche/prix-marche').then((m) => m.PrixMarche),
   },
   {
+    // GET /api/admin/statistiques : premier endpoint de ce préfixe, et le seul écran de
+    // comptage transverse. L'ADMIN n'est pas déduit d'un « moi » : c'est le rôle du jeton,
+    // revérifié en base par le backend, qui porte la portée des chiffres (LOT STAT-2).
+    path: 'admin/statistiques',
+    title: 'SunuRecolte — Statistiques de la plateforme',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['ADMIN'] },
+    loadComponent: () =>
+      import('./features/admin/statistiques-admin/statistiques-admin').then(
+        (m) => m.StatistiquesAdmin,
+      ),
+  },
+  {
     path: 'acces-interdit',
     title: 'SunuRecolte — Accès refusé',
     loadComponent: () => import('./features/erreurs/acces-interdit').then((m) => m.AccesInterdit),

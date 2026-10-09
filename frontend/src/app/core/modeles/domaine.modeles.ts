@@ -19,6 +19,8 @@
 // StatistiquesProducteurResponse : statistiques/dto/StatistiquesProducteurResponse.java
 // StatutNombreResponse / VenteJourResponse / TopRecolteResponse / StockFaibleResponse :
 //   statistiques/dto du même nom
+// StatistiquesAdminResponse / InscriptionSemaineResponse / NomNombreResponse /
+// TopProducteurResponse / MoyenPaiementNombreResponse : statistiques/dto du même nom
 // (BigDecimal -> number, LocalDate -> chaîne « AAAA-MM-JJ »,
 //  LocalDateTime -> chaîne ISO renvoyée par Jackson.
 //  Un champ nullable côté Java — colonne sans nullable = false ou absence de
@@ -330,4 +332,62 @@ export interface StockFaibleResponse {
   quantiteDisponible: number;
   unite: string;
   statut: StatutRecolte;
+}
+
+/** Réponse de GET /api/admin/statistiques (statistiques/dto/StatistiquesAdminResponse.java). */
+export interface StatistiquesAdminResponse {
+  /** producteurs + acheteurs. Le rôle ADMIN est exclu du total, comme de l'inscription publique. */
+  utilisateursTotal: number;
+  producteurs: number;
+  acheteurs: number;
+  /** Récoltes au statut DISPONIBLE à l'instant de la requête : la période ne s'y applique pas. */
+  recoltesActives: number;
+  /** Commandes distinctes créées sur la période, annulées comprises. */
+  commandesPeriode: number;
+  /** Somme des sous-totaux des lignes retenues sur la période, hors commandes annulées. */
+  volumeAffaires: number;
+  /** Une entrée par semaine civile de la période, sans trou, les semaines vides à 0. */
+  inscriptionsParSemaine: InscriptionSemaineResponse[];
+  /** Filières réellement portées par un producteur, effectif décroissant. */
+  repartitionParFiliere: NomNombreResponse[];
+  /** 8 zones au plus, effectif décroissant, puis « Autres zones » ; localisation non renseignée omise. */
+  repartitionParZone: NomNombreResponse[];
+  /** 5 producteurs au plus, volume apporté décroissant. */
+  topProducteurs: TopProducteurResponse[];
+  /** 5 récoltes au plus, revenu décroissant, toute la plateforme. */
+  topRecoltes: TopRecolteResponse[];
+  /** Deux moyens seulement, l'enum Java n'en compte pas de troisième. */
+  repartitionParMoyenPaiement: MoyenPaiementNombreResponse[];
+  /** Paiements REMBOURSE des commandes de la période — remboursements simulés. */
+  nombreRembourses: number;
+}
+
+/** statistiques/dto/InscriptionSemaineResponse.java. */
+export interface InscriptionSemaineResponse {
+  /** LocalDate Jackson → lundi de la semaine civile, « AAAA-MM-JJ ». */
+  semaineDebut: string;
+  producteurs: number;
+  acheteurs: number;
+}
+
+/** statistiques/dto/NomNombreResponse.java : une filière (nom de l'enum) ou une zone saisie. */
+export interface NomNombreResponse {
+  nom: string;
+  nombre: number;
+}
+
+/** statistiques/dto/TopProducteurResponse.java. Aucune donnée personnelle n'y figure. */
+export interface TopProducteurResponse {
+  producteurId: number;
+  /** Prénom suivi du nom du compte. */
+  nom: string;
+  chiffreAffaires: number;
+  nombreCommandes: number;
+}
+
+/** statistiques/dto/MoyenPaiementNombreResponse.java. */
+export interface MoyenPaiementNombreResponse {
+  moyen: MoyenPaiement;
+  nombre: number;
+  montant: number;
 }

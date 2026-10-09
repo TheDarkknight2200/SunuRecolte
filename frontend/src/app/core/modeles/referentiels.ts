@@ -40,8 +40,9 @@ export type StatutPaiement = 'EN_ATTENTE' | 'REUSSI' | 'ECHOUE' | 'ANNULE' | 'RE
 export type MoyenPaiement = 'WAVE' | 'ORANGE_MONEY';
 
 /**
- * Période des statistiques du producteur. Ce n'est pas un enum Java : `StatistiquesProducteurService`
- * attend l'une de ces trois chaînes (`30j` par défaut) et répond 400 pour toute autre valeur.
+ * Période des deux écrans de statistiques (producteur LOT STAT-1, administration LOT STAT-2).
+ * Ce n'est pas un enum Java : `ReglesStatistiques.bornes` attend l'une de ces trois chaînes
+ * (`30j` par défaut) et répond 400 pour toute autre valeur.
  * Une valeur de plus inventée ici serait un contrat d'API fictif.
  */
 export type PeriodeStatistique = '7j' | '30j' | 'mois';
@@ -158,7 +159,7 @@ export const LIBELLES_MOYEN_PAIEMENT: Record<MoyenPaiement, string> = {
 
 export const PERIODES_STATISTIQUE: readonly PeriodeStatistique[] = ['7j', '30j', 'mois'];
 
-/** La période par défaut du backend (`StatistiquesProducteurService.bornes`) quand le paramètre absent. */
+/** La période par défaut du backend (`ReglesStatistiques.bornes`) quand le paramètre est absent. */
 export const PERIODE_STATISTIQUE_PAR_DEFAUT: PeriodeStatistique = '30j';
 
 /** « 7j » et « 30j » sont des fenêtres glissantes ; « mois » part du 1ᵉʳ du mois courant. */
