@@ -1,4 +1,10 @@
-import { formaterDate, formaterDateHeure, formaterMontant, formaterQuantite } from './formatage';
+import {
+  formaterDate,
+  formaterDateHeure,
+  formaterMontant,
+  formaterMontantEntier,
+  formaterQuantite,
+} from './formatage';
 
 /** fr-FR utilise une espace (finie insécable selon les moteurs) comme séparateur de milliers. */
 function sansEspace(valeur: string): string {
@@ -15,6 +21,14 @@ describe('formatage', () => {
       expect(affiche).toMatch(/\d\D\d/);
     });
 
+    // Les deux espaces comparées sont invisibles à l'œil : le test fige laquelle est rendue, et
+    // c'est précisément le défaut que le séparateur écrit à la main vient corriger.
+    it('espace les milliers d une insécable U+00A0, jamais d une fine U+202F', () => {
+      expect(formaterMontant(151736)).toBe('151 736 FCFA');
+      expect(formaterQuantite(151736, 'kg')).toBe('151 736 kg');
+      expect(formaterMontant(151736)).not.toContain(' ');
+    });
+
     it('conserve les décimales sans en imposer', () => {
       expect(sansEspace(formaterMontant(1250.5))).toBe('1250,5FCFA');
       expect(sansEspace(formaterMontant(200))).toBe('200FCFA');
@@ -22,6 +36,15 @@ describe('formatage', () => {
 
     it('rend un signe unique pour un montant nul', () => {
       expect(formaterMontant(null)).toBe('—');
+    });
+  });
+
+  describe('formaterMontantEntier', () => {
+    it('arrondit à l’entier, comme l’exige un écran de synthèse', () => {
+      expect(formaterMontantEntier(375885.5)).toBe('375 886 FCFA');
+      expect(formaterMontantEntier(22110.91)).toBe('22 111 FCFA');
+      expect(formaterMontantEntier(200)).toBe('200 FCFA');
+      expect(formaterMontantEntier(null)).toBe('—');
     });
   });
 

@@ -1,0 +1,82 @@
+<div class="graphique-barres">
+  @if (repereVisible()) {
+    <p class="graphique-barres__repere">{{ etiquetteMaximum() }} : {{ valeurMaxFormatee() }}</p>
+  }
+
+  <svg
+    class="graphique-barres__svg"
+    role="img"
+    [attr.aria-labelledby]="identifiant"
+    width="100%"
+    [attr.height]="hauteurSvg()"
+  >
+    <title [id]="identifiant">{{ titre() }}</title>
+
+    @if (verticale()) {
+      <line class="graphique-barres__sol" x1="0" x2="100%" [attr.y1]="sol" [attr.y2]="sol" />
+
+      @for (barre of series(); track $index) {
+        <rect
+          class="graphique-barres__barre"
+          [attr.x]="xColonne($index)"
+          [attr.y]="yColonne(barre)"
+          [attr.width]="largeurColonne()"
+          [attr.height]="hauteurColonne(barre)"
+        >
+          <title>{{ barre.etiquette }} : {{ barre.valeurFormatee }}</title>
+        </rect>
+      }
+
+      @for (barre of series(); track $index) {
+        @if (etiquetteColonne($index)) {
+          <text
+            class="graphique-barres__etiquette graphique-barres__etiquette--centre"
+            [attr.x]="xEtiquette($index)"
+            [attr.y]="ligneBase"
+          >{{ barre.etiquette }}</text>
+        }
+      }
+    } @else {
+      @for (barre of series(); track $index) {
+        <g class="graphique-barres__ligne" [attr.transform]="transformLigne($index)">
+          <text class="graphique-barres__etiquette" x="0" [attr.y]="baseEtiquette">{{
+            barre.etiquette
+          }}</text>
+          <text
+            class="graphique-barres__valeur"
+            x="100%"
+            [attr.y]="baseEtiquette"
+            text-anchor="end"
+          >{{ barre.valeurFormatee }}</text>
+          <rect
+            class="graphique-barres__barre"
+            x="0"
+            [attr.y]="hautBarre"
+            [attr.width]="longueur(barre)"
+            [attr.height]="epaisseur"
+          />
+        </g>
+      }
+    }
+  </svg>
+
+  <div class="graphique-barres__alternative">
+    <table>
+      <caption>{{ titre() }}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{{ enteteEtiquette() }}</th>
+          <th scope="col">{{ enteteValeur() }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (barre of series(); track $index) {
+          <tr>
+            <th scope="row">{{ barre.etiquette }}</th>
+            <td>{{ barre.valeurFormatee }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

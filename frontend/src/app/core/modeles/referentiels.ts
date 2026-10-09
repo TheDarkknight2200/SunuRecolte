@@ -39,6 +39,14 @@ export type StatutPaiement = 'EN_ATTENTE' | 'REUSSI' | 'ECHOUE' | 'ANNULE' | 'RE
 /** Moyen de paiement (paiement/entity/MoyenPaiement.java) — moyens simulés. */
 export type MoyenPaiement = 'WAVE' | 'ORANGE_MONEY';
 
+/**
+ * Période des deux écrans de statistiques (producteur LOT STAT-1, administration LOT STAT-2).
+ * Ce n'est pas un enum Java : `ReglesStatistiques.bornes` attend l'une de ces trois chaînes
+ * (`30j` par défaut) et répond 400 pour toute autre valeur.
+ * Une valeur de plus inventée ici serait un contrat d'API fictif.
+ */
+export type PeriodeStatistique = '7j' | '30j' | 'mois';
+
 export const ROLES_INSCRIPTION: readonly RoleInscription[] = ['PRODUCTEUR', 'ACHETEUR'];
 
 export const FILIERES: readonly Filiere[] = ['MARAICHAGE', 'ELEVAGE', 'CEREALES', 'AUTRE'];
@@ -147,4 +155,16 @@ export const LIBELLES_STATUT_PAIEMENT: Record<StatutPaiement, string> = {
 export const LIBELLES_MOYEN_PAIEMENT: Record<MoyenPaiement, string> = {
   WAVE: 'Wave',
   ORANGE_MONEY: 'Orange Money',
+};
+
+export const PERIODES_STATISTIQUE: readonly PeriodeStatistique[] = ['7j', '30j', 'mois'];
+
+/** La période par défaut du backend (`ReglesStatistiques.bornes`) quand le paramètre est absent. */
+export const PERIODE_STATISTIQUE_PAR_DEFAUT: PeriodeStatistique = '30j';
+
+/** « 7j » et « 30j » sont des fenêtres glissantes ; « mois » part du 1ᵉʳ du mois courant. */
+export const LIBELLES_PERIODE_STATISTIQUE: Record<PeriodeStatistique, string> = {
+  '7j': '7 derniers jours',
+  '30j': '30 derniers jours',
+  mois: 'Ce mois',
 };

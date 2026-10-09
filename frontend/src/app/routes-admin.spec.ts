@@ -30,6 +30,7 @@ describe('table de routes de l’espace administrateur', () => {
     ['admin/utilisateurs', 'SunuRecolte — Utilisateurs'],
     ['admin/recoltes', 'SunuRecolte — Récoltes'],
     ['admin/prix-marche', 'SunuRecolte — Prix indicatifs'],
+    ['admin/statistiques', 'SunuRecolte — Statistiques de la plateforme'],
   ])('%s exige authGuard puis roleGuard pour ADMIN', (chemin, titre) => {
     const protegee = route(chemin);
     expect(protegee.canActivate?.[0]).toBe(authGuard);
@@ -39,8 +40,14 @@ describe('table de routes de l’espace administrateur', () => {
     expect(typeof protegee.loadComponent).toBe('function');
   });
 
-  it('réserve ces quatre routes à ADMIN, sans rôle supplémentaire', () => {
-    for (const chemin of ['admin', 'admin/utilisateurs', 'admin/recoltes', 'admin/prix-marche']) {
+  it('réserve ces cinq routes à ADMIN, sans rôle supplémentaire', () => {
+    for (const chemin of [
+      'admin',
+      'admin/utilisateurs',
+      'admin/recoltes',
+      'admin/prix-marche',
+      'admin/statistiques',
+    ]) {
       expect(route(chemin).data).toEqual({ roles: ['ADMIN'] });
     }
   });
@@ -52,6 +59,7 @@ describe('table de routes de l’espace administrateur', () => {
       'admin/utilisateurs',
       'admin/recoltes',
       'admin/prix-marche',
+      'admin/statistiques',
     ]);
     for (const entree of administrées) {
       const protegee = entree as unknown as RouteProtegee;

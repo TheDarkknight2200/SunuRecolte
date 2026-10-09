@@ -1,0 +1,57 @@
+/* Barres du lot STAT-1 : un tracé sobre, aucune couleur en dur, tout vient des tokens.
+   Le tableau alternatif reste dans le DOM pour les lecteurs d'écran mais ne se voit pas. */
+.graphique-barres {
+  &__repere {
+    margin: 0 0 var(--espace-1);
+    color: var(--couleur-texte-secondaire);
+    font-size: var(--taille-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__svg {
+    display: block;
+    width: 100%;
+    overflow: visible;
+  }
+
+  &__barre {
+    fill: var(--couleur-primaire);
+  }
+
+  &__sol {
+    stroke: var(--couleur-bordure);
+    stroke-width: 1;
+  }
+
+  &__etiquette {
+    fill: var(--couleur-texte-secondaire);
+    font-family: var(--police-texte);
+    font-size: var(--taille-xs);
+
+    &--centre {
+      text-anchor: middle;
+    }
+  }
+
+  &__valeur {
+    fill: var(--couleur-texte);
+    font-family: var(--police-texte);
+    font-size: var(--taille-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Tableau seulement pour le lecteur d'écran : il est là en permanence, jamais affiché.
+     Le voile est un <div> et non le <table> lui-même, parce qu'une table ne peut pas être
+     plus étroite que son contenu : `width: 1px` posé sur la table laissait ses 549 px
+     déborder de l'écran et faire apparaître une barre de défilement horizontale à 375 px. */
+  &__alternative {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    border: 0;
+  }
+}

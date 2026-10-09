@@ -30,6 +30,18 @@ public class Commande {
     @JoinColumn(name = "acheteur_id", nullable = false)
     private Acheteur acheteur;
 
+    /**
+     * Date de la commande, posée par le serveur à l'insertion et figée ensuite — comme les quatre autres
+     * {@code date_creation} du modèle ({@link com.sunurecolte.user.entity.Utilisateur},
+     * {@link com.sunurecolte.recolte.entity.Recolte},
+     * {@link com.sunurecolte.paiement.entity.Paiement},
+     * {@link com.sunurecolte.notification.entity.Notification}).
+     *
+     * <p>Aucun chemin d'API n'accepte cette valeur d'un client : le DTO de création ne la déclare pas.
+     * Reculer une date — l'étalement du jeu de démonstration
+     * ({@link com.sunurecolte.config.DemoDataInitializer}) comme les bornes de période des tests de
+     * statistiques — passe donc par une écriture SQL directe, jamais par l'entité.
+     */
     @Column(name = "date_creation", nullable = false, updatable = false)
     private LocalDateTime dateCreation;
 
@@ -56,6 +68,10 @@ public class Commande {
     @OneToMany(mappedBy = "commande", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<LigneCommande> lignes = new ArrayList<>();
 
+    /**
+     * Horodatage du serveur à l'insertion, comme sur les quatre autres entités datées. La colonne étant
+     * {@code updatable = false}, aucun UPDATE ne la reprendra ensuite.
+     */
     @PrePersist
     protected void prePersist() {
         this.dateCreation = LocalDateTime.now();

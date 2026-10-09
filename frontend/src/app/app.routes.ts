@@ -108,6 +108,16 @@ export const routes: Routes = [
       import('./features/producteur/profil/profil-producteur').then((m) => m.ProfilProducteur),
   },
   {
+    // GET /api/producteurs/moi/statistiques : le producteur est déduit du jeton par le backend,
+    // l'écran n'envoie aucun identifiant (LOT STAT-1).
+    path: 'producteur/statistiques',
+    title: 'SunuRecolte — Statistiques de vente',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['PRODUCTEUR'] },
+    loadComponent: () =>
+      import('./features/producteur/statistiques/statistiques').then((m) => m.Statistiques),
+  },
+  {
     path: 'acheteur',
     pathMatch: 'full',
     redirectTo: 'acheteur/commandes',
@@ -189,6 +199,19 @@ export const routes: Routes = [
     data: { roles: ['ADMIN'] },
     loadComponent: () =>
       import('./features/admin/prix-marche/prix-marche').then((m) => m.PrixMarche),
+  },
+  {
+    // GET /api/admin/statistiques : premier endpoint de ce préfixe, et le seul écran de
+    // comptage transverse. L'ADMIN n'est pas déduit d'un « moi » : c'est le rôle du jeton,
+    // revérifié en base par le backend, qui porte la portée des chiffres (LOT STAT-2).
+    path: 'admin/statistiques',
+    title: 'SunuRecolte — Statistiques de la plateforme',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['ADMIN'] },
+    loadComponent: () =>
+      import('./features/admin/statistiques-admin/statistiques-admin').then(
+        (m) => m.StatistiquesAdmin,
+      ),
   },
   {
     path: 'acces-interdit',

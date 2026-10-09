@@ -232,6 +232,8 @@ appliquée côté serveur. Sauf mention « public », une route exige `Authoriza
 | Profils | `PUT /api/producteurs/moi` | PRODUCTEUR uniquement — mise à jour complète de son profil (prénom, nom, email, téléphone, localisation, filière, description) ; cible déduite du jeton, `403` pour ACHETEUR ou ADMIN, `400` si l'email est déjà pris |
 | Profils | `GET /api/producteurs/{id}` · `PUT /api/producteurs/{id}` | Producteur concerné ou ADMIN — le `PUT` n'écrit que les trois colonnes d'exploitation |
 | Profils | `GET /api/acheteurs/{id}` | Acheteur concerné ou ADMIN |
+| Statistiques | `GET /api/producteurs/moi/statistiques` | **PRODUCTEUR uniquement** — ses statistiques de vente (chiffre d'affaires, panier moyen, taux d'annulation, répartition par statut, ventes par jour, top 5 des récoltes, stock faible, commandes à traiter) ; paramètre `periode` = `7j`, `30j` (défaut) ou `mois`, une autre valeur répond `400`. Le producteur est déduit du jeton : **aucun `producteurId` en entrée**, un identifiant passé en paramètre est ignoré. `401` sans jeton, `403` pour ACHETEUR ou ADMIN. Les sommes portent sur les **lignes de commande** du producteur (une commande peut mélanger plusieurs producteurs), commandes annulées exclues des sommes et comptées dans le taux ; deux limites assumées : les `EN_ATTENTE` sont incluses dans le chiffre d'affaires et le seuil de stock faible (5) est le même quelle que soit l'unité |
+| Administration | `GET /api/admin/statistiques` | **ADMIN uniquement** — **première route du préfixe `/api/admin`** : compteurs de la plateforme (comptes, producteurs, acheteurs, récoltes au statut `DISPONIBLE`), volume d'affaires et nombre de commandes de la période, inscriptions par semaine civile, répartitions par filière / par zone / par moyen de paiement, deux top 5. Paramètre `periode` = `7j`, `30j` (défaut) ou `mois`, une autre valeur répond `400`. `401` sans jeton, `403` pour PRODUCTEUR ou ACHETEUR, vérifié aussi dans le service. Les sommes suivent la règle de `GET /api/producteurs/moi/statistiques` : lignes de commande, annulées exclues du volume et comprises dans le nombre. Trois limites assumées : la **zone** vient du champ libre `localisation_exploitation` (orthographe normalisée, 8 zones au plus, le reste sous « Autres zones », non renseignées omises) ; le total des **comptes exclut ADMIN** ; et l'enum `MoyenPaiement` ne comptant que `WAVE` et `ORANGE_MONEY`, il n'existe **aucune** ligne « autre moyen ». La réponse ne porte ni email, téléphone, mot de passe ni jeton |
 | Administration | `GET /api/utilisateurs` | **ADMIN uniquement** — tous les comptes, ou filtrés par `role` ; réponse triée par le serveur (`dateCreation DESC`, puis `id DESC`), portée par `UtilisateurResponse` : jamais de mot de passe ni de hash. `401` sans jeton, `403` pour ACHETEUR ou PRODUCTEUR |
 | Administration | `PATCH /api/utilisateurs/{id}/actif` | **ADMIN uniquement** — corps `{"actif": true|false}` ; un administrateur ne peut pas modifier son propre compte (`400`) ; `404` si le compte n'existe pas. Un compte désactivé voit son **jeton existant refusé (`401`) dès la requête suivante**, l'état étant relu en base à chaque requête |
 | Administration | `PATCH /api/recoltes/{id}/statut` | **ADMIN uniquement** — modération du statut d'une récolte entre les deux seules valeurs du domaine (`DISPONIBLE`, `EPUISEE`) ; DTO séparé `StatutRecolteRequest`, `RecolteRequest` ne portant jamais de statut |
@@ -324,4 +326,118 @@ L'URL de l'API est centralisée dans `src/environments/` : `http://localhost:808
 
 L'identité visuelle, les tokens de design et les règles d'interface font foi dans
 [`FRONTEND_DESIGN.md`](./FRONTEND_DESIGN.md).
+
+### 9. Données de démonstration (profil `demo`)
+
+`DemoDataInitializer` (`src/main/java/com/sunurecolte/config/`) remplit une base locale **vide** : de
+quoi parcourir les écrans et préparer les captures du mémoire — **3 producteurs**, **6 acheteurs**,
+**20 récoltes** et **60 commandes étalées sur les 60 derniers jours**. Comptes, récoltes et paiements
+sont reculés avec leurs commandes : le jeu a un historique, pas seulement une date du jour.
+
+> **Avertissement — ne jamais lancer le profil `demo` sur une base contenant des données réelles.** Le
+> jeu passe par les services réels et écrit commandes, paiements et notifications comme s'ils étaient
+> réels : rien ne le distingue ni ne le nettoie, sinon une recréation de base. Il vise donc une base
+> dédiée, `sunurecolte_demo`, **jamais** la base `sunurecolte` des tests d'intégration et du
+> développement courant.
+
+```powershell
+# Windows PowerShell — base de démonstration dédiée
+cd sunurecolte-backend
+$env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5432/sunurecolte_demo"
+$env:SPRING_PROFILES_ACTIVE = "demo"
+$env:APP_DEMO_MOT_DE_PASSE = "un_mot_de_passe_local_d_au_moins_8_caracteres"
+$env:APP_ADMIN_EMAIL = "admin.demo@sunurecolte.sn"
+$env:APP_ADMIN_PASSWORD = "un_mot_de_passe_admin_d_au_moins_6_caracteres"
+.\mvnw.cmd spring-boot:run
+```
+
+```bash
+# Git Bash / Linux / macOS
+cd sunurecolte-backend
+SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/sunurecolte_demo" \
+SPRING_PROFILES_ACTIVE="demo" \
+APP_DEMO_MOT_DE_PASSE="un_mot_de_passe_local_d_au_moins_8_caracteres" \
+APP_ADMIN_EMAIL="admin.demo@sunurecolte.sn" \
+APP_ADMIN_PASSWORD="un_mot_de_passe_admin_d_au_moins_6_caracteres" \
+  ./mvnw spring-boot:run
+```
+
+`SPRING_DATASOURCE_URL` prend le pas sur l'URL d'`application-local.properties` ; le mot de passe
+PostgreSQL continue de venir de ce fichier hors Git. Le profil peut aussi se passer de la variable
+d'environnement, et le mot de passe de démonstration de la ligne `app.demo.mot-de-passe`
+d'`application-local.properties`. Cette valeur sert aussi à **se connecter** aux comptes de
+démonstration : elle doit faire au moins 8 caractères, comme à l'inscription publique.
+
+**Comptes créés** (tous avec le mot de passe fourni — le profil `demo` ne crée **aucun** ADMIN : le
+compte administrateur vient de l'amorçage du §4, d'où `APP_ADMIN_EMAIL` et `APP_ADMIN_PASSWORD`
+ci-dessus) :
+
+- `producteur1.demo@sunurecolte.sn`, `producteur2.demo@sunurecolte.sn`, `producteur3.demo@sunurecolte.sn`
+  — maraîchère, élevage, et une exploitation céréalière et fruitière ;
+- `acheteur1.demo@sunurecolte.sn` à `acheteur6.demo@sunurecolte.sn` — deux commerçants, deux
+  restaurateurs, deux particuliers.
+
+**Ce que contient le jeu** : 8 + 4 + 8 récoltes selon le producteur, avec un prix unitaire, des
+quantités min/max et une unité réalistes (kg, botte, tête, plateau, litre) et des stocks de départ
+larges — de 12 à 300 selon le produit ; `EN_ATTENTE` (10), `CONFIRMEE` (12), `PRETE` (8), `LIVREE` (22)
+et `ANNULEE` (8) parmi les commandes ; les trois premières commandes mélangent deux producteurs ; les
+paiements portent `WAVE` et `ORANGE_MONEY`, **simulés** sous référence `SIMU-…` comme partout dans le
+projet ; `imageUrl` est vide, donc le catalogue rend son état « sans image ».
+
+**Dates étalées** : les dates de commande viennent d'une **graine fixe** — deux bases vides obtiennent
+les mêmes commandes, les mêmes quantités et les mêmes statuts —, puis une passe finale recule les
+comptes, les récoltes et les paiements avec leurs commandes, dans leur **propre graine** pour ne
+décaler aucun tirage du catalogue. Sur le jeu produit (invariants verrouillés par
+`DemoDataInitializerTest`, effectifs relevés le 2026-10-09) :
+neuf comptes sur **vingt-neuf jours civils d'amplitude**, le plus ancien soixante-deux jours avant le
+lancement et jamais au-delà de soixante-trois ; chaque compte au moins **trois jours civils avant** la
+plus ancienne commande qu'il rend possible ; vingt récoltes publiées entre le compte de leur producteur
+et leur première vente, `date_disponibilite` posée sur ce même jour ; trente-sept paiements à **une
+heure** après leur commande et confirmés douze minutes plus tard ; rien dans le futur. La passe écrit en
+SQL (`JdbcTemplate`) après un `flush()` des dépôts, et les colonnes de date restent figées après
+insertion : `commandes.date_creation` a retrouvé `updatable = false`, le générateur ne passant plus par
+le setter. Une seconde exécution ne déplace aucune date.
+
+**Deux mécanismes rendent l'écran statistiques lisible** sans toucher aux règles métier : une récolte ne
+peut céder en ventes libres que **45 % de son stock initial** (les `ANNULEE` en sont dispensées, puisque
+l'annulation rend la quantité au stock), et les huit `ANNULEE` sont **planifiées** — quatre dans la
+fenêtre des trente derniers jours, au moins une chez chaque producteur, les quatre autres franchement
+dehors. Une annulation sur deux (par rang pair) laisse un paiement `REMBOURSE` derrière elle, soit
+**quatre** dans le jeu, les quatre autres étant annulées avant tout paiement. Valeurs mesurées sur le jeu :
+**au plus deux récoltes par producteur** `EPUISEE` ou sous le seuil d'alerte de stock faible (Piment fort
+`EPUISEE`, Salade 3,5 bottes, Mangue 4 kg) et **11,11 %** de taux d'annulation pour le premier
+producteur sur la fenêtre de trente jours. Ces chiffres sont verrouillés par `DemoDataInitializerTest`.
+
+**Trois garde-fous** : rien ne s'exécute tant que le profil `demo` n'est pas explicitement activé ;
+`demo` et `prod` actifs ensemble sont **refusés au démarrage**, même si aucun
+`application-prod.properties` n'existe encore ; sans mot de passe fourni (ou trop court), le démarrage
+est refusé — aucune valeur par défaut n'est versionnée, donc aucune n'est inventée. Aucune migration
+Flyway, aucun `data.sql` : le schéma reste la seule autorité, et le jeu de données passe par les
+services réels avec leurs règles métier.
+
+**Idempotence et remise à zéro** : si `producteur1.demo@sunurecolte.sn` existe déjà, un redémarrage ne
+crée rien, ne supprime rien et journalise une ligne INFO. Repartir d'une base vide se fait donc en
+recréant **la base de démonstration** — **opération destructive, qui efface aussi les saisies faites
+dans cette base, et qui ne concerne jamais `sunurecolte`** :
+
+```powershell
+# Windows PowerShell
+psql -U postgres -c "DROP DATABASE sunurecolte_demo;"
+psql -U postgres -c "CREATE DATABASE sunurecolte_demo;"
+```
+
+Les migrations Flyway se réappliquent au démarrage suivant.
+
+**Limites consignées** (détail dans `TASKS.md`, lots DEMO-1 et DEMO-2) : `notifications.date_creation`
+garde l'horodatage de génération — la table ne porte aucune référence à la commande annoncée, seulement
+un destinataire, et la rattacher serait une invention ; **aucun des neuf comptes ne tombe dans la fenêtre
+des trente derniers jours** (mesuré : zéro sur neuf), donc le graphique « inscriptions par semaine » de
+l'administration rend des semaines à zéro sur ce jeu, tandis que les historiques de ventes sont bien
+nourris (vingt-neuf commandes sur soixante en fenêtre) ; la règle de cohérence **prime sur la bande de
+tirage**, d'où l'ordre « producteurs avant acheteurs » **non tenu** — cinq des six acheteurs sont plus
+anciens que le second producteur, et le compte le plus ancien du jeu est un acheteur ; les statuts de
+paiement que les services ne savent pas écrire (`EN_ATTENTE`, `ECHOUE`, `ANNULE`) ne sont pas simulés par
+une écriture directe, d'où `REUSSI` et `REMBOURSE` seulement ; un compte de démonstration porte le mot de
+passe commun de la variable ; et la génération elle-même n'a pas encore été observée dans un navigateur
+réel.
 

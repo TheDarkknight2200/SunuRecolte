@@ -39,6 +39,7 @@ describe('AdminNavigation (bandeau d’onglets de l’administration)', () => {
             { path: 'admin/utilisateurs', component: SondeAdmin },
             { path: 'admin/recoltes', component: SondeAdmin },
             { path: 'admin/prix-marche', component: SondeAdmin },
+            { path: 'admin/statistiques', component: SondeAdmin },
           ],
           withDisabledInitialNavigation(),
         ),
@@ -57,15 +58,21 @@ describe('AdminNavigation (bandeau d’onglets de l’administration)', () => {
     localStorage.clear();
   });
 
-  it('propose exactement les trois routes administrées, sans en inventer une quatrième', () => {
+  it('propose exactement les quatre routes administrées, sans en inventer une cinquième', () => {
     const liens = elements<HTMLAnchorElement>(racine, '.onglets__lien');
 
     expect(liens.map((lien) => lien.getAttribute('href'))).toEqual([
       '/admin/utilisateurs',
       '/admin/recoltes',
       '/admin/prix-marche',
+      '/admin/statistiques',
     ]);
-    expect(liens.map(texteDe)).toEqual(['Utilisateurs', 'Récoltes', 'Prix indicatifs']);
+    expect(liens.map(texteDe)).toEqual([
+      'Utilisateurs',
+      'Récoltes',
+      'Prix indicatifs',
+      'Statistiques',
+    ]);
   });
 
   it('est une navigation nommée, et non une suite de boutons', () => {
@@ -88,7 +95,7 @@ describe('AdminNavigation (bandeau d’onglets de l’administration)', () => {
     fixture.detectChanges();
 
     expect(http.match(() => true)).toHaveLength(0);
-    expect(elements(racine, '.onglets__lien')).toHaveLength(3);
+    expect(elements(racine, '.onglets__lien')).toHaveLength(4);
   });
 
   it('n’active que l’onglet de la route réellement affichée', async () => {

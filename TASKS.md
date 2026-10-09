@@ -1184,6 +1184,559 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   **laissé en l'état** et signalé à l'auteur : ce titre reste mappé sur `EN_ATTENTE` dans le composant, mais le
   serveur écrit `REUSSI` à l'enregistrement.
 
+## LOT STAT-1 — statistiques de vente du producteur (2026-10-08)
+
+> **Ce que couvre cette section** : le premier lot de fonctionnalités utilisateur après les lots
+> concurrence et authentification, consignés d'après le code réellement en place (backend et frontend
+> relus, tests exécutés) et les messages de commits, **aucun hash**.
+>
+> **Porte de validation** : `./mvnw test` sur PostgreSQL réel (aucun mock) pour le backend ; specs
+> Vitest/jsdom + `npx tsc -p tsconfig.app.json --noEmit` + `npx tsc -p tsconfig.spec.json --noEmit` +
+> `npx ng build` pour le frontend. **Aucun de ces rendus n'a été observé dans un navigateur réel** : les
+> trois pastilles de période, les deux graphiques, l'état vide, la notice d'erreur du bas et les largeurs
+> 360 / 768 / 1366 restent à jouer à la main.
+
+- [x] **Backend — `GET /api/producteurs/moi/statistiques`** : paramètre `periode` à trois valeurs
+  (`7j`, `30j` par défaut, `mois`), **réservé PRODUCTEUR** (`SecurityConfig` + recontrôle du
+  rôle dans le service) : un ACHETEUR reçoit `403`, un ADMIN `403`, un anonyme `401`. Le producteur est
+  **toujours déduit du jeton** — aucun identifiant de producteur n'est accepté en paramètre, et un test
+  joue exprès un `producteurId` passé en query pour prouver qu'il est ignoré. Règle exacte écrite dans la
+  Javadoc de `StatistiquesProducteurService` : le grain est la **ligne de commande** jointée à
+  `recolte.producteur`, jamais le `total` de la commande (une commande peut mélanger plusieurs
+  producteurs, vérifié dans `CommandeService.creer`) — un test joue réellement une commande mélangeant
+  les récoltes de **deux producteurs** et vérifie que chacun ne voit que le montant de ses lignes, et que
+  `nombreCommandes` compte cette commande **une seule fois** chez chacun ; `7j` = 7 jours civils courants,
+  `30j` (défaut) =
+  30, `mois` = du 1ᵉʳ du mois courant à aujourd'hui, borne haute exclusive ; une valeur hors de ces trois
+  libellés répond `400` avec un message en français ; les annulées sont **exclues des sommes** et
+  **comptées dans le dénominateur** du taux d'annulation ; `panierMoyen` divise le chiffre d'affaires par
+  les commandes **retenues** (hors annulées) pour que numérateur et dénominateur soient cohérents ;
+  `ventesParJour` rend **une entrée par jour civil, sans trou** (jours à 0 compris) ; `topRecoltes` est
+  limité à **5**, revenu décroissant ; `stockFaible` porte sur l'état **actuel** des récoltes (sous le
+  seuil `5` ou `EPUISEE`, la période ne s'y applique pas) ; `commandesATraiter` compte EN_ATTENTE,
+  CONFIRMEE et PRETE. Cinq projections et un repository dédié (`StatistiquesLigneCommandeRepository`)
+  font le travail en requêtes agrégées : **aucune entité chargée pour calculer une somme, aucun N+1**,
+  aucune dépendance Maven ajoutée. Suite backend : **247 → 262 tests** (`StatistiquesProducteurApiTest`,
+  15 tests, `Failures: 0`)
+- [x] **Frontend — écran `/producteur/statistiques`** : route lazy protégée par `authGuard` puis
+  `roleGuard` (`roles: ['PRODUCTEUR']`), service `StatistiquesService` typé sur les DTO réels, écran en
+  quatre cartes (Chiffre d'affaires, Panier moyen, Commandes, Taux d'annulation), ventes par jour en
+  colonnes, top récoltes en barres horizontales avec **quantité + unité puis revenu**, répartition par
+  statut, stock à surveiller avec lien vers l'édition de la récolte et rappel des commandes à traiter avec
+  lien. **Aucune bibliothèque de graphique** : `app-barres` (`frontend/src/app/partage/graphiques/`) est
+  un composant SVG maison, posé dans le dossier partagé parce que le lot statistiques de l'ADMIN doit le
+  réutiliser. Un SVG **sans `viewBox`** (largeurs en %, hauteurs en px, `font-size` en tokens) pour
+  aucune déformation typographique ; chaque graphique porte `role="img"` + `<title>` et un **tableau
+  alternatif** présent en permanence dans le DOM et masqué visuellement. Palettes et tailles viennent des
+  tokens ; `formaterMontant` et `formaterQuantite` rendent les montants en FCFA. Les trois périodes sont
+  des pastilles du motif catalogue (`aria-pressed`), une région `role="status" aria-live="polite"` rendue
+  **hors condition** annonce le changement de période. Erreur : **notice depuis le bas** (`ToastService`,
+  §39.2) **et** zone actionnable « Réessayer », jamais de bannière ; états chargement et vide (avec lien
+  « Ajouter une récolte ») rendus. Une entrée d'espace ajoutée en markup seul dans `mes-recoltes.html`,
+  au même traitement que « Profil » (§36) ; `/tableau-de-bord` et `mes-recoltes.ts` non touchés.
+  `npx ng build` rendu **sans aucune ligne** `warning|error|budget|exceed`
+- [x] **Limites connues, assumées et non masquées** (écrites dans la Javadoc du service) :
+  **(a)** les commandes **EN_ATTENTE sont incluses** dans le chiffre d'affaires et dans le panier
+  moyen — une commande enregistrée mais pas encore honorée y figure, ce qui surestime les encaissements si
+  l'acheteur renonce ensuite sans annuler ; **(b)** le seuil de stock faible (**5**) est un nombre
+  unique comparé à `quantite_disponible` **quelle que soit l'unité** : 5 kg, 5 bottes ou 5 tonnes
+  déclenchent la même alerte. Sur l'écran, le chiffre d'affaires et le panier moyen sont libellés
+  « Hors commandes annulées. » pour ne pas faire croire à des encaissements définitifs
+- [x] **Tests frontend** : **922 → 955 tests (47 fichiers)**, soit **+33** sur quatre nouveaux fichiers —
+  `statistiques.service.spec.ts` (7 : URL exacte, `periode` seul paramètre, absence par défaut, aucune clé
+  `producteurId`, `403` remonté), `barres.spec.ts` (7 : `role="img"` + `<title>`, tableau alternatif,
+  longueurs de barres exactes, colonnes, zéros sans division par zéro, étiquettes sur un trentième),
+  `statistiques.spec.ts` (17 : trois états, période par défaut `30j`, montants et taux formatés, deux
+  graphiques et leurs entêtes, quantité + unité, aucune requête au second clic sur la pastille active,
+  annonce après changement de période, erreur en notice `type 'erreur'` **et absence de `.message--erreur`**,
+  « Réessayer » et « Actualiser », état vide, répartition, stock, rappel) et
+  `routes-statistiques.spec.ts` (2 : la table de routes lue comme structure, **aucun composant monté**).
+  **Une assertion re-ciblée** : `mes-recoltes.spec.ts` numérotait exactement les liens d'en-tête ; le lien
+  « Statistiques » demandé par le lot s'y insère, le test attend donc cinq liens avec leur identifiant et
+  leur libellé. **Aucune assertion supprimée ni affaiblie** ; la spec du producteur côté commandes reçues
+  est inchangée
+- [x] **Ce qui reste ouvert** : QA navigateur réelle — **jouée** sur cet écran et reprise par le
+  **LOT QA-STAT-1** ci-dessous, qui en traite **cinq** défauts (les huit points du rapport de lot
+  n'ont pas été redéroulés un par un) ; les largeurs ont été **mesurées** dans ce même lot, pas
+  observées à l’œil hors de la fenêtre pilotée ; reste le lot statistiques de l'**ADMIN** qui doit
+  réutiliser `app-barres`, et la remise d'aplomb du seuil de stock par unité si l'auteur le valide.
+  Travail porté par la branche `fonctionnalites-statistiques`, **non poussé**
+
+## LOT DEMO-1 — jeu de données de démonstration derrière un profil (2026-10-08)
+
+> **Ce que couvre cette section** : le mécanisme qui remplit une base locale vide pour parcourir les
+> écrans et préparer les captures du mémoire, consigné d'après le code réellement en place (composant,
+> tests et documentation relus, suite exécutée). **Le jeu a depuis été généré contre une base locale
+> vide et parcouru dans le navigateur** : ce que garantit cette section, ce sont les tests
+> d'intégration, et les défauts que l'écran a montrés sont traités et consignés par le **LOT QA-STAT-1**
+> ci-dessous.
+>
+> **Porte de validation** : `./mvnw test` sur PostgreSQL réel (aucun mock), la classe dédiée jouant le
+> composant dans la transaction du test.
+
+- [x] **Backend — `DemoDataInitializer`** (`config/`, à côté d'`AdminInitializer`) : un
+  `CommandLineRunner` annoté `@Profile("demo")`, donc inerte tant que `spring.profiles.active` ne
+  contient pas `demo`. Trois garde-fous, vérifiés dans cet ordre et **avant** toute écriture : profil
+  à activer explicitement ; `demo` **et** `prod` ensemble refusent le démarrage par une
+  `IllegalStateException` en français — contrôle porté sur l'environnement Spring, donc effectif même
+  si aucun `application-prod.properties` n'existe encore ; mot de passe absent ou de moins de
+  **8 caractères** refuse aussi le démarrage. Le plancher de 8 est celui de l'inscription publique
+  (`InscriptionRequest`), puisque ce mot de passe sert également à se connecter. Aucun `data.sql`,
+  aucune migration Flyway : le schéma reste la seule autorité
+- [x] **Contenu du jeu, écrit par les services réels** : 3 producteurs (maraîchère, élevage, et une
+  exploitation céréalière et fruitière), 6 acheteurs (2 commerçants, 2 restaurateurs, 2 particuliers),
+  20 récoltes (8 + 4 + 8) et 60 commandes. Chaque écriture passe par `AuthService.inscrire` (hash
+  BCrypt, profil créé avec le compte), `ProducteurService.modifierMoi` (profil complet),
+  `RecolteService.creer`, `CommandeService.creer` (prix unitaire et totaux calculés serveur, stock
+  décrémenté sous verrou, passage à `EPUISEE` à zéro, notification de chaque producteur concerné),
+  `PaiementService.creer` (montant repris du total serveur, référence `SIMU-…`) et
+  `CommandeService.changerStatut` (transitions autorisées, paiement exigé avant confirmation d'une
+  livraison, stock rendu et paiement soldé à l'annulation). **Aucune écriture directe en base, aucun
+  contournement** : le modèle approuvé n'admet qu'une filière par producteur, donc l'exploitation
+  « mixte » est `AUTRE` et son détail tient dans la description
+- [x] **États réellement rendus aux écrans, obtenus par la règle et non par une force** : 10
+  `EN_ATTENTE`, 12 `CONFIRMEE`, 8 `PRETE`, 22 `LIVREE`, 8 `ANNULEE` ; les trois **premières** commandes
+  mélangent deux producteurs distincts ; `Piment fort` descend à un stock **piloté** de 0 et devient
+  `EPUISEE` par la règle de `CommandeService`, `Salade` (3,50 botte) et `Mangue` (4,00 kg) s'arrêtent
+  sous le seuil d'alerte **5** de `stockFaible` (LOT STAT-1) — ces trois récoltes sont vendues par des
+  commandes **pilotées** (un rang dédié, une quantité calculée pour tomber juste sur le stock visé) et
+  sont exclues du tirage libre ; les autres récoltes suivent les tirages, sans garantie de rester
+  au-dessus. Le stock restant est suivi côté générateur pour ne **jamais** demander au service
+  plus que le disponible, et une quantité hors stock lève une exception au lieu d'être silencieusement
+  réduite. Les paiements portent `WAVE` et `ORANGE_MONEY`, les deux seuls que connaisse
+  `MoyenPaiement` ; `imageUrl` est vide partout, donc le catalogue rend son état « sans image » — la
+  seule image du dépôt (`frontend/public/images/hero.jpg`) n'est pas une photo de récolte et aucun
+  lien externe n'a été inventé
+- [x] **Génération déterministe et idempotence** : une graine unique (`GRAINE`) rend les mêmes tirages,
+  donc deux bases vides obtiennent les mêmes dates, quantités et statuts. Si le premier compte de
+  démonstration existe déjà (`existsByEmail` sur `producteur1.demo@sunurecolte.sn`), **rien n'est créé
+  et rien n'est supprimé**, une ligne INFO est journalisée ; les journaux ne portent que des adresses
+  email, jamais le mot de passe
+- [x] **Dates étalées — l'arbitrage consenti par l'auteur** *(depuis **dépassé par le LOT DEMO-2** :
+  `updatable = false` a été rétabli et l'étalement passe par un `JdbcTemplate` ; ce texte reste écrit
+  tel quel parce qu'il décrit l'état de l'époque, et la section DEMO-2 plus bas dit pourquoi il n'est
+  plus nécessaire)* : `Commande.dateCreation` retrouve une
+  colonne **modifiable** et le `@PrePersist` ne pose plus qu'une date **absente**. C'est le seul moyen
+  d'étaler les 60 commandes sur les 60 derniers jours sans toucher aux DTO ni à l'API :
+  `CommandeRequest` ne déclare toujours pas cette valeur, aucun chemin d'API n'accepte une date du
+  client. La date est écrite **après** tout le cycle de la commande, sinon le
+  `entityManager.refresh()` du verrou pessimiste (LOT P3) l'écraserait. Un test le prouve : une
+  commande créée par `CommandeService` en usage normal garde l'horodatage du serveur, et la colonne
+  reste malgré tout inscriptible.
+  **Pourquoi le retrait de `updatable = false` est indispensable** (et non un réflexe de confort) :
+  `@GeneratedValue(strategy = IDENTITY)` force l'INSERT dès `commandeRepository.save(...)` dans
+  `CommandeService.creer`, donc le `@PrePersist` fige `dateCreation` **avant** que le générateur
+  connaisse l'identifiant — aucune écriture antérieure au premier persist n'est possible sans déclarer
+  une date dans `CommandeRequest`, ce qui serait un champ accepté du client, proscrit. Le test a été
+  rejoué avec l'attribut rétabli : **2 échecs sur 9**, et surtout **aucune erreur Hibernate** — la
+  colonne est silencieusement exclue de l'UPDATE, l'étalement redevient inopérant sans rien prévenir.
+- [x] **Tests — `DemoDataInitializerTest`, suite backend 262 → 271** (`Failures: 0`) : 9 tests sur
+  PostgreSQL réel, dans la transaction du test pour rien laisser en base. Effectifs (9 utilisateurs,
+  3 producteurs, 6 acheteurs, 20 récoltes, 60 commandes, notifications non nulles), les cinq statuts
+  avec leurs quantités, commandes mixtes, **aucun stock négatif**, récolte `EPUISEE` et deux récoltes
+  sous le seuil, paiements bornés aux statuts que les services écrivent (`EN_ATTENTE`, `ECHOUE` et
+  `ANNULE` explicitement **absents**, `REMBOURSE` = 4, total = `REUSSI` + 4), étalement des dates
+  (aucune dans le futur, aucune avant les 60 jours, et des commandes aux deux bouts de la fenêtre —
+  au-delà de 30 jours comme dans les 7 derniers ; l'horodatage de référence est pris **après** la
+  génération), deuxième exécution sans doublon, refus `demo` + `prod`, refus sans mot de passe ou trop
+  court **avec rien de créé**. Deux précautions :
+  **aucun test n'active le profil `demo`** (un runner de profil tournerait hors transaction et
+  committerait ses écritures) — le composant est instancié avec les beans réels et un
+  `StandardEnvironment` ; et les compteurs JPQL sont restreints au suffixe `%.demo@sunurecolte.sn`,
+  pour ignorer les données de QA déjà présentes en base locale. Vérifié en sus : aucun autre test du
+  dépôt ne mentionne `@ActiveProfiles` ni `spring.profiles.active`, et la CI ne pose que `JWT_SECRET`
+- [x] **Documentation** : README §9 « Données de démonstration (profil `demo`) » — commande exacte
+  (Git Bash et PowerShell), comptes en **adresses email seulement**, contenu du jeu, trois garde-fous,
+  idempotence, remise à zéro par recréation de la base locale (signalée comme destructive des données
+  de test), limites ; bloc de commentaires dans `application.properties` qui **ne déclare aucune
+  valeur** ; Javadoc du composant portant la méthode et les règles
+- [x] **Limites connues, assumées et non masquées** : **(a)** seules les **commandes** sont étalées —
+  paiements et notifications gardent l'horodatage de génération, une capture de l'historique de
+  paiement ou du centre de notifications les montrera donc tous le même jour *(paiements alignés depuis
+  par le LOT DEMO-2 ; les notifications restent concernées, arbitrage du 2026-10-09)* ; **(b)** les statuts de
+  paiement `EN_ATTENTE`, `ECHOUE` et `ANNULE` n'existent pas dans le jeu, parce qu'aucun service ne
+  sait les écrire et qu'une écriture directe serait une invention ; **(c)** le mot de passe des neuf
+  comptes est celui de la variable d'environnement, commun à tous — ce jeu n'est pas une démonstration
+  de l'isolation par compte ; **(d)** le profil demo ne crée **aucun** ADMIN, l'amorçage du README §4
+  reste nécessaire pour `/admin` ; **(e)** une récolte dont la vente est pilotée refuse le prélèvement
+  libre, le catalogue des commandes mélangeuses est donc plus restreint sur ces trois lignes ; **(f)**
+  depuis la génération du jeu, **seul `/producteur/statistiques` a été observé en navigateur** — et il y
+  a montré cinq défauts, traités par le LOT QA-STAT-1 ci-dessous
+- [x] **Ce qui reste ouvert** : parcourir en navigateur les autres écrans que le jeu doit nourrir
+  (catalogue, commandes reçues, espace acheteur, notifications) avant les captures du mémoire, et
+  **régénérer la base** pour qu'elle porte l'arrondi au demi-unité décidé au LOT QA-STAT-1 — la
+  régénération est destructive, donc menée par l'auteur ; décider si l'étalement des paiements et des
+  notifications vaut un lot supplémentaire — **tranché le 2026-10-09 : le LOT DEMO-2 fait celui des
+  paiements, celui des notifications est écarté** (voir sa section et la limite (a) ci-dessus). Travail
+  porté par la branche
+  `fonctionnalites-statistiques`, **non poussé**
+
+### Ajustement du jeu demandé par l'écran statistiques (2026-10-09)
+
+> **Ce que couvre cette sous-section** : les trois demandes de l'auteur (stocks de départ plus larges
+> pour ne pas noyer l'écran sous les alertes, annulations réparties et lisibles, tests existants
+> conservés), ce qui a été changé, ce que la mesure a réellement donné, et les deux points où la mesure
+> a forcé à dévier du plan validé. **Aucune règle métier n'a été touchée** : le jeu continue de passer
+> par `AuthService`, `RecolteService`, `CommandeService` et `PaiementService`.
+
+- [x] **Stocks relevés et quota de vente libre** : les quantités de départ de `RECOLTES_PAR_PRODUCTEUR`
+  passent à 12 → 300 selon le produit, et chaque récolte ne peut plus céder en prélèvement libre que
+  **45 % de son stock initial** (`PART_MAXIMALE_VENDUE`, suivi par récolte dans `RecoltePilotee`). Le
+  tirage « l'acheteur prend tout le reste » sur un coup sur dix est supprimé, remplacé par des fractions
+  du stock **initial** (donc bornées) avec un gros acheteur à 20 % sur un tirage sur huit. Résultat
+  mesuré et verrouillé : **au plus deux récoltes par producteur** `EPUISEE` ou sous le seuil d'alerte 5
+  (deux chez le premier, aucune chez le deuxième, une chez le troisième), alors qu'avant le quota les
+  prélèvements libres descendaient librement les stocks vers zéro
+- [x] **Huit `ANNULEE` planifiées** (`ANNULATIONS_PILOTEES`) : chacune désigne le producteur de son
+  unique ligne et dit si sa date tombe **dans** la fenêtre des trente derniers jours (`dateAnnulation`,
+  jours 1 à 27) ou franchement **dehors** (jours 30 à 59) ; une annulation massive fausserait la remise
+  en stock observée à l'écran. Quatre sont en fenêtre (deux chez le premier
+  producteur, une chez chacun des deux autres), quatre dehors. `premierRangAnnulation()` refuse toute
+  génération dont la répartition des statuts ne couvre pas exactement ce plan : le plan ne peut pas
+  glisser silencieusement sur d'autres statuts
+- [x] **Deux déviations du plan validé, imposées par la mesure** : à la première exécution, **7 erreurs**
+  « Plus aucune récolte vendable dans la limite de son quota » — les fractions alors prévues
+  (0,02 à 0,12 plus le gros acheteur à 0,20) reviennent, sur sept tirages par récolte, à demander environ
+  59 % du stock initial, au-delà du quota de 45 % : il ne restait plus rien à vendre aux rangs
+  d'annulation. D'où : fractions libres abaissées à **{0,01 ; 0,02 ; 0,03 ; 0,05}**, et
+  lignes d'annulation **dispensées du quota** (justifié par la règle du service : l'annulation rend la
+  quantité au stock, une vente annulée ne peut donc pas créer d'alerte). Les 13 tests sont verts après
+  ces deux changements
+- [x] **Valeurs réellement lues après génération** (service `StatistiquesProducteurService`, fenêtre de
+  trente jours, premier producteur) : chiffre d'affaires **87 425,00**, **18** commandes, panier moyen
+  **5 464,06**, taux d'annulation **11,11 %** (2 annulées sur 18) — donc dans la fourchette demandée de
+  8 à 15 %, **aucun ajustement du nombre d'annulées en fenêtre n'a été nécessaire** ; 9 commandes à
+  traiter ; top 5 Oignon 57,00 kg / 37 050, Piment fort 12,00 kg / 14 400, Tomate 16,00 kg / 12 800,
+  Aubergine 13,50 kg / 6 750, Chou 15,50 kg / 6 200 ; stock faible = Piment fort 0,00 kg `EPUISEE` et
+  Salade 3,50 botte. Chez les deux autres : 811 400,00 / 12 commandes / 8,33 % et 121 425,00 /
+  17 commandes / **5,88 %** — ce dernier taux est hors de la fourchette, qui ne visait que le premier
+  producteur. La somme des trente montants quotidiens tombe **exactement** à 87 425,00 : l'écart
+  d'arrondi d'un FCFA constaté en QA STAT-1 ne se reproduit pas sur ce jeu
+- [x] **Ce que l'ajustement fait perdre en amplitude** : le chiffre d'affaires du premier producteur
+  passe de **375 886** (constaté à l'écran lors de la QA STAT-1) à **87 425,00**, conséquence directe de
+  l'abaissement des fractions. Consigné plutôt que masqué, parce que les captures du mémoire montreront
+  ce second nombre
+- [x] **Tests — `DemoDataInitializerTest` 10 → 13, suite backend 275** (`./mvnw -o clean test`, 23 classes,
+  `Failures: 0`, `Errors: 0`, PostgreSQL réel) : trois nouveaux verrous reprennent la formule de
+  l'écran au lieu de la constater (alertes `EPUISEE` ou sous le seuil comptées **par producteur**, au
+  moins une annulée **dans la fenêtre** par producteur, taux d'annulation du premier producteur
+  recalculé comme `StatistiquesProducteurService` et refusé hors de 8,00–15,00). **Deux assertions
+  existantes ont été re-ciblées, pas affaiblies** : `recoltesAuStatut(EPUISEE)` de `>= 1` à
+  `isEqualTo(1)` et `recoltesDisponiblesSousLeSeuil()` de `>= 2` à `isEqualTo(2)`, le quota rendant
+  maintenant ces effectifs contrôlables
+- [x] **Documentation** : README §9 réécrit — base de démonstration **dédiée `sunurecolte_demo`** (et
+  plus `sunurecolte`, celle des tests), avertissement « **ne jamais lancer le profil `demo` sur une base
+  contenant des données réelles** », lancement en PowerShell avec `SPRING_DATASOURCE_URL`,
+  `SPRING_PROFILES_ACTIVE`, `APP_DEMO_MOT_DE_PASSE`, `APP_ADMIN_EMAIL`, `APP_ADMIN_PASSWORD`, remise à
+  zéro par `DROP DATABASE sunurecolte_demo` / `CREATE DATABASE sunurecolte_demo`, quota de 45 %,
+  annulées planifiées et ADMIN venant de l'amorçage du §4 plutôt que du profil
+- [x] **Reste ouvert après cet ajustement** : la base locale `sunurecolte_demo` n'est **pas encore
+  régénérée** (opération destructive, donc jouée par l'auteur) — le nouveau jeu n'a été lu que par le
+  service en base de test, jamais dans un navigateur, et `verif-stat1.sql` devra être rejoué contre la
+  base régénérée avec les valeurs ci-dessus comme attendus
+
+## LOT QA-STAT-1 — corrections demandées par l’écran réel (2026-10-09)
+
+> **Ce que couvre cette section** : les **cinq** défauts constatés sur `/producteur/statistiques` rendu
+> par le navigateur, la correction de chacun, et ce que les tests verrouillent. Les constats viennent
+> de **captures réelles** et d’une **QA jouée dans le navigateur**, pas d’une relecture de code : les
+> trois premiers se lisaient sur les captures, les deux derniers (constats 4 et 5) ne sont apparus
+> qu’en mesurant l’écran rendu. Les proportions des graphiques n’ont pas été touchées, seule la mise
+> en page et l’écriture des nombres le sont.
+>
+> **Porte de validation** : `npm test -- --no-watch` et `npm run build` côté frontend,
+> `./mvnw -o test` côté backend, sur PostgreSQL réel.
+
+- [x] **Constat 1 — les barres horizontales ne rattachent plus leur libellé** : chaque barre partait à
+  34 % de la largeur et chaque étiquette était posée **22 px au-dessus** de sa barre, de l’autre côté
+  du texte de valeur aligné à droite. La règle de LOT STAT-1 (« une classe n’existe que si un écran
+  l’utilise ») est respectée : le défaut est **dans le composant partagé** `app-barres`, donc la
+  correction y est faite et non dans l’écran, pour que le futur lot ADMIN en profite
+- [x] **Correction — `partage/graphiques/barres.ts` et `.html`** : une ligne horizontale devient un
+  `<g transform="translate(0 …)">` qui porte son libellé à gauche, sa valeur à droite et sa barre
+  **sous les deux**, sur la pleine largeur (`longueur()` = `pourcentage()` sans partage avec le
+  texte). Le pas de ligne passe de 34 à 52 pour que le texte et la barre ne se chevauchent jamais.
+  **`pourcentage()` est inchangé** : les proportions affichées restent exactement celles calculées.
+  Chaque `<rect>` vertical porte un `<title>libellé : valeur</title>` (confort visuel seulement, `role
+  = "img"` tenant la subtree hors de l’arbre accessible — le tableau alternatif reste la voie machine)
+  et un **repère de maximum** en HTML au-dessus de la trace, alimenté par une `etiquetteMaximum()`
+  fournie par l’appelant : aucun mot de métier n’entre dans le composant partagé
+- [x] **Constat 3 et correction — `core/utilitaires/formatage.ts`** : `Intl.NumberFormat('fr-FR')`
+  rend le séparateur de milliers en **fine insécable U+202F**, glyphe absente de la police du projet,
+  donc « 151 736 » se lisait « 151736 » pendant qu’un nombre sans millier restait espacé. Le
+  séparateur est maintenant écrit à la main (`formatToParts` puis remplacement des parties `group`
+  par U+00A0). Un **écart assumé et signalé** : les deux formatteurs sont appelés par une quinzaine
+  d’écrans (catalogue, détail, panier, tiroir, commande, commandes, paiement, admin, accueil), qui
+  changent tous de caractère de séparateur, sans aucune autre modification
+- [x] **Décimales de la synthèse** : `formaterMontantEntier` s’ajoute pour un écran de chiffres —
+  chiffre d’affaires, panier moyen, montants des deux graphiques, tableau alternatif et annonce —
+  tandis qu’une **quantité vendue garde sa décimale** (`formaterQuantite`, 233,5 kg reste lisible).
+  L’arrondi n’est que d’affichage : la valeur du serveur reste exacte et `StatistiquesProducteurService`
+  n’est pas touché
+- [x] **Backend — `DemoDataInitializer`** : le tirage libre est arrondi **au demi-unité inférieur**
+  (`PAS_DE_VENTE`), jamais à deux décimales, pour qu’une ligne ne sorte plus à 233,44 kg et qu’un
+  sous-total garde au plus une décimale. **Un plancher tenté puis écarté, consigné pour ne pas y
+  revenir** : borner chaque prélèvement au `quantiteMin` de la récolte vidait les petites récoltes trop
+  vite et faisait tomber le jeu à **50 commandes sur 60** (deux tests en échec, `ANNULEE` absent,
+  `REMBOURSE` à 0). Le repli d’un tirage trop petit prend donc le plus petit prélèvement du jeu
+  (0,5), et non la totalité du stock restant
+- [x] **Constat 4 — les étiquettes de l’axe des colonnes se chevauchent (constaté en réel, à 353 px)** :
+  « 05/10 » et « 09/10 » étaient écrits l’un sur l’autre. La borne finale de la période est toujours
+  rendue (décision de LOT STAT-1, gardée) et le pas d’intervalles tombait juste avant elle. **Dans le
+  composant partagé**, `etiquetteColonne()` arrête désormais le pas à un pas de colonne de la dernière
+  étiquette : les deux bornes se lisent, aucune ne touche sa voisine. Mesuré après correction :
+  30 jours → 6 étiquettes (10/09, 15/09, 20/09, 25/09, 30/09, 09/10), 7 jours → 4, « ce mois » (9 jours)
+  → 5, **aucun chevauchement** aux quatre largeurs observées
+- [x] **Constat 5 — une barre de défilement horizontale apparaissait à 375 px (constaté en réel)** :
+  le voile qui masque le tableau alternatif était posé **sur le `<table>` lui-même**, or une table ne
+  peut pas être plus étroite que son contenu — `width: 1px` est ignoré, le tableau rendait 549 px et
+  élargissait la page (`scrollWidth` 605 pour 338 px visibles). Le voile est devenu un `<div>` parent :
+  la table garde sa sémantique de tableau, ses valeurs restent dans l’arbre d’accessibilité (vérifié
+  sur le snapshot après correction) et `scrollWidth` est revenu à la largeur visible. **Le futur lot
+  ADMIN hérite des deux corrections, faites dans `app-barres` et non dans l’écran**
+- [x] **Écart assumé et non masqué — 1 FCFA entre la carte et la somme des jours** : la carte annonce
+  « Chiffre d’affaires 375 886 FCFA » et les trente montants quotidiens affichés somment à
+  **375 887 FCFA**. Cause identifiée : chaque jour est arrondi **indépendamment** à l’affichage
+  (`formaterMontantEntier`), pas la somme. L’écart ne vient pas du serveur — il est d’arrondi visible,
+  et il peut rester après régénération du jeu puisqu’un sous-total peut légitimement porter une
+  décimale. **La décision reste à l’auteur** : consigner l’écart, ou rendre aux valeurs quotidiennes
+  leurs décimales exactes (le graphique et son tableau alternatif, pas la synthèse)
+- [x] **Tests frontend — 955 → 963 (47 fichiers)** : `barres.spec.ts` **7 → 12** (association
+  structurelle libellé-barre, géométrie sans chevauchement, infobulles, repère de maximum présent et
+  muet à zéro, étiquettes d’axe à distance de la borne finale, voile parent du tableau) et
+  `statistiques.spec.ts` +1 (montants entiers, quantité gardant sa décimale) et +2
+  assertions (repère sur le graphique des ventes, absent du second). **Sept assertions re-ciblées**,
+  toutes déclarées ici parce qu’elles portent sur la géométrie que le lot corrige volontairement :
+  trois largeurs de barres `46/23/11,5 %` → `100/50/25 %`, une largeur et un `x` du second test
+  (`46 %` → `100 %`, `34 %` → `0`), et la paire d’assertions d’étiquettes de colonnes, retouchée **deux
+  fois** (6 → 7 quand les deux bornes se lisent, puis 7 → 6 après le constat 4). Les autres changements
+  (`transform` de ligne, hauteur du `<svg>`, parent du tableau alternatif) sont des **assertions
+  ajoutées**, pas d’existant retouché. **Aucune assertion supprimée
+  ni affaiblie** ; `formatage.spec.ts` passe à 16 tests et vérifie le caractère échappé (`U+00A0`
+  présent, `U+202F` absent)
+- [x] **Tests backend — 271 → 272** (`Failures: 0` sur les deux suites) : `DemoDataInitializerTest`
+  vérifie que **toute** quantité vendue est multiple de 0,5 ; les effectifs du jeu (60 commandes, cinq
+  statuts, 4 remboursements) restent exacts avec l’arrondi
+- [x] **QA navigateur réellement jouée sur `/producteur/statistiques`** (profil `demo`, base
+  `sunurecolte_demo`, compte `producteur1.demo@sunurecolte.sn`) :
+  **association libellé ↔ barre** mesurée ligne par ligne — 44 à 54 px d’air entre le libellé et la
+  valeur, **la barre rendue sous les deux** sur les cinq lignes, et des largeurs de barres
+  225/213/56/21/17 px pour des revenus 151 736/144 000/38 025/14 400/11 570 FCFA, soit exactement les
+  proportions du serveur (le calcul n’est pas touché) ; **repère de maximum** présent au-dessus des
+  colonnes (« Maximum encaissé sur une journée : 93 220 FCFA ») ; **séparateur de milliers** vérifié au
+  codepoint (`1` `U+00A0` `274`), plus de chiffre agglutiné ; **montants entiers** à la synthèse et aux
+  deux graphiques, **quantité gardant sa décimale** (233,44 kg, jeu non régénéré) ; les **trois
+  périodes** changent réellement la fenêtre (7 jours → 7 colonnes et 4 étiquettes, 30 jours → 30
+  colonnes et 6, « ce mois » → 9 colonnes et 5) avec l’annonce mise à jour et l’état `aria-pressed`
+  qui suit ; **console sans erreur** (uniquement les journaux Vite et le mode développement) ;
+  **réseau** : à l’ouverture une seule `GET /api/producteurs/moi/statistiques?periode=30j` (200) avec le
+  `GET /api/notifications` de l’en-tête, et le clic sur « 7 derniers jours » n’émet **rien d’autre** que
+  `?periode=7j` en 200. **Comment les largeurs ont été obtenues** : 353 px est la largeur **réelle** de la fenêtre
+  pilotée (la sienne, non contrôlable par l’agent) ; les passes 375, 768, 1024 et 1366 px ont été
+  mesurées dans une **iframe de même origine** chargée sur le même écran — la mise en page est réelle
+  (les cartes passent de 4 par ligne à 1 colonne empilée à 375 px) mais le rendu n’est pas une fenêtre
+  native, et le contrôle visuel à l’œil de ces quatre largeurs **reste à faire par l’auteur**
+- [x] **Marges résiduelles mesurées, déclarées** : à 353 px les six étiquettes d’axe laissent **3 à 6 px
+  d’air** entre elles (aucun chevauchement, mais lisible de justesse — à 375 px mesurées en iframe,
+  7 à 9 px) ; et l’espace entre le montant et « FCFA » reste une **espace simple U+0020** (seul le
+  séparateur de milliers a été remplacé), hérité des quinze écrans qui appellent les formatteurs
+- [x] **Limites de ce lot** : la base de démonstration porte encore le jeu à deux décimales, sa
+  **régénération est destructive** donc à la main de l’auteur, et les mesures ci-dessus ont été prises
+  **avant** cette régénération ; le repère de maximum n’existe que sur le graphique vertical, le
+  graphique horizontal garde ses valeurs écrites sur chaque ligne ; une seule identité de producteur a
+  été observée (celle du compte connecté), les autres comptes du jeu non
+- [x] **Ce qui reste ouvert** : vérification SQL indépendante des agrégats affichés — les trois blocs
+  de requêtes ont été **remis à l’auteur**, `psql` refusant de se connecter sans mot de passe et la
+  consigne étant de **ne jamais taper ce secret dans un outil** ; aucun écart toléré ni masqué, et
+  l’écart d’arrondi de 1 FCFA signalé ci-dessus attend sa décision ; régénération du jeu puis
+  re-contrôle visuel ; parcourir en navigateur les autres écrans que le jeu nourrit ; et le lot
+  statistiques **ADMIN** qui doit réutiliser `app-barres`. Travail porté par la branche
+  `fonctionnalites-statistiques`, **non poussé**
+
+## LOT STAT-2 — statistiques de la plateforme pour l'ADMIN (2026-10-09)
+
+> **Ce que couvre cette section** : le second écran de statistiques, celui de l'administration —
+> une route de lecture seule, un écran Angular qui ne fait que la rendre, et les deux jeux de tests
+> qui verrouillent l'un et l'autre. Les règles de calcul communes avec LOT STAT-1 sont **extraites**,
+> pas dupliquées : le producteur et l'administrateur lisent la même fenêtre, les mêmes statuts retenus,
+> le même arrondi et le même plafond de top 5.
+
+- [x] **Backend — `GET /api/admin/statistiques`** : **première route du préfixe `/api/admin`**, jusqu'ici
+  inexistant (les écrans ADMIN étaient greffés sur `/api/utilisateurs`, `/api/prix-marche` et
+  `PATCH /api/recoltes/{id}/statut`). Réponse `StatistiquesAdminResponse` : comptes (total, producteurs,
+  acheteurs), récoltes au statut `DISPONIBLE`, nombre de commandes et volume d'affaires de la période, inscriptions
+  par semaine civile, répartitions par filière / zone / moyen de paiement, deux top 5, nombre de
+  remboursements. Paramètre `periode` = `7j`, `30j` (défaut) ou `mois`, toute autre valeur répond `400`
+  du même message que l'écran producteur
+- [x] **Règles communes extraites dans `ReglesStatistiques`** : `bornes()` (fenêtres, défaut, rejet),
+  `STATUTS_RETENUS`, `NOMBRE_TOP`, `arrondir()`, `lundiDeLaSemaine()` et `normaliser()`.
+  `StatistiquesProducteurService` les appelle désormais au lieu de les redéfinir — **aucune règle modifiée,
+  les 18 tests de `statistiques.spec.ts` (écran producteur) sont restés verts sans retouche**
+- [x] **Accès** : `SecurityConfig` réserve la route à `ADMIN` (`hasRole`) et `StatistiquesAdminService`
+  rappelle `ControleAcces.exigerAdmin(principal)` ; `401` anonyme, `403` PRODUCTEUR, `403` ACHETEUR, testés
+  les trois. Aucun identifiant en entrée : la portée transverse vient du rôle, pas d'un paramètre
+- [x] **Requêtes** : dix agrégats portés par `StatistiquesAdminLectureRepository` (projections + `@Query`),
+  **aucun N+1** — la réponse est construite en un nombre fixe de requêtes, indépendant du nombre de comptes ;
+  les sommes sont lues sur `lignes_commande.sous_total`, **jamais** sur `commandes.total` (règle LOT STAT-1)
+- [x] **Trois décisions d'arbitrage consignées dans le code et la doc** : le total des comptes vaut
+  producteurs + acheteurs, **ADMIN exclu** (il ne passe pas par l'inscription publique) ; la **zone** est le
+  champ libre `localisation_exploitation` — orthographe normalisée, **8 zones au plus**, le reste regroupé
+  sous « Autres zones », valeurs nulles ou vides omises (ce n'est **pas** un référentiel) ; `MoyenPaiement`
+  ne comptant que `WAVE` et `ORANGE_MONEY`, il n'existe **aucune** ligne « autre moyen de paiement »
+- [x] **Confidentialité de la réponse** : le corps JSON brut est testé comme ne contenant **ni « @ », ni
+  champ `motDePasse`, `telephone`, `email`, ni jeton** ; les deux tops n'exposent que nom et identifiant,
+  vérifiés champ par champ (`Set.of(...)` exact)
+- [x] **Tests backend — 275 → 292** : `StatistiquesAdminApiTest` (17). Les compteurs transverses ne sont pas
+  assertables en absolu sur la base de dev partagée : la spec procède **par écarts** (lire, écrire, relire),
+  référence par fenêtre, méthode écrite dans son Javadoc. Couverts : les trois rôles et l'anonyme, le défaut
+  `30j` et le rejet d'une période inconnue, volume hors annulées / nombre les comprenant, commande mixte,
+  remboursement simulé hors volume, tops ordonnés et plafonnés à cinq, récoltes actives = `DISPONIBLE`
+  seulement, semaines civiles sans trou, filière réellement portée, zones regroupées et plafonnées,
+  répartitions par moyen et remboursés, et l'absence de donnée personnelle dans le corps
+- [x] **Frontend — écran `/admin/statistiques`** : route lazy `authGuard` puis `roleGuard` (`roles: ['ADMIN']`),
+  titre « SunuRecolte — Statistiques de la plateforme ». Six cartes (dont volume d'affaires en mesure
+  dominante), trois graphiques rendus par `app-barres` **réutilisé sans modification** (semaines en colonnes
+  avec repère de maximum, producteurs et récoltes en barres horizontales), trois listes de répartition,
+  sélecteur de période à trois pastilles `aria-pressed`, annonce `aria-live`, états chargement / vide /
+  erreur, notice du bas §39.2 pour l'erreur (jamais de bannière), « Réessayer » et « Actualiser », alternative
+  tableau pour chaque graphique, et le texte de limite des zones rendu à l'écran
+- [x] **Frontend — navigation** : quatrième onglet « Statistiques » dans `app-admin-navigation` (les trois
+  autres inchangés) et quatrième carte sur `/admin`, présentée comme de la **consultation seule** ; le
+  Javadoc de `EspaceAdmin`, qui affirmait qu'« aucun endpoint de comptage ou de statistique » n'existe, a été
+  corrigé puisqu'il est désormais faux
+- [x] **Tests frontend — 963 → 992 (47 → 49 fichiers)** : `statistiques-admin.spec.ts` (19 : trois états,
+  `periode` seul paramètre, six cartes et leurs précisions, somme des comptes, trois graphiques et leurs
+  entêtes, semaines conservées y compris à zéro, arrondi entier contre quantité à décimale, pastilles,
+  erreur + notice + « Réessayer », « Actualiser », vide, répartitions et plafond des zones, remboursements au
+  bon nombre, filière hors référentiel affichée telle quelle, classements absents quand rien n'est retenu),
+  `statistiques-admin.service.spec.ts` (7), `routes-statistiques.spec.ts` 2 → 4 et `routes-admin.spec.ts`
+  7 → 8. **Huit assertions existantes re-ciblées**, toutes parce que la liste des écrans ADMIN s'allonge d'un
+  membre et non parce qu'une règle aurait changé : deux dans `routes-admin.spec.ts` (la liste des chemins de
+  « ne laisse aucune route d'administration ouverte » et celle de la boucle « réserve ces cinq routes »),
+  trois dans `admin-navigation.spec.ts` (les quatre `href`, les quatre libellés, `toHaveLength(3)` → `4`),
+  trois dans `espace-admin.spec.ts` (les quatre titres de carte, les quatre `href`, les quatre libellés).
+  **Aucune assertion supprimée ni affaiblie** ; les specs de LOT STAT-1 (`statistiques.spec.ts` 18,
+  `barres.spec.ts` 12, `formatage.spec.ts` 16) sont sorties inchangées de la suite
+- [x] **Validations réellement exécutées** : suite backend PostgreSQL réelle **292 tests, 0 échec** ;
+  `npm test -- --no-watch` **992 tests / 49 fichiers, 0 échec** ; `npm run build` sans avertissement de
+  budget ; contrôle des caractères hors latin (CJK, cyrillique) fait sur l'ensemble du diff, aucun trouvé
+- [x] **Limites de ce lot** : la **QA navigateur de cet écran n'a pas été jouée** (elle suppose la base de
+  démonstration régénérée, tâche restée à la main de l'auteur) ; les largeurs 360 / 375 / 768 / 1366 px ne
+  sont donc pas observées à l'œil ; les compteurs absolus ne sont testables **que par écarts** sur la base
+  de dev partagée ; « une plateforme vide rend des zéros » n'est pas testable en absolu ici et repose sur
+  `arrondir(null) → 0,00` et sur l'écart nul mesuré ; les zones restent un champ libre, la normalisation
+  ne peut que rapprocher « Thies » de « Thiès », pas corriger une localité mal orthographiée d'une autre ;
+  `recoltesActives` est un état instantané du catalogue et ne suit pas la période choisie
+- [x] **Ce qui reste ouvert** : régénération de la base `sunurecolte_demo` puis **comparaison écran ↔ SQL**
+  (le fichier de contrôle `verif-stat2.sql` est remis à la racine du dépôt, hors suivi Git, `psql` refusant
+  de se connecter sans mot de passe et la consigne étant de ne jamais taper ce secret dans un outil) ;
+  QA navigateur de `/admin/statistiques` et de ses quatre largeurs ; l'écart d'arrondi d'un FCFA constaté au
+  LOT QA-STAT-1 n'est pas tranché — il ne se reproduit pas sur cet écran, qui ne découpe aucun montant en
+  valeurs quotidiennes, mais il y concerne les mêmes formatteurs. Travail porté par la branche
+  `fonctionnalites-statistiques`, **non poussé**
+
+## LOT DEMO-2 — comptes, récoltes et paiements reculés avec leurs commandes (2026-10-09)
+
+> **Ce que couvre cette section** : la passe finale qui étale dans le passé les dates que LOT DEMO-1
+> avait laissées à l'horodatage de génération, pourquoi elle passe par un `JdbcTemplate`, ce que la
+> mesure a réellement donné sur le jeu produit, et **les trois écarts signalés au lieu d'être masqués**.
+> Aucune règle métier, aucun DTO, aucune route et aucune migration n'ont été touchés.
+>
+> **Porte de validation** : `./mvnw -o clean test` sur PostgreSQL réel (aucun mock), le composant
+> restant instancié à la main dans la transaction annulée du test — jamais par `@ActiveProfiles("demo")`,
+> qui le ferait tourner hors transaction et committerait dans la base locale réelle.
+
+- [x] **Condition A vérifiée avant de coder** : `@Scheduled` et `@EnableScheduling` sont **absents** de
+  `src/main/java` (contrôle porté sur tout l'arbre), et les seuls lecteurs de `commandes.date_creation`
+  sont le tri `ORDER BY c.dateCreation DESC` de `CommandeRepository`, la fenêtre des deux écrans de
+  statistiques et le `CommandeResponse`. **Aucune annulation automatique, aucune expiration, aucune
+  relance** ne dépend de cette date : la reculer ne désarme aucune règle
+- [x] **`recoltes.date_disponibilite` validée dans le code avant d'y toucher** : la colonne est lue par
+  `RecolteResponse` et rendue par trois écrans sous le libellé « **Disponible à partir du** … »
+  (`accueil`, `catalogue`, `mes-recoltes`, plus `recoltes-admin`) ; elle est écrite par
+  `RecolteService` depuis la requête du producteur. Elle ne filtre **aucune** requête, ne porte **aucun**
+  tri, n'est la cible d'**aucune** validation métier, et aucune tâche planifiée ne l'examine. C'est donc
+  bien un début de disponibilité : elle est reculée, posée sur le **jour civil** de `date_creation` de
+  sa récolte (mesuré : 20 récoltes sur 20 concordantes). Seules deux colonnes de date de récolte sont
+  touchées : `recoltes.date_creation` (horodatage) et `recoltes.date_disponibilite` (jour)
+- [x] **Passe SQL finale, aucune exception sur une entité de production** : `etalerDansLePasse()` s'exécute
+  **après** la génération complète, avec quatre `jdbcTemplate.batchUpdate` ciblés —
+  `commandes` (par identifiant), `utilisateurs` (par adresse en `.demo@sunurecolte.sn`), `recoltes`
+  (`date_creation` et `date_disponibilite`), `paiements` (`date_creation` et `date_confirmation`). Un
+  `commandeRepository.flush()` précède la passe : sans lui, le vidage de fin de transaction réécrirait
+  `date_confirmation` — colonne inscriptible, elle — par-dessus les dates natives. **Aucune entité
+  n'ajoute de comportement, aucun `@Setter(AccessLevel.NONE)`, aucune nouvelle exception de mappage**
+- [x] **Deux graines, et la condition D est tenue** : `GRAINE` reste `20261008L` pour le catalogue et les
+  commandes ; la passe a sa propre `GRAINE_ETALAGE` (`20261009L`). L'étalement ne décale donc d'aucun
+  cran la suite aléatoire du tirage — vérifié par le test de non-régression des deux écrans, et par
+  `uneDeuxiemeExecutionNeDeplaceAucuneDate`
+- [x] **Règle de cohérence, écrite avant les bandes de tirage** : `recul(compte)` = le plus grand entre la
+  bande tirée (producteurs 40–59 jours, acheteurs 10–39) et **le recul de sa plus ancienne commande,
+  augmenté de trois jours civils** (`MARGE_JOURS_COMPTE`). Une récolte est publiée entre le compte de son
+  producteur et sa première vente. Un paiement suit sa commande d'**une heure**, sa confirmation vient
+  **douze minutes** après ; tout est ramené dans le passé, jamais après l'instant du lancement
+- [x] **`Commande.date_creation` a retrouvé `updatable = false`** : la colonne est de nouveau figée après
+  insertion, comme celles d'`Utilisateur`, `Recolte`, `Paiement` et `Notification`, et le `@PrePersist`
+  pose à nouveau l'horodatage sans condition. Le test « la colonne reste inscriptible » a été **remplacé
+  par l'inverse** : `CommandeService` garde son horodatage serveur, `entite.setDateCreation(...)` puis
+  `flush()` ne change **rien** en base, et seul un `UPDATE` direct — le chemin de la passe — recule la
+  date. Le setter Lombok demeure (il vient du `@Setter` de classe, et le retirer serait l'exception
+  demandée à l'auteur) : c'est le mappage qui est inerte, et le test le prouve
+- [x] **Conditions B et C tenues par des tests, pas par une relecture** : la passe est annulée avec le
+  `run()` (`transactionManager.getDataSource()` **identique** à celle du `JdbcTemplate`, puis rouleback
+  forcé d'une transaction `REQUIRES_NEW` — il ne subsiste ni compte, ni commande, ni paiement de
+  démonstration) ; et les deux écrans sont comparés avant/après dans le même test
+- [x] **Valeurs réellement mesurées sur le jeu produit** (instant du test 2026-10-09 21 h) : neuf comptes
+  sur **vingt-neuf jours civils d'amplitude** (plancher demandé : plus de quatre semaines), le plus ancien
+  soixante-deux jours avant le lancement, aucun dans le futur, aucun avant soixante-trois jours, aucun à
+  moins de trois jours civils de sa plus ancienne commande ; **trente-sept paiements, tous à exactement
+  une heure de leur commande et confirmés douze minutes plus tard, aucun dans le futur** ; vingt récoltes
+  dont `date_disponibilite` est le jour de leur `date_creation` ; **vingt-neuf commandes sur soixante dans
+  la fenêtre de trente jours, et zéro sur le jour frontière** — c'est ce qui rend les valeurs attendues
+  exactes quelle que soit l'heure du test
+- [x] **Non-régression des deux écrans (condition B)** — écran producteur, premier producteur, fenêtre de
+  trente jours, en **valeurs exactes** : chiffre d'affaires **87 425,00**, **18** commandes, taux
+  d'annulation **11,11 %**, panier moyen **5 464,06**, **9** commandes à traiter. Écran administration :
+  la base de développement porte la QA, les compteurs absolus n'y sont donc pas assertables, le test
+  procède **par écarts imputables au seul jeu de démonstration** — **+9** utilisateurs, **+3** producteurs,
+  **+6** acheteurs, **+19** récoltes actives, **+29** commandes de période, **+1 020 250,00** de volume
+  d'affaires, **+2** paiements remboursés
+- [x] **Tests — `DemoDataInitializerTest` 13 → 19, suite backend 292 → 298** (`./mvnw -o clean test`,
+  PostgreSQL réel, `Failures: 0`, `Errors: 0`, BUILD SUCCESS) : six nouveaux verrous
+  (`lesComptesSontEtalesSur…`,
+  `lesPaiementsSontAlignesSur…`, `lesRecoltesSontPublieesEntre…`, `uneDeuxiemeExecutionNeDeplaceAucuneDate`,
+  `laPasseSqlPartageLaTransactionDuRun…`, `letalageNeChangeAucuneValeur…`) plus le test de colonne inversé.
+  **Aucune assertion existante n'a été supprimée, affaiblie ni sautée** : les treize premières sont
+  sorties inchangées de la suite, et le compte total de la classe est passé de 13 à 19 sans qu'un seul
+  test existant soit retiré
+- [x] **Une assertion reformulée, déclarée ici** : la comparaison « la colonne n'a pas bougé » lisait
+  d'abord l'objet géré et attendait une **égalité stricte** avec l'horodatage du serveur. Rouge constaté à
+  l'exécution : PostgreSQL **arrondit** l'horodatage à la microseconde là où l'horloge JVM rend des
+  nanosecondes (`…168696,5` devenu `…168697`). L'assertion compare désormais la **colonne** et affirme
+  l'invariant — `isNotEqualTo(date passée)` **et** `isBetween(instant du test, maintenant)` : ce n'est pas
+  un affaiblissement, la date de douze jours en arrière est explicitement refusée et l'appartenance au
+  moment du serveur est contrôlée, alors que l'égalité simple était seulement fausse
+- [x] **Trois écarts signalés, non masqués** : **(a)** `notifications.date_creation` n'est pas touchée
+  (arbitrage de l'auteur) — la table ne porte qu'un destinataire, aucune référence à la commande annoncée,
+  et la rattacher serait une invention ; **(b)** l'ordre « producteurs avant acheteurs » **n'est pas
+  tenu** : la cohérence prime sur la bande, donc **cinq des six acheteurs** sont plus anciens que le
+  second producteur (première vente à quarante-six jours, compte à quarante-neuf), et le compte le plus
+  ancien du jeu est un acheteur ; pousser les producteurs devant eût regroupé les trois sur un seul jour
+  et dépendu de l'heure du test — refusé, et dit ; **(c)** **aucun des neuf comptes ne tombe dans la
+  fenêtre des trente derniers jours** (mesuré : zéro sur neuf), donc le graphique « inscriptions par
+  semaine » de l'administration rend ses semaines à **zéro** sur ce jeu, alors que les historiques de
+  ventes sont bien nourris. Ces trois points sont écrits dans le README §9 et dans la Javadoc du
+  composant
+- [x] **Un Javadoc de repository corrigé parce qu'il était devenu faux** : `repartitionParMoyenPaiement`
+  affirmait que la date de la commande faisait foi « et, sur le jeu de démonstration, celui de la
+  génération ». L'alignement des paiements rend les deux lectures coïncidentes sur la période ; la règle
+  écrite est maintenant la seule autorité, sans prétention nouvelle
+- [x] **Ce qui n'est PAS dans ce lot, et reste à la main de l'auteur** : la régénération de la base
+  `sunurecolte_demo` (destructive), la relecture de `verif-stat1.sql` et `verif-stat2.sql` contre cette
+  base régénérée, la comparaison écran ↔ SQL et la **QA navigateur de `/admin/statistiques`** ; l'écart
+  d'arrondi d'un FCFA du LOT QA-STAT-1 n'est pas tranché. Travail porté par la branche
+  `fonctionnalites-statistiques`, **non poussé**
+
 ## Phase 10 — Intégration
 - [ ] Angular ↔ backend
 - [ ] Flux Producteur → Récolte
