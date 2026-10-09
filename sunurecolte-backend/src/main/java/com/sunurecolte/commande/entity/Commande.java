@@ -31,16 +31,18 @@ public class Commande {
     private Acheteur acheteur;
 
     /**
-     * Date de la commande. Aucun service n'impose de valeur : la colonne garde donc
-     * l'horodatage de {@link #prePersist()} en usage normal.
+     * Date de la commande, posée par le serveur à l'insertion et figée ensuite — comme les quatre autres
+     * {@code date_creation} du modèle ({@link com.sunurecolte.user.entity.Utilisateur},
+     * {@link com.sunurecolte.recolte.entity.Recolte},
+     * {@link com.sunurecolte.paiement.entity.Paiement},
+     * {@link com.sunurecolte.notification.entity.Notification}).
      *
-     * La colonne est modifiable ({@code updatable} par défaut) et le {@code @PrePersist}
-     * ne pose une date que si aucune n'a été fournie, pour permettre au seul
-     * {@link com.sunurecolte.config.DemoDataInitializer} d'étaler ses commandes dans le
-     * passé. Aucun chemin d'API n'accepte cette valeur d'un client : le DTO de création
-     * ne la déclare pas.
+     * <p>Aucun chemin d'API n'accepte cette valeur d'un client : le DTO de création ne la déclare pas.
+     * Reculer une date — l'étalement du jeu de démonstration
+     * ({@link com.sunurecolte.config.DemoDataInitializer}) comme les bornes de période des tests de
+     * statistiques — passe donc par une écriture SQL directe, jamais par l'entité.
      */
-    @Column(name = "date_creation", nullable = false)
+    @Column(name = "date_creation", nullable = false, updatable = false)
     private LocalDateTime dateCreation;
 
     @Enumerated(EnumType.STRING)
@@ -67,13 +69,11 @@ public class Commande {
     private List<LigneCommande> lignes = new ArrayList<>();
 
     /**
-     * Pose l'horodatage du serveur quand aucune date n'a été fournie. Le garde laisse passer la
-     * seule écriture volontaire d'une date passée : celle du jeu de démonstration.
+     * Horodatage du serveur à l'insertion, comme sur les quatre autres entités datées. La colonne étant
+     * {@code updatable = false}, aucun UPDATE ne la reprendra ensuite.
      */
     @PrePersist
     protected void prePersist() {
-        if (this.dateCreation == null) {
-            this.dateCreation = LocalDateTime.now();
-        }
+        this.dateCreation = LocalDateTime.now();
     }
 }

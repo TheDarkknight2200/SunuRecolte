@@ -151,8 +151,10 @@ public interface StatistiquesAdminLectureRepository extends Repository<Commande,
 
     /**
      * Paiements par moyen, rattachés à une commande créée sur la période. La date de la commande fait
-     * foi : {@code paiements.date_creation} porte l'horodatage de l'encaissement, qui n'est pas celui
-     * de la commande — et, sur le jeu de démonstration, celui de la génération.
+     * foi, jamais {@code paiements.date_creation} : cet horodatage porte l'encaissement, qui vient après
+     * la commande. Le jeu de démonstration le recule désormais à une heure après sa commande (LOT
+     * DEMO-2) : les deux lectures coïncident sur la période, mais la règle reste la date de la commande,
+     * seule autorité du périmètre — et la seule qui vaille pour des données réelles.
      */
     @Query("""
             SELECT p.moyenPaiement AS moyen, COUNT(p.id) AS nombre, SUM(p.montant) AS montant

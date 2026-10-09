@@ -12,10 +12,15 @@ import com.sunurecolte.paiement.service.PaiementService;
 import com.sunurecolte.recolte.entity.Recolte;
 import com.sunurecolte.recolte.entity.StatutRecolte;
 import com.sunurecolte.recolte.service.RecolteService;
+import com.sunurecolte.statistiques.dto.StatistiquesAdminResponse;
+import com.sunurecolte.statistiques.dto.StatistiquesProducteurResponse;
+import com.sunurecolte.statistiques.service.StatistiquesAdminService;
+import com.sunurecolte.statistiques.service.StatistiquesProducteurService;
 import com.sunurecolte.support.IntegrationTestSupport;
 import com.sunurecolte.user.entity.Acheteur;
 import com.sunurecolte.user.entity.Filiere;
 import com.sunurecolte.user.entity.Producteur;
+import com.sunurecolte.user.entity.Utilisateur;
 import com.sunurecolte.user.service.AuthService;
 import com.sunurecolte.user.service.ProducteurService;
 import jakarta.persistence.EntityManager;
@@ -24,11 +29,17 @@ import jakarta.persistence.TypedQuery;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.StandardEnvironment;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -53,6 +64,18 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
  * (producteur désigné et date dans ou hors de la fenêtre des statistiques) et le quota de 45 % du
  * stock initial, qui laissent le catalogue en vente et chaque producteur visible sur l'écran
  * statistiques : les trois tests ajoutés le vérifient sur les données réellement produites.
+ *
+ * LOT DEMO-2 — la passe d'étalement. Les six tests qui suivent vérifient les dates reculées (comptes,
+ * récoltes, paiements), l'ordre de grandeur demandé (plus de quatre semaines d'amplitude, aucun compte
+ * après la commande qu'il rend possible), l'idempotence étendue aux dates, et le fait que la passe
+ * native est annulée avec la transaction du {@code run()}. Ils se lisent en SQL : la passe écrit après
+ * le dernier {@code flush()} des services, l'objet géré par JPA garde donc l'horodatage d'insertion
+ * tandis que la colonne porte la date reculée.
+ *
+ * Le dernier test est celui de non-régression des deux écrans de statistiques. Les valeurs attendues
+ * sont des relevés réels, pas des calculs : les absolus de l'écran administration dépendent de la base
+ * locale, qui porte la QA, ce sont donc des deltas imputables au seul jeu de démonstration ; l'écran
+ * producteur, filtré sur l'identifiant du producteur, reste affirmé en valeurs exactes.
  */
 class DemoDataInitializerTest extends IntegrationTestSupport {
 
@@ -82,6 +105,22 @@ class DemoDataInitializerTest extends IntegrationTestSupport {
 
     @Autowired
     private PaiementService paiementService;
+
+    @Autowired
+    private StatistiquesProducteurService statistiquesProducteurService;
+
+    @Autowired
+    private StatistiquesAdminService statistiquesAdminService;
+
+    /**
+     * Le gestionnaire de transaction réel du contexte, et non l'interface : {@code getDataSource()} est
+     * ce qui permet de vérifier que le JdbcTemplate de la passe est branché sur la même DataSource.
+     */
+    @Autowired
+    private JpaTransactionManager transactionManager;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -279,7 +318,7 @@ class DemoDataInitializerTest extends IntegrationTestSupport {
     }
 
     @Test
-    void uneCommandeCreeeParLeServiceGardeLHorodatageDuServeurMaisLaColonneResteEcripturable() {
+    void uneCommandeCreeeParLeServiceGardeLHorodatageDuServeurEtLaColonneEstFigee() {
         Producteur producteur = creerProducteur(Filiere.MARAICHAGE);
         Acheteur acheteur = creerAcheteur();
         Recolte recolte = creerRecolte(producteur, "Tomate de test", "50.00", "800");
@@ -292,15 +331,161 @@ class DemoDataInitializerTest extends IntegrationTestSupport {
         // Le @PrePersist garde son effet : le service ne pose aucune date, la commande naît à l'instant.
         assertThat(commande.dateCreation()).isBetween(avant, LocalDateTime.now());
 
-        // La colonne n'est plus figée après insertion : c'est ce qui permet l'étalement de la démonstration.
+        // La colonne est figée après insertion, comme pour les quatre autres entités datées : passer par
+        // l'entité ne permet plus de retourner dans le passé, même par erreur. Le setter Lombok existe
+        // toujours (il est hérité de @Setter au niveau classe) : c'est bien le mappage qui est inerte.
         LocalDateTime datePasseee = avant.minusDays(12);
         Commande entite = commandeRepository.findById(commande.id()).orElseThrow();
         entite.setDateCreation(datePasseee);
         entityManager.flush();
+
+        // Lecture en base plutôt qu'égalité stricte avec l'objet géré : PostgreSQL arrondit l'horodatage
+        // à la microseconde là où l'horloge JVM rend des nanosecondes, et une égalité précise serait rouge
+        // selon la dernière décimale tirée. Ce qui est affirmé ici est l'invariant : la colonne n'a pas
+        // bougé du moment du serveur, et n'est surtout pas la date passée demandée par le setter.
+        assertThat(dateDeLaCommande(commande.id()))
+                .isNotEqualTo(datePasseee)
+                .isBetween(avant, LocalDateTime.now());
+
+        // Seul le SQL direct recule la date — c'est le chemin de la passe d'étalement de la démonstration.
+        jdbcTemplate.update("update commandes set date_creation = ? where id = ?",
+                java.sql.Timestamp.valueOf(datePasseee), commande.id());
         entityManager.clear();
 
         assertThat(commandeRepository.findById(commande.id()).orElseThrow().getDateCreation())
                 .isEqualTo(datePasseee);
+    }
+
+    // ------------------------------------------------------------------ étalement (LOT DEMO-2)
+
+    @Test
+    void lesComptesSontEtalesSurPlusDeQuatreSemainesEtToujoursAvantLeurPremiereCommande() {
+        generateur(MOT_DE_PASSE, "demo").run();
+        LocalDateTime instant = LocalDateTime.now();
+
+        // Amplitude réellement mesurée sur le jeu : vingt-neuf jours civils, entre le compte le plus
+        // ancien (le troisième acheteur, soixante-deux jours) et le plus récent (le premier acheteur,
+        // trente-trois). Vingt-huit est le strict plancher de la demande « plus de quatre semaines ».
+        assertThat(amplitudeComptesDemo()).isGreaterThanOrEqualTo(28L);
+        assertThat(nombre("select count(u) from Utilisateur u where u.email like :suffixe")).isEqualTo(9);
+
+        // Aucun compte inventé dans le futur, aucun plus vieux que la borne validée (soixante-trois
+        // jours : la fenêtre des commandes, plus la marge de trois jours qui rend l'inscription antérieure).
+        assertThat(comptesApres(instant)).isZero();
+        assertThat(comptesAvant(instant.minusDays(63))).isZero();
+
+        // La règle de cohérence, celle qui prime sur la bande tirée : trois jours civils au moins entre
+        // l'inscription d'un compte et la plus ancienne commande qu'il passe, comme acheteur ou comme
+        // vendeur. Zéro violation, sinon un compte daterait après ce qu'il rend possible.
+        assertThat(comptesMoinsDeTroisJoursAvantLeurPremiereCommande()).isZero();
+    }
+
+    @Test
+    void lesPaiementsSontAlignesSurLaDateDeLeurCommande() {
+        generateur(MOT_DE_PASSE, "demo").run();
+        LocalDateTime instant = LocalDateTime.now();
+
+        assertThat(nombre("select count(p) from Paiement p "
+                + "where p.commande.acheteur.utilisateur.email like :suffixe")).isPositive();
+        assertThat(paiementsApres(instant)).isZero();
+        assertThat(paiementsMalDates()).isZero();
+    }
+
+    @Test
+    void lesRecoltesSontPublieesEntreLeCompteDuProducteurEtLeurPremiereVente() {
+        generateur(MOT_DE_PASSE, "demo").run();
+        LocalDateTime instant = LocalDateTime.now();
+
+        assertThat(nombre("select count(r) from Recolte r "
+                + "where r.producteur.utilisateur.email like :suffixe")).isEqualTo(20);
+        assertThat(recoltesApres(instant)).isZero();
+        assertThat(recoltesMalDatees()).isZero();
+    }
+
+    @Test
+    void uneDeuxiemeExecutionNeDeplaceAucuneDate() {
+        DemoDataInitializer generateur = generateur(MOT_DE_PASSE, "demo");
+        generateur.run();
+
+        Map<String, LocalDateTime> comptes = datesDesComptesDemo();
+        List<LocalDateTime> commandes = datesDesCommandesDemo();
+        List<LocalDateTime> paiements = datesDesPaiementsDemo();
+
+        generateur.run();
+
+        assertThat(datesDesComptesDemo()).isEqualTo(comptes);
+        assertThat(datesDesCommandesDemo()).isEqualTo(commandes);
+        assertThat(datesDesPaiementsDemo()).isEqualTo(paiements);
+    }
+
+    @Test
+    void laPasseSqlPartageLaTransactionDuRunEtEstAnnuleeAvecElle() {
+        // La condition même de la passe : le JdbcTemplate est branché sur la DataSource que
+        // JpaTransactionManager met en transaction. Sans cela, ses UPDATE seraient hors sol.
+        assertThat(transactionManager.getDataSource()).isSameAs(jdbcTemplate.getDataSource());
+
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        transaction.execute(status -> {
+            generateur(MOT_DE_PASSE, "demo").run();
+
+            // La passe a bien écrit, et ses dates sont lisibles dans sa propre transaction.
+            assertThat(dateCreation(EMAIL_PREMIER_PRODUCTEUR))
+                    .isBefore(LocalDate.now().minusDays(30).atStartOfDay());
+            assertThat(nombre("select count(c) from Commande c "
+                    + "where c.acheteur.utilisateur.email like :suffixe")).isEqualTo(60);
+
+            // Pas d'exception : un rollback forcé, qui ne dépend pas de la remontée d'une erreur.
+            status.setRollbackOnly();
+            return null;
+        });
+
+        // Rien ne subsiste : la passe native a été annulée avec les insertions des services, pas
+        // committée dans son propre coin. La base de développement reste celle de la QA.
+        assertThat(utilisateurRepository.findByEmail(EMAIL_PREMIER_PRODUCTEUR)).isEmpty();
+        assertThat(nombre("select count(c) from Commande c "
+                + "where c.acheteur.utilisateur.email like :suffixe")).isZero();
+        assertThat(nombre("select count(p) from Paiement p "
+                + "where p.commande.acheteur.utilisateur.email like :suffixe")).isZero();
+    }
+
+    // ------------------------------------------------------------------ non-régression des deux écrans
+
+    @Test
+    void letalageNeChangeAucuneValeurLueParLesDeuxEcransDeStatistiques() {
+        Utilisateur admin = creerAdministrateur();
+        StatistiquesAdminResponse avant = statistiquesAdminService.statistiques("30j", principalDe(admin));
+
+        generateur(MOT_DE_PASSE, "demo").run();
+
+        // Garde de l'exactitude : la fenêtre de trente jours est bornée en jours civils, et aucune
+        // commande du jeu ne tombe sur le jour frontière (mesuré : zéro). Sans cette ligne, un nombre
+        // exact ne serait plus garanti d'une exécution à l'autre selon l'heure du test.
+        assertThat(commandesDemoAuJourMoins29()).isZero();
+
+        StatistiquesAdminResponse apres = statistiquesAdminService.statistiques("30j", principalDe(admin));
+
+        // Delta mesurés sur la base locale réelle avant la passe d'étalement, relevé du 2026-10-09.
+        // Ce sont des deltas et non des absolus : la base de développement porte la QA, et l'écran
+        // additionne les deux. La non-régression est celle du jeu de démonstration lui-même.
+        assertThat(apres.utilisateursTotal() - avant.utilisateursTotal()).isEqualTo(9);
+        assertThat(apres.producteurs() - avant.producteurs()).isEqualTo(3);
+        assertThat(apres.acheteurs() - avant.acheteurs()).isEqualTo(6);
+        assertThat(apres.recoltesActives() - avant.recoltesActives()).isEqualTo(19);
+        assertThat(apres.commandesPeriode() - avant.commandesPeriode()).isEqualTo(29);
+        assertThat(apres.volumeAffaires().subtract(avant.volumeAffaires()))
+                .isEqualByComparingTo("1020250.00");
+        assertThat(apres.nombreRembourses() - avant.nombreRembourses()).isEqualTo(2);
+
+        // STAT-1 : le producteur filtré par son propre identifiant, la QA voisine ne brouille rien.
+        Utilisateur premier = utilisateurRepository.findByEmail(EMAIL_PREMIER_PRODUCTEUR).orElseThrow();
+        StatistiquesProducteurResponse statistiques =
+                statistiquesProducteurService.statistiques("30j", principalDe(premier));
+        assertThat(statistiques.chiffreAffaires()).isEqualByComparingTo("87425.00");
+        assertThat(statistiques.nombreCommandes()).isEqualTo(18);
+        assertThat(statistiques.tauxAnnulation()).isEqualByComparingTo("11.11");
+        assertThat(statistiques.panierMoyen()).isEqualByComparingTo("5464.06");
+        assertThat(statistiques.commandesATraiter()).isEqualTo(9);
     }
 
     // ------------------------------------------------------------------ aides
@@ -315,7 +500,7 @@ class DemoDataInitializerTest extends IntegrationTestSupport {
         environment.setActiveProfiles(profilsActifs);
         return new DemoDataInitializer(environment, authService, producteurService, recolteService,
                 commandeService, paiementService, utilisateurRepository, producteurRepository,
-                acheteurRepository, commandeRepository, motDePasse);
+                acheteurRepository, commandeRepository, jdbcTemplate, motDePasse);
     }
 
     private TypedQuery<Long> requete(String jpql) {
@@ -423,5 +608,178 @@ class DemoDataInitializerTest extends IntegrationTestSupport {
                 + "and c.dateCreation > :seuil")
                 .setParameter("seuil", seuil)
                 .getSingleResult();
+    }
+
+    // ------------------------------------------------------------------ aides de la passe d'étalement
+
+    private long comptesApres(LocalDateTime seuil) {
+        return requete("select count(u) from Utilisateur u where u.email like :suffixe "
+                + "and u.dateCreation > :seuil")
+                .setParameter("seuil", seuil)
+                .getSingleResult();
+    }
+
+    private long comptesAvant(LocalDateTime seuil) {
+        return requete("select count(u) from Utilisateur u where u.email like :suffixe "
+                + "and u.dateCreation < :seuil")
+                .setParameter("seuil", seuil)
+                .getSingleResult();
+    }
+
+    private long recoltesApres(LocalDateTime seuil) {
+        return requete("select count(r) from Recolte r where r.producteur.utilisateur.email like :suffixe "
+                + "and r.dateCreation > :seuil")
+                .setParameter("seuil", seuil)
+                .getSingleResult();
+    }
+
+    private long paiementsApres(LocalDateTime seuil) {
+        return requete("select count(p) from Paiement p where p.commande.acheteur.utilisateur.email "
+                + "like :suffixe and p.dateCreation > :seuil")
+                .setParameter("seuil", seuil)
+                .getSingleResult();
+    }
+
+    /**
+     * Nombre de jours civils entre le compte de démonstration le plus ancien et le plus récent. La
+     * lecture est faite en SQL : la passe écrit les dates nativement, l'objet géré par JPA porte
+     * l'horodatage d'insertion.
+     */
+    private long amplitudeComptesDemo() {
+        return jdbcTemplate.queryForObject("""
+                select floor(extract(epoch from max(u.date_creation) - min(u.date_creation)) / 86400)
+                  from utilisateurs u
+                 where u.email like ?
+                """, Long.class, SUFFIXE_DEMO);
+    }
+
+    /**
+     * Comptes de démonstration datés à moins de trois jours civils de la plus ancienne commande qu'ils
+     * passent, comme acheteur ou comme vendeur. Un compte devrait exister avant la vente qu'il rend
+     * possible ; la passe d'étalement ne peut en écrire un autrement.
+     */
+    private long comptesMoinsDeTroisJoursAvantLeurPremiereCommande() {
+        return jdbcTemplate.queryForObject("""
+                with premieres as (
+                    select a.utilisateur_id as utilisateur_id, min(c.date_creation) as premiere
+                      from commandes c
+                      join acheteurs a on a.id = c.acheteur_id
+                     group by a.utilisateur_id
+                    union all
+                    select pu.id as utilisateur_id, min(c.date_creation) as premiere
+                      from commandes c
+                      join lignes_commande l on l.commande_id = c.id
+                      join recoltes r on r.id = l.recolte_id
+                      join producteurs p on p.id = r.producteur_id
+                      join utilisateurs pu on pu.id = p.utilisateur_id
+                     group by pu.id
+                )
+                select count(*)
+                  from utilisateurs u
+                  join premieres p on p.utilisateur_id = u.id
+                 where u.email like ?
+                   and date_trunc('day', p.premiere) < date_trunc('day', u.date_creation)
+                                                    + interval '3 days'
+                """, Long.class, SUFFIXE_DEMO);
+    }
+
+    /**
+     * Paiements sortis de l'ordre que la passe écrit : après l'instant, avant leur commande, plus d'une
+     * heure après elle, ou confirmés hors du créneau de douze minutes qui suit. Zéro attendu : la
+     * référence d'un paiement est la date de la commande qu'il règle.
+     */
+    private long paiementsMalDates() {
+        return jdbcTemplate.queryForObject("""
+                select count(*)
+                  from paiements p
+                  join commandes c on c.id = p.commande_id
+                  join acheteurs a on a.id = c.acheteur_id
+                  join utilisateurs u on u.id = a.utilisateur_id
+                 where u.email like ?
+                   and (p.date_creation > now()
+                        or p.date_creation < c.date_creation
+                        or p.date_creation > c.date_creation + interval '1 hour'
+                        or p.date_confirmation < p.date_creation
+                        or p.date_confirmation > p.date_creation + interval '1 hour 12 minutes')
+                """, Long.class, SUFFIXE_DEMO);
+    }
+
+    /**
+     * Récoltes sorties de l'intervalle que la passe écrit : après l'inscription de leur producteur, à ou
+     * après leur première vente, dans le futur, ou dont {@code date_disponibilite} ne serait pas le jour
+     * de publication. La colonne se lit « Disponible à partir du » : elle ne peut pas suivre la vente.
+     */
+    private long recoltesMalDatees() {
+        return jdbcTemplate.queryForObject("""
+                select count(*)
+                  from recoltes r
+                  join producteurs pr on pr.id = r.producteur_id
+                  join utilisateurs u on u.id = pr.utilisateur_id
+                  left join (
+                        select l.recolte_id as recolte_id, min(c.date_creation) as premiere
+                          from lignes_commande l
+                          join commandes c on c.id = l.commande_id
+                         group by l.recolte_id
+                  ) v on v.recolte_id = r.id
+                 where u.email like ?
+                   and (r.date_creation > now()
+                        or date_trunc('day', r.date_creation) <= date_trunc('day', u.date_creation)
+                        or (v.premiere is not null
+                            and date_trunc('day', v.premiere) <= date_trunc('day', r.date_creation))
+                        or r.date_disponibilite <> date_trunc('day', r.date_creation)::date)
+                """, Long.class, SUFFIXE_DEMO);
+    }
+
+    /** Commandes de démonstration posées sur le jour frontière de la fenêtre de trente jours. */
+    private long commandesDemoAuJourMoins29() {
+        return jdbcTemplate.queryForObject("""
+                select count(*)
+                  from commandes c
+                  join acheteurs a on a.id = c.acheteur_id
+                  join utilisateurs u on u.id = a.utilisateur_id
+                 where u.email like ?
+                   and c.date_creation::date = current_date - 29
+                """, Long.class, SUFFIXE_DEMO);
+    }
+
+    private LocalDateTime dateCreation(String email) {
+        return jdbcTemplate.queryForObject("select date_creation from utilisateurs where email = ?",
+                Timestamp.class, email).toLocalDateTime();
+    }
+
+    private LocalDateTime dateDeLaCommande(Long id) {
+        return jdbcTemplate.queryForObject("select date_creation from commandes where id = ?",
+                Timestamp.class, id).toLocalDateTime();
+    }
+
+    private Map<String, LocalDateTime> datesDesComptesDemo() {
+        Map<String, LocalDateTime> dates = new LinkedHashMap<>();
+        jdbcTemplate.query("""
+                select email, date_creation from utilisateurs where email like ? order by email
+                """, rs -> {
+            dates.put(rs.getString(1), rs.getTimestamp(2).toLocalDateTime());
+        }, SUFFIXE_DEMO);
+        return dates;
+    }
+
+    private List<LocalDateTime> datesDesCommandesDemo() {
+        return jdbcTemplate.queryForList("""
+                select c.date_creation from commandes c
+                  join acheteurs a on a.id = c.acheteur_id
+                  join utilisateurs u on u.id = a.utilisateur_id
+                 where u.email like ?
+                 order by c.id
+                """, Timestamp.class, SUFFIXE_DEMO).stream().map(Timestamp::toLocalDateTime).toList();
+    }
+
+    private List<LocalDateTime> datesDesPaiementsDemo() {
+        return jdbcTemplate.queryForList("""
+                select p.date_creation from paiements p
+                  join commandes c on c.id = p.commande_id
+                  join acheteurs a on a.id = c.acheteur_id
+                  join utilisateurs u on u.id = a.utilisateur_id
+                 where u.email like ?
+                 order by p.id
+                """, Timestamp.class, SUFFIXE_DEMO).stream().map(Timestamp::toLocalDateTime).toList();
     }
 }

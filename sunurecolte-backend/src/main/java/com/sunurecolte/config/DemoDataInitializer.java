@@ -3,12 +3,12 @@ package com.sunurecolte.config;
 import com.sunurecolte.commande.dto.CommandeRequest;
 import com.sunurecolte.commande.dto.LigneCommandeRequest;
 import com.sunurecolte.commande.dto.StatutCommandeRequest;
-import com.sunurecolte.commande.entity.Commande;
 import com.sunurecolte.commande.entity.ModeReception;
 import com.sunurecolte.commande.entity.StatutCommande;
 import com.sunurecolte.commande.repository.CommandeRepository;
 import com.sunurecolte.commande.service.CommandeService;
 import com.sunurecolte.paiement.dto.PaiementRequest;
+import com.sunurecolte.paiement.dto.PaiementResponse;
 import com.sunurecolte.paiement.entity.MoyenPaiement;
 import com.sunurecolte.paiement.service.PaiementService;
 import com.sunurecolte.recolte.dto.RecolteRequest;
@@ -33,6 +33,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,8 +41,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -80,9 +83,27 @@ import java.util.stream.Collectors;
  * inventés ici non plus.
  *
  * Génération déterministe : une graine unique ({@link #GRAINE}) rend les mêmes tirages à chaque
- * exécution. Les commandes sont étalées sur les {@value #JOURS_ETALES} derniers jours par
- * {@link Commande#setDateCreation} ; les paiements et les notifications gardent l'horodatage de
- * génération (limite consignée dans TASKS.md, LOT DEMO-1).
+ * exécution. Les commandes sont étalées sur les {@value #JOURS_ETALES} derniers jours, puis une
+ * passe finale ({@link #etalerDansLePasse}) recule de la même façon les comptes, les récoltes et les
+ * paiements, avec sa propre graine ({@link #GRAINE_ETALAGE}) pour ne déplacer aucun tirage du
+ * catalogue. Les dates passent toutes par un {@link JdbcTemplate} : {@link CommandeService} et les
+ * autres services écrivent les lignes, le générateur ne fait que les reculer ensuite, et les
+ * colonnes de date des entités restent figées après insertion comme en usage normal.
+ *
+ * <p>Deux limites assumées de l'étalement :
+ * <ul>
+ *   <li>{@code notifications.date_creation} garde l'horodatage de génération. La table ne porte aucune
+ *       référence à la commande qu'elle annonce, seulement un destinataire, et deviner de quelle commande
+ *       il s'agit serait une invention ; les notifications de la démonstration restent donc datées du
+ *       jour de lancement ;</li>
+ *   <li>aucun des neuf comptes ne tombe dans la fenêtre des {@value #JOURS_FENETRE_STATISTIQUES} derniers
+ *       jours (mesuré : zéro sur neuf). Le graphique « inscriptions par semaine » de l'administration
+ *       rend donc des semaines à zéro sur le jeu de démonstration : les comptes sont assez anciens pour
+ *       précéder leurs propres commandes, pas assez récents pour tomber dans une période de trente jours.
+ *       Les historiques de ventes, eux, sont bien nourris (mesuré : vingt-neuf commandes sur soixante en
+ *       fenêtre).</li>
+ * </ul>
+ * <p>Consigné dans TASKS.md et README.md, LOT DEMO-2.
  *
  * Deux mécanismes rendent le jeu lisible à l'écran sans toucher aux règles métier :
  * <ul>
@@ -110,6 +131,40 @@ public class DemoDataInitializer implements CommandLineRunner {
 
     /** Nombre de jours sur lesquels les commandes sont étalées. */
     private static final int JOURS_ETALES = 60;
+
+    /**
+     * Graine de la passe d'étalement, séparée de {@link #GRAINE} : les comptes, les récoltes et les
+     * paiements tirent leurs dates dans leur propre suite aléatoire, donc la séquence du catalogue et
+     * des commandes n'est décalée d'aucun cran. Les valeurs lues par l'écran statistiques avant cette
+     * passe restent les mêmes après.
+     */
+    private static final long GRAINE_ETALAGE = 20261009L;
+
+    /**
+     * Bandes de tirage des comptes, en jours avant l'instant du lancement. Le tirage garde les
+     * producteurs nettement plus anciens que les acheteurs ; la règle de cohérence
+     * ({@link #MARGE_JOURS_COMPTE}) prime pourtant sur la bande : un compte ne peut pas être postérieur à la
+     * commande qu'il rend possible. Avec la graine actuelle, cette primauté invertit l'ordre voulu :
+     * cinq des six acheteurs, dont la première commande remonte à au moins cinquante-deux jours, sont
+     * plus anciens que le second producteur, dont la première vente date de quarante-six jours, et le
+     * compte le plus ancien du jeu est un acheteur, placé soixante-deux jours avant le lancement — trois
+     * jours avant sa première commande. C'est consigné dans TASKS.md et dans le README plutôt que masqué
+     * par une date incohérente.
+     */
+    private static final int RECUL_MIN_PRODUCTEUR = 40;
+    private static final int RECUL_MAX_PRODUCTEUR = 59;
+    private static final int RECUL_MIN_ACHETEUR = 10;
+    private static final int RECUL_MAX_ACHETEUR = 39;
+
+    /** Jours entre l'inscription d'un compte et la plus ancienne commande qu'il passe : il existe avant de vendre ou d'acheter. */
+    private static final int MARGE_JOURS_COMPTE = 3;
+
+    /** Jours entre la publication d'une récolte et sa première vente, et entre le compte du producteur et sa récolte. */
+    private static final int MARGE_JOURS_RECOLTE = 1;
+
+    /** Le paiement suit sa commande de une heure, sa confirmation de douze minutes : le même jour, dans cet ordre. */
+    private static final int HEURES_APRES_COMMANDE = 1;
+    private static final int MINUTES_APRES_PAIEMENT = 12;
 
     /**
      * Période par défaut de l'écran statistiques (LOT STAT-1) : les annulations planifiées y sont
@@ -261,6 +316,7 @@ public class DemoDataInitializer implements CommandLineRunner {
     private final ProducteurRepository producteurRepository;
     private final AcheteurRepository acheteurRepository;
     private final CommandeRepository commandeRepository;
+    private final JdbcTemplate jdbcTemplate;
     private final String motDePasse;
 
     public DemoDataInitializer(Environment environment,
@@ -273,6 +329,7 @@ public class DemoDataInitializer implements CommandLineRunner {
                                ProducteurRepository producteurRepository,
                                AcheteurRepository acheteurRepository,
                                CommandeRepository commandeRepository,
+                               JdbcTemplate jdbcTemplate,
                                @Value("${app.demo.mot-de-passe:}") String motDePasse) {
         this.environment = environment;
         this.authService = authService;
@@ -284,6 +341,7 @@ public class DemoDataInitializer implements CommandLineRunner {
         this.producteurRepository = producteurRepository;
         this.acheteurRepository = acheteurRepository;
         this.commandeRepository = commandeRepository;
+        this.jdbcTemplate = jdbcTemplate;
         this.motDePasse = motDePasse;
     }
 
@@ -303,11 +361,13 @@ public class DemoDataInitializer implements CommandLineRunner {
         List<CompteProducteur> producteurs = creerProducteurs();
         List<CompteAcheteur> acheteurs = creerAcheteurs();
         List<RecoltePilotee> catalogue = creerRecoltes(producteurs);
-        int commandes = creerCommandes(random, catalogue, producteurs, acheteurs);
+        CommandesCrees commandes = creerCommandes(random, catalogue, producteurs, acheteurs);
+        etalerDansLePasse(commandes, producteurs, acheteurs, catalogue);
 
         log.info("Données de démonstration créées : {} producteurs, {} acheteurs, {} récoltes, "
-                        + "{} commandes étalées sur {} jours. Comptes : {} .",
-                producteurs.size(), acheteurs.size(), catalogue.size(), commandes, JOURS_ETALES,
+                        + "{} commandes étalées sur {} jours, comptes et paiements reculés avec elles. "
+                        + "Comptes : {} .",
+                producteurs.size(), acheteurs.size(), catalogue.size(), commandes.nombre(), JOURS_ETALES,
                 String.join(", ", emailsDeDemonstration()));
     }
 
@@ -415,16 +475,29 @@ public class DemoDataInitializer implements CommandLineRunner {
     /**
      * Une commande par rang de {@link #repartitionDesStatuts()}. Le cycle est joué dans l'ordre réel :
      * création par l'acheteur, paiement simulé quand la règle l'exige, transitions par un producteur
-     * concerné. La date est posée en dernier : {@link CommandeService#changerStatut} recharge la
-     * commande sous verrou, ce qui écraserait une date pas encore écrite en base.
+     * concerné.
      *
-     * @return le nombre de commandes réellement créées
+     * <p>La date tirée n'est pas écrite ici : elle est collectée avec l'identifiant de la commande, son
+     * acheteur et ses récoltes, et posée en une passe finale par {@link #etalerDansLePasse}. Écrire par
+     * l'entité serait obligé de laisser la colonne {@code date_creation} modifiable pendant tout le
+     * cycle — {@link CommandeService#changerStatut} recharge la commande sous verrou et la vidange de
+     * fin de transaction imposerait de poser la date en dernier. Le SQL natif, lui, part après le
+     * {@code flush()} des services : la colonne reste figée après insertion, comme en usage normal.
+     *
+     * <p>Les tirages gardent exactement le même ordre qu'avant la passe : la séquence aléatoire du
+     * catalogue et des dates de commandes est inchangée, donc les montants déjà mesurés sur les écrans
+     * statistiques le restent.
      */
-    private int creerCommandes(Random random, List<RecoltePilotee> catalogue,
-                               List<CompteProducteur> producteurs, List<CompteAcheteur> acheteurs) {
+    private CommandesCrees creerCommandes(Random random, List<RecoltePilotee> catalogue,
+                                          List<CompteProducteur> producteurs, List<CompteAcheteur> acheteurs) {
         List<StatutCommande> statutsCibles = repartitionDesStatuts();
         int premierRangAnnulation = premierRangAnnulation(statutsCibles);
+        Map<Long, LocalDateTime> datesParCommande = new LinkedHashMap<>();
+        Map<Long, LocalDateTime> premiereCommandeParAcheteur = new LinkedHashMap<>();
+        Map<Long, LocalDateTime> premiereVenteParRecolte = new LinkedHashMap<>();
+        List<PaiementCommande> paiements = new ArrayList<>();
         int commandesCrees = 0;
+
         for (int index = 0; index < statutsCibles.size(); index++) {
             AnnulationPilotee annulation = index < premierRangAnnulation ? null
                     : ANNULATIONS_PILOTEES.get(index - premierRangAnnulation);
@@ -447,12 +520,19 @@ public class DemoDataInitializer implements CommandLineRunner {
                     lignes.stream().map(Ligne::request).toList()), acheteur.principal());
             commandesCrees++;
 
-            jouerLeCycle(commande.id(), statutsCibles.get(index), index, mode, acheteur, premier, random);
-            daterCommande(commande.id(), annulation == null
-                    ? dateEtalee(random)
-                    : dateAnnulation(random, annulation.dansLaFenetre()));
+            jouerLeCycle(commande.id(), statutsCibles.get(index), index, mode, acheteur, premier, random,
+                    paiements);
+            LocalDateTime date = annulation == null ? dateEtalee(random) : dateAnnulation(random,
+                    annulation.dansLaFenetre());
+            datesParCommande.put(commande.id(), date);
+            premiereCommandeParAcheteur.merge(acheteur.profilId(), date, DemoDataInitializer::plusAncienne);
+            for (Ligne ligne : lignes) {
+                premiereVenteParRecolte.merge(ligne.recolte().recolteId, date,
+                        DemoDataInitializer::plusAncienne);
+            }
         }
-        return commandesCrees;
+        return new CommandesCrees(commandesCrees, datesParCommande, premiereCommandeParAcheteur,
+                premiereVenteParRecolte, paiements);
     }
 
     /**
@@ -498,15 +578,17 @@ public class DemoDataInitializer implements CommandLineRunner {
      * de la commande qui en fait un REMBOURSE, jamais ce composant.
      */
     private void jouerLeCycle(Long commandeId, StatutCommande cible, int index, ModeReception mode,
-                              CompteAcheteur acheteur, CompteProducteur pilote, Random random) {
+                              CompteAcheteur acheteur, CompteProducteur pilote, Random random,
+                              List<PaiementCommande> paiements) {
         boolean enMarche = cible != StatutCommande.EN_ATTENTE && cible != StatutCommande.ANNULEE;
         boolean paiementSoldeParAnnulation = cible == StatutCommande.ANNULEE && index % 2 == 0;
         boolean paiementExige = mode == ModeReception.LIVRAISON && enMarche;
         boolean paiementSurRetrait = mode == ModeReception.RETRAIT && enMarche && random.nextInt(2) == 0;
 
         if (paiementExige || paiementSoldeParAnnulation || paiementSurRetrait) {
-            paiementService.creer(new PaiementRequest(commandeId,
+            PaiementResponse paiement = paiementService.creer(new PaiementRequest(commandeId,
                     MOYENS_DE_PAIEMENT[random.nextInt(MOYENS_DE_PAIEMENT.length)]), acheteur.principal());
+            paiements.add(new PaiementCommande(paiement.id(), commandeId));
         }
 
         if (cible == StatutCommande.ANNULEE) {
@@ -534,8 +616,7 @@ public class DemoDataInitializer implements CommandLineRunner {
 
     /**
      * Date d'une commande : un jour parmi les {@value #JOURS_ETALES} derniers, à une heure ouvrable,
-     * toujours dans le passé. La colonne {@code date_creation} n'est rendue modifiable que pour cet
-     * étalement (voir {@link Commande}).
+     * toujours dans le passé.
      */
     private LocalDateTime dateEtalee(Random random) {
         return LocalDateTime.now()
@@ -565,14 +646,143 @@ public class DemoDataInitializer implements CommandLineRunner {
     }
 
     /**
-     * Imposer la date après tout le cycle : l'entité relue est l'instance suivie de la transaction,
-     * l'UPDATE part donc au vidage automatique, sans écriture SQL directe.
+     * Passe finale d'étalement : recule les dates que la génération a posées à l'instant du lancement,
+     * pour que les graphiques d'évolution des deux écrans statistiques aient un historique. Quatre
+     * {@code UPDATE} ciblés, tous bornés aux lignes de démonstration, alors que la commande a déjà sa
+     * date définitive :
+     * <ol>
+     *   <li>les commandes, avec les dates tirées pendant le cycle ;</li>
+     *   <li>les neuf comptes (producteurs puis acheteurs, dans les bandes {@link #RECUL_MIN_PRODUCTEUR}
+     *       à {@link #RECUL_MAX_ACHETEUR}) ;</li>
+     *   <li>les récoltes, et leur {@code date_disponibilite} au même jour — cette colonne se lit
+     *       « Disponible à partir du » sur le catalogue, le détail, « Mes récoltes » et l'écran
+     *       d'administration ; elle ne participe à aucun filtre, aucun tri ni aucune validation ;</li>
+     *   <li>les paiements, une heure après leur commande, confirmés douze minutes plus tard.</li>
+     * </ol>
+     *
+     * <p>Règle de cohérence, la seule que la demande laisse choisir : une date ne peut pas être
+     * postérieure à ce qu'elle rend possible. Un compte est antérieur d'au moins
+     * {@link #MARGE_JOURS_COMPTE} jours à sa plus ancienne commande, une récolte à sa première vente et
+     * postérieure à l'inscription de son producteur ; un paiement jamais antérieur à sa commande. Le recul
+     * d'un compte est donc le plus ancien entre sa bande tirée et cette contrainte, ce qui peut le mener
+     * trois jours au-delà de la fenêtre des commandes — un compte plus vieux que la fenêtre est réaliste,
+     * l'inverse ne l'est pas.
+     *
+     * <p>Le {@code flush()} ouvre la passe : les services travaillent dans la même transaction et leurs
+     * écritures (statut de commande, stock rendu, {@code date_confirmation} du paiement) partent au
+     * vidage de fin de course. Sans lui, une de ces UPDATE réécrirait par-dessus la date native. Avec le
+     * {@code flush()}, plus aucune entité n'est modifiée après la passe et le vidage ne rouvre pas ces
+     * colonnes : {@code date_creation} est {@code updatable = false} partout.
+     *
+     * <p>Les notifications ne sont pas touchées : {@code notifications} ne rattache un message qu'à son
+     * destinataire, jamais à la commande qu'il annonce, et deviner cette commande serait une invention.
      */
-    private void daterCommande(Long commandeId, LocalDateTime date) {
-        Commande commande = commandeRepository.findById(commandeId)
-                .orElseThrow(() -> new IllegalStateException(
-                        "Commande de démonstration absente de la base : id " + commandeId));
-        commande.setDateCreation(date);
+    private void etalerDansLePasse(CommandesCrees commandes, List<CompteProducteur> producteurs,
+                                   List<CompteAcheteur> acheteurs, List<RecoltePilotee> catalogue) {
+        commandeRepository.flush();
+
+        Random random = new Random(GRAINE_ETALAGE);
+        LocalDateTime maintenant = LocalDateTime.now();
+
+        Map<Long, LocalDateTime> plusAncienneParProducteur = new LinkedHashMap<>();
+        for (RecoltePilotee recolte : catalogue) {
+            LocalDateTime vente = commandes.premiereVenteParRecolte().get(recolte.recolteId);
+            if (vente != null) {
+                plusAncienneParProducteur.merge(recolte.producteurId, vente, DemoDataInitializer::plusAncienne);
+            }
+        }
+
+        Map<Long, Integer> reculParProducteur = new LinkedHashMap<>();
+        List<Object[]> lignesComptes = new ArrayList<>();
+        for (int index = 0; index < producteurs.size(); index++) {
+            Long profilId = producteurs.get(index).profilId();
+            int recul = reculDeCompte(random, maintenant, RECUL_MIN_PRODUCTEUR, RECUL_MAX_PRODUCTEUR,
+                    plusAncienneParProducteur.get(profilId));
+            reculParProducteur.put(profilId, recul);
+            lignesComptes.add(new Object[]{dateReculee(random, maintenant, recul), PRODUCTEURS.get(index).email()});
+        }
+        for (int index = 0; index < acheteurs.size(); index++) {
+            LocalDateTime plusAncienne = commandes.premiereCommandeParAcheteur()
+                    .get(acheteurs.get(index).profilId());
+            int recul = reculDeCompte(random, maintenant, RECUL_MIN_ACHETEUR, RECUL_MAX_ACHETEUR, plusAncienne);
+            lignesComptes.add(new Object[]{dateReculee(random, maintenant, recul), ACHETEURS.get(index).email()});
+        }
+
+        List<Object[]> lignesRecoltes = new ArrayList<>();
+        for (RecoltePilotee recolte : catalogue) {
+            LocalDateTime premiereVente = commandes.premiereVenteParRecolte().get(recolte.recolteId);
+            int plancher = premiereVente == null ? MARGE_JOURS_RECOLTE
+                    : (int) Math.max(MARGE_JOURS_RECOLTE,
+                            reculEnJours(maintenant, premiereVente) + MARGE_JOURS_RECOLTE);
+            int plafond = Math.max(plancher, reculParProducteur.get(recolte.producteurId) - MARGE_JOURS_RECOLTE);
+            LocalDateTime date = dateReculee(random, maintenant, plancher + random.nextInt(plafond - plancher + 1));
+            lignesRecoltes.add(new Object[]{date, date.toLocalDate(), recolte.recolteId});
+        }
+
+        List<Object[]> lignesPaiements = new ArrayList<>();
+        for (PaiementCommande paiement : commandes.paiements()) {
+            LocalDateTime dateCommande = commandes.datesParCommande().get(paiement.commandeId());
+            LocalDateTime datePaiement = dansLePasse(maintenant, dateCommande.plusHours(HEURES_APRES_COMMANDE),
+                    dateCommande);
+            LocalDateTime dateConfirmation = dansLePasse(maintenant,
+                    datePaiement.plusMinutes(MINUTES_APRES_PAIEMENT), datePaiement);
+            lignesPaiements.add(new Object[]{datePaiement, dateConfirmation, paiement.paiementId()});
+        }
+
+        jdbcTemplate.batchUpdate("update commandes set date_creation = ? where id = ?",
+                commandes.datesParCommande().entrySet().stream()
+                        .map(entree -> new Object[]{entree.getValue(), entree.getKey()}).toList());
+        jdbcTemplate.batchUpdate("update utilisateurs set date_creation = ? where email = ?", lignesComptes);
+        jdbcTemplate.batchUpdate("update recoltes set date_creation = ?, date_disponibilite = ? where id = ?",
+                lignesRecoltes);
+        jdbcTemplate.batchUpdate("update paiements set date_creation = ?, date_confirmation = ? where id = ?",
+                lignesPaiements);
+    }
+
+    /**
+     * Recul d'un compte, en jours avant l'instant du lancement : tiré dans sa bande, mais jamais moins
+     * que {@link #MARGE_JOURS_COMPTE} jours avant sa plus ancienne commande. Le compte est le plus
+     * ancien des deux — une inscription ne peut pas suivre la vente qu'elle a rendue possible.
+     */
+    private int reculDeCompte(Random random, LocalDateTime maintenant, int minimum, int maximum,
+                              LocalDateTime plusAncienneCommande) {
+        int tire = minimum + random.nextInt(maximum - minimum + 1);
+        if (plusAncienneCommande == null) {
+            return tire;
+        }
+        return Math.max(tire, reculEnJours(maintenant, plusAncienneCommande) + MARGE_JOURS_COMPTE);
+    }
+
+    /** Jours civils écoulés entre une date et l'instant du lancement. */
+    private int reculEnJours(LocalDateTime maintenant, LocalDateTime date) {
+        return (int) ChronoUnit.DAYS.between(date.toLocalDate(), maintenant.toLocalDate());
+    }
+
+    /** Date reculée de {@code jours} : même allure que {@link #dateEtalee}, dans la graine d'étalement. */
+    private LocalDateTime dateReculee(Random random, LocalDateTime maintenant, int jours) {
+        return maintenant.minusDays(jours)
+                .minusHours(random.nextInt(10))
+                .withMinute(random.nextInt(60))
+                .withSecond(0)
+                .withNano(0);
+    }
+
+    /**
+     * Ramène une date de paiement dans le passé sans jamais la mettre avant la commande qu'elle règle :
+     * les deux bornes ne se discutent pas, l'ordre commande → paiement → confirmation est ce que lit
+     * l'acheteur sur son écran.
+     */
+    private LocalDateTime dansLePasse(LocalDateTime maintenant, LocalDateTime valeur, LocalDateTime plancher) {
+        if (valeur.isBefore(maintenant)) {
+            return valeur;
+        }
+        LocalDateTime borne = maintenant.minusMinutes(1);
+        return borne.isBefore(plancher) ? plancher : borne;
+    }
+
+    /** Le plus ancien des deux horodatages, pour les {@link Map#merge} de la collecte. */
+    private static LocalDateTime plusAncienne(LocalDateTime une, LocalDateTime autre) {
+        return une.isBefore(autre) ? une : autre;
     }
 
     // ------------------------------------------------------------------ tirage des lignes
@@ -768,6 +978,22 @@ public class DemoDataInitializer implements CommandLineRunner {
 
     /** Ligne tirée pour une commande : la requête telle que le service la reçoit, et sa récolte. */
     private record Ligne(LigneCommandeRequest request, RecoltePilotee recolte) {}
+
+    /** Un paiement simulé et la commande dont il doit hériter la date, un peu après elle. */
+    private record PaiementCommande(Long paiementId, Long commandeId) {}
+
+    /**
+     * Ce que le cycle de commandes laisse à la passe d'étalement : les dates tirées par commande, la plus
+     * ancienne commande de chaque acheteur, la première vente de chaque récolte et les paiements avec
+     * leur commande. La cohérence des dates reculées se lit dans ces trois dernières cartes — un compte,
+     * une récolte ou un paiement ne peut pas dater après ce qu'il autorise — jamais dans un tirage
+     * indépendant.
+     */
+    private record CommandesCrees(int nombre,
+                                  Map<Long, LocalDateTime> datesParCommande,
+                                  Map<Long, LocalDateTime> premiereCommandeParAcheteur,
+                                  Map<Long, LocalDateTime> premiereVenteParRecolte,
+                                  List<PaiementCommande> paiements) {}
 
     /**
      * Récolte telle que le générateur la suit. {@code stockRestant} et {@code quotaRestant} ne servent
