@@ -114,6 +114,9 @@ public class DemoDataInitializer implements CommandLineRunner {
     private static final BigDecimal[] FRACTIONS_DE_VENTE = {
             new BigDecimal("0.10"), new BigDecimal("0.25"), new BigDecimal("0.40"), new BigDecimal("0.55")};
 
+    /** Le jeu ne vend que des quantités entières ou de demi-unités : jamais 233,44 kg. */
+    private static final BigDecimal PAS_DE_VENTE = new BigDecimal("0.5");
+
     /**
      * Récoltes dont la vente est pilotée : produit -> stock final visé. Zéro rend la récolte ÉPUISÉE
      * par la règle réelle de {@link CommandeService}, une valeur sous le seuil d'alerte de stock faible
@@ -339,7 +342,8 @@ public class DemoDataInitializer implements CommandLineRunner {
                         new BigDecimal(demo.quantiteMax()), demo.unite(), new BigDecimal(demo.prixUnitaire()),
                         null, compte.localisation(), LocalDate.now()), compte.principal());
                 catalogue.add(new RecoltePilotee(recolte.id(), compte.profilId(), demo.produit(),
-                        new BigDecimal(demo.quantiteDisponible()), STOCKS_FINAUX_PILOTES.get(demo.produit())));
+                        new BigDecimal(demo.quantiteDisponible()),
+                        STOCKS_FINAUX_PILOTES.get(demo.produit())));
             }
         }
         return catalogue;
@@ -526,14 +530,23 @@ public class DemoDataInitializer implements CommandLineRunner {
     private Ligne tirerQuantite(RecoltePilotee recolte, Random random) {
         BigDecimal quantite = random.nextInt(10) == 0
                 ? recolte.stockRestant
-                : recolte.stockRestant
-                        .multiply(FRACTIONS_DE_VENTE[random.nextInt(FRACTIONS_DE_VENTE.length)])
-                        .setScale(2, RoundingMode.DOWN);
+                : arrondirAuPas(recolte.stockRestant
+                        .multiply(FRACTIONS_DE_VENTE[random.nextInt(FRACTIONS_DE_VENTE.length)]));
         if (quantite.signum() <= 0) {
-            // Reste trop petit pour une fraction : l'acheteur prend la totalité.
-            quantite = recolte.stockRestant;
+            // Le reste est plus petit qu'une fraction arrondie : l'acheteur prend le plus petit
+            // prélèvement du jeu, jamais la totalité d'une récolte qui pourrait encore être vendue.
+            quantite = PAS_DE_VENTE;
         }
         return vendre(recolte, quantite);
+    }
+
+    /**
+     * Arrondi au demi-unité inférieur. Une vente de 233,44 kg ne s'écrit nulle part : un acheteur prend
+     * des kilos, des sacs ou une moitié, et le prix étant entier le sous-total garde au plus une
+     * décimale.
+     */
+    private BigDecimal arrondirAuPas(BigDecimal quantite) {
+        return quantite.divide(PAS_DE_VENTE, 0, RoundingMode.DOWN).multiply(PAS_DE_VENTE);
     }
 
     /**

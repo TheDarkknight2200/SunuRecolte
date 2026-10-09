@@ -56,6 +56,9 @@ class DemoDataInitializerTest extends IntegrationTestSupport {
     /** Seuil d'alerte de stock faible de LOT STAT-1 : deux récoltes de démonstration doivent finir dessous. */
     private static final BigDecimal SEUIL_STOCK_FAIBLE = new BigDecimal("5");
 
+    /** Le pas de vente du générateur : une quantité entière ou une demi-unité, jamais un centième tiré au sort. */
+    private static final BigDecimal PAS_DE_VENTE = new BigDecimal("0.5");
+
     @Autowired
     private AuthService authService;
 
@@ -164,6 +167,22 @@ class DemoDataInitializerTest extends IntegrationTestSupport {
         assertThat(commandesAvant(instant.minusDays(60))).isZero();
         assertThat(commandesAvant(instant.minusDays(30))).isPositive();
         assertThat(commandesApres(instant.minusDays(7))).isPositive();
+    }
+
+    @Test
+    void lesQuantitesVenduesSontEntieresOuDeDemiUnites() {
+        generateur(MOT_DE_PASSE, "demo").run();
+
+        List<BigDecimal> quantites = entityManager
+                .createQuery("select l.quantite from LigneCommande l "
+                        + "where l.commande.acheteur.utilisateur.email like :suffixe", BigDecimal.class)
+                .setParameter("suffixe", SUFFIXE_DEMO)
+                .getResultList();
+        assertThat(quantites).isNotEmpty();
+        // Un acheteur de démonstration prend des kilos, des sacs ou une moitié : une ligne à 233,44 kg
+        // ne s'écrit nulle part, et une quantité fractionnaire rendrait les totaux illisibles à l'écran.
+        assertThat(quantites)
+                .allMatch(quantite -> quantite.remainder(PAS_DE_VENTE).signum() == 0);
     }
 
     @Test
