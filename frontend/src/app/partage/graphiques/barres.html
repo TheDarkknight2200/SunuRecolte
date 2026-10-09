@@ -60,21 +60,23 @@
     }
   </svg>
 
-  <table class="graphique-barres__alternative">
-    <caption>{{ titre() }}</caption>
-    <thead>
-      <tr>
-        <th scope="col">{{ enteteEtiquette() }}</th>
-        <th scope="col">{{ enteteValeur() }}</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (barre of series(); track $index) {
+  <div class="graphique-barres__alternative">
+    <table>
+      <caption>{{ titre() }}</caption>
+      <thead>
         <tr>
-          <th scope="row">{{ barre.etiquette }}</th>
-          <td>{{ barre.valeurFormatee }}</td>
+          <th scope="col">{{ enteteEtiquette() }}</th>
+          <th scope="col">{{ enteteValeur() }}</th>
         </tr>
-      }
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        @for (barre of series(); track $index) {
+          <tr>
+            <th scope="row">{{ barre.etiquette }}</th>
+            <td>{{ barre.valeurFormatee }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
 </div>

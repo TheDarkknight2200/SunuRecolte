@@ -50,6 +50,11 @@ describe('Barres', () => {
     expect(lignes).toHaveLength(3);
     expect(texte(lignes[1].querySelector('th'))).toBe('Oignon');
     expect(texte(lignes[1].querySelector('td'))).toBe('3 000 FCFA');
+
+    // Le voile qui masque le tableau est son parent, pas le tableau lui-même : une <table> ne peut
+    // pas être plus étroite que son contenu, donc `width: 1px` posé sur la table laisse déborder
+    // l'écran d'une barre de défilement horizontale à 375 px.
+    expect(tableau.parentElement?.className).toBe('graphique-barres__alternative');
   });
 
   it('rend une barre horizontale et sa valeur formatée par série, sans interpréter le nombre', () => {
