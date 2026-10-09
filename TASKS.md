@@ -1365,6 +1365,70 @@ Une tâche n'est cochée que lorsqu'elle est réellement terminée et testée.
   notifications vaut un lot supplémentaire. Travail porté par la branche
   `fonctionnalites-statistiques`, **non poussé**
 
+### Ajustement du jeu demandé par l'écran statistiques (2026-10-09)
+
+> **Ce que couvre cette sous-section** : les trois demandes de l'auteur (stocks de départ plus larges
+> pour ne pas noyer l'écran sous les alertes, annulations réparties et lisibles, tests existants
+> conservés), ce qui a été changé, ce que la mesure a réellement donné, et les deux points où la mesure
+> a forcé à dévier du plan validé. **Aucune règle métier n'a été touchée** : le jeu continue de passer
+> par `AuthService`, `RecolteService`, `CommandeService` et `PaiementService`.
+
+- [x] **Stocks relevés et quota de vente libre** : les quantités de départ de `RECOLTES_PAR_PRODUCTEUR`
+  passent à 12 → 300 selon le produit, et chaque récolte ne peut plus céder en prélèvement libre que
+  **45 % de son stock initial** (`PART_MAXIMALE_VENDUE`, suivi par récolte dans `RecoltePilotee`). Le
+  tirage « l'acheteur prend tout le reste » sur un coup sur dix est supprimé, remplacé par des fractions
+  du stock **initial** (donc bornées) avec un gros acheteur à 20 % sur un tirage sur huit. Résultat
+  mesuré et verrouillé : **au plus deux récoltes par producteur** `EPUISEE` ou sous le seuil d'alerte 5
+  (deux chez le premier, aucune chez le deuxième, une chez le troisième), alors qu'avant le quota les
+  prélèvements libres descendaient librement les stocks vers zéro
+- [x] **Huit `ANNULEE` planifiées** (`ANNULATIONS_PILOTEES`) : chacune désigne le producteur de son
+  unique ligne et dit si sa date tombe **dans** la fenêtre des trente derniers jours (`dateAnnulation`,
+  jours 1 à 27) ou franchement **dehors** (jours 30 à 59) ; une annulation massive fausserait la remise
+  en stock observée à l'écran. Quatre sont en fenêtre (deux chez le premier
+  producteur, une chez chacun des deux autres), quatre dehors. `premierRangAnnulation()` refuse toute
+  génération dont la répartition des statuts ne couvre pas exactement ce plan : le plan ne peut pas
+  glisser silencieusement sur d'autres statuts
+- [x] **Deux déviations du plan validé, imposées par la mesure** : à la première exécution, **7 erreurs**
+  « Plus aucune récolte vendable dans la limite de son quota » — les fractions alors prévues
+  (0,02 à 0,12 plus le gros acheteur à 0,20) reviennent, sur sept tirages par récolte, à demander environ
+  59 % du stock initial, au-delà du quota de 45 % : il ne restait plus rien à vendre aux rangs
+  d'annulation. D'où : fractions libres abaissées à **{0,01 ; 0,02 ; 0,03 ; 0,05}**, et
+  lignes d'annulation **dispensées du quota** (justifié par la règle du service : l'annulation rend la
+  quantité au stock, une vente annulée ne peut donc pas créer d'alerte). Les 13 tests sont verts après
+  ces deux changements
+- [x] **Valeurs réellement lues après génération** (service `StatistiquesProducteurService`, fenêtre de
+  trente jours, premier producteur) : chiffre d'affaires **87 425,00**, **18** commandes, panier moyen
+  **5 464,06**, taux d'annulation **11,11 %** (2 annulées sur 18) — donc dans la fourchette demandée de
+  8 à 15 %, **aucun ajustement du nombre d'annulées en fenêtre n'a été nécessaire** ; 9 commandes à
+  traiter ; top 5 Oignon 57,00 kg / 37 050, Piment fort 12,00 kg / 14 400, Tomate 16,00 kg / 12 800,
+  Aubergine 13,50 kg / 6 750, Chou 15,50 kg / 6 200 ; stock faible = Piment fort 0,00 kg `EPUISEE` et
+  Salade 3,50 botte. Chez les deux autres : 811 400,00 / 12 commandes / 8,33 % et 121 425,00 /
+  17 commandes / **5,88 %** — ce dernier taux est hors de la fourchette, qui ne visait que le premier
+  producteur. La somme des trente montants quotidiens tombe **exactement** à 87 425,00 : l'écart
+  d'arrondi d'un FCFA constaté en QA STAT-1 ne se reproduit pas sur ce jeu
+- [x] **Ce que l'ajustement fait perdre en amplitude** : le chiffre d'affaires du premier producteur
+  passe de **375 886** (constaté à l'écran lors de la QA STAT-1) à **87 425,00**, conséquence directe de
+  l'abaissement des fractions. Consigné plutôt que masqué, parce que les captures du mémoire montreront
+  ce second nombre
+- [x] **Tests — `DemoDataInitializerTest` 10 → 13, suite backend 275** (`./mvnw -o clean test`, 23 classes,
+  `Failures: 0`, `Errors: 0`, PostgreSQL réel) : trois nouveaux verrous reprennent la formule de
+  l'écran au lieu de la constater (alertes `EPUISEE` ou sous le seuil comptées **par producteur**, au
+  moins une annulée **dans la fenêtre** par producteur, taux d'annulation du premier producteur
+  recalculé comme `StatistiquesProducteurService` et refusé hors de 8,00–15,00). **Deux assertions
+  existantes ont été re-ciblées, pas affaiblies** : `recoltesAuStatut(EPUISEE)` de `>= 1` à
+  `isEqualTo(1)` et `recoltesDisponiblesSousLeSeuil()` de `>= 2` à `isEqualTo(2)`, le quota rendant
+  maintenant ces effectifs contrôlables
+- [x] **Documentation** : README §9 réécrit — base de démonstration **dédiée `sunurecolte_demo`** (et
+  plus `sunurecolte`, celle des tests), avertissement « **ne jamais lancer le profil `demo` sur une base
+  contenant des données réelles** », lancement en PowerShell avec `SPRING_DATASOURCE_URL`,
+  `SPRING_PROFILES_ACTIVE`, `APP_DEMO_MOT_DE_PASSE`, `APP_ADMIN_EMAIL`, `APP_ADMIN_PASSWORD`, remise à
+  zéro par `DROP DATABASE sunurecolte_demo` / `CREATE DATABASE sunurecolte_demo`, quota de 45 %,
+  annulées planifiées et ADMIN venant de l'amorçage du §4 plutôt que du profil
+- [x] **Reste ouvert après cet ajustement** : la base locale `sunurecolte_demo` n'est **pas encore
+  régénérée** (opération destructive, donc jouée par l'auteur) — le nouveau jeu n'a été lu que par le
+  service en base de test, jamais dans un navigateur, et `verif-stat1.sql` devra être rejoué contre la
+  base régénérée avec les valeurs ci-dessus comme attendus
+
 ## LOT QA-STAT-1 — corrections demandées par l’écran réel (2026-10-09)
 
 > **Ce que couvre cette section** : les **cinq** défauts constatés sur `/producteur/statistiques` rendu

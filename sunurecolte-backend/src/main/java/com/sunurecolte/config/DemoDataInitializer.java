@@ -84,6 +84,18 @@ import java.util.stream.Collectors;
  * {@link Commande#setDateCreation} ; les paiements et les notifications gardent l'horodatage de
  * génération (limite consignée dans TASKS.md, LOT DEMO-1).
  *
+ * Deux mécanismes rendent le jeu lisible à l'écran sans toucher aux règles métier :
+ * <ul>
+ *   <li>les ventes libres se lisent sur le <b>stock initial</b> et sont bornées à 45 % de celui-ci
+ *       ({@link #PART_MAXIMALE_VENDUE}), donc une récolte garde toujours assez pour rester en vente
+ *       au-dessus du seuil d'alerte des statistiques ;</li>
+ *   <li>les huit {@code ANNULEE} sont <b>planifiées</b> ({@link #ANNULATIONS_PILOTEES}) : chacune porte
+ *       une seule ligne chez un producteur désigné, et quatre d'entre elles sont datées dans la fenêtre
+ *       des {@value #JOURS_FENETRE_STATISTIQUES} derniers jours. Chaque producteur a donc une annulation
+ *       visible sur l'écran statistiques, et le taux affiché reste dans une fourchette qu'on peut écrire
+ *       dans un mémoire.</li>
+ * </ul>
+ *
  * Idempotence : si le premier compte de démonstration existe déjà, rien n'est créé et rien n'est
  * supprimé, une ligne INFO est journalisée. Les journaux ne portent que des adresses email, jamais
  * le mot de passe. Lancement et remise à zéro : README.md, section « Données de démonstration ».
@@ -100,6 +112,13 @@ public class DemoDataInitializer implements CommandLineRunner {
     private static final int JOURS_ETALES = 60;
 
     /**
+     * Période par défaut de l'écran statistiques (LOT STAT-1) : les annulations planifiées y sont
+     * jouées ou exclues, jamais laissées au tirage, sinon le taux d'annulation d'un producteur ne
+     * se contrôle plus.
+     */
+    private static final int JOURS_FENETRE_STATISTIQUES = 30;
+
+    /**
      * Même plancher que l'inscription publique ({@code InscriptionRequest}) : le mot de passe de
      * démonstration sert aussi à se connecter, un mot de passe refusé à l'inscription serait
      * inutilisable.
@@ -110,9 +129,29 @@ public class DemoDataInitializer implements CommandLineRunner {
     private static final MoyenPaiement[] MOYENS_DE_PAIEMENT = {
             MoyenPaiement.WAVE, MoyenPaiement.ORANGE_MONEY};
 
-    /** Parts du stock restant qu'un acheteur de démonstration peut prendre d'un coup. */
+    /**
+     * Parts du stock <b>initial</b> qu'un acheteur de démonstration peut prendre d'un coup. Le tirage se
+     * lit sur le stock de départ et non sur le reste : une récolte bien garnie reste garnie après
+     * plusieurs ventes, au lieu de fondre de 55 % puis de 40 % de ce qu'il en restait. Les parts sont
+     * petites parce qu'une même récolte est tirée plusieurs fois sur la période : le total vendu doit
+     * rester sous le quota, non le consommer.
+     */
     private static final BigDecimal[] FRACTIONS_DE_VENTE = {
-            new BigDecimal("0.10"), new BigDecimal("0.25"), new BigDecimal("0.40"), new BigDecimal("0.55")};
+            new BigDecimal("0.01"), new BigDecimal("0.02"), new BigDecimal("0.03"), new BigDecimal("0.05")};
+
+    /** Un acheteur sur huit commande en gros : part plus franche, mais jamais la totalité de l'étal. */
+    private static final BigDecimal FRACTION_GROS_ACHETEUR = new BigDecimal("0.20");
+    private static final int UN_ACHETEUR_SUR_HUIT = 8;
+
+    /** Part prise par la ligne d'une annulation planifiée : la plus petite du jeu, l'achat est minime. */
+    private static final BigDecimal FRACTION_ANNULATION = FRACTIONS_DE_VENTE[0];
+
+    /**
+     * Part maximale du stock initial qu'une récolte libre peut céder sur toute la période. Le plancher
+     * qui en découle (55 % du départ) garde chaque récolte largement au-dessus du seuil d'alerte de
+     * stock faible (5, LOT STAT-1) : seules les trois ventes pilotées descendent jusqu'à leur cible.
+     */
+    private static final BigDecimal PART_MAXIMALE_VENDUE = new BigDecimal("0.45");
 
     /** Le jeu ne vend que des quantités entières ou de demi-unités : jamais 233,44 kg. */
     private static final BigDecimal PAS_DE_VENTE = new BigDecimal("0.5");
@@ -134,6 +173,23 @@ public class DemoDataInitializer implements CommandLineRunner {
             "Salade", 19,
             "Mangue", 41);
 
+    /**
+     * Les huit commandes annulées, dans l'ordre de {@link #repartitionDesStatuts()}, planifiées :
+     * producteur de l'unique ligne et présence ou non dans la fenêtre de
+     * {@value #JOURS_FENETRE_STATISTIQUES} jours lue par l'écran statistiques. Chaque producteur reçoit
+     * donc au moins une annulation visible, et le taux d'annulation de {@code producteur1} — deux
+     * annulations sur sa fenêtre — reste dans la fourchette qu'un mémoire accepte de montrer.
+     */
+    private static final List<AnnulationPilotee> ANNULATIONS_PILOTEES = List.of(
+            new AnnulationPilotee(0, true),
+            new AnnulationPilotee(1, true),
+            new AnnulationPilotee(2, true),
+            new AnnulationPilotee(0, true),
+            new AnnulationPilotee(1, false),
+            new AnnulationPilotee(2, false),
+            new AnnulationPilotee(0, false),
+            new AnnulationPilotee(1, false));
+
     private static final List<ProducteurDemo> PRODUCTEURS = List.of(
             new ProducteurDemo("producteur1.demo@sunurecolte.sn", "Ndiaye", "Fatou", "770000001",
                     Filiere.MARAICHAGE, "Thiès — plateau de Bandiagara",
@@ -150,31 +206,36 @@ public class DemoDataInitializer implements CommandLineRunner {
                             + "filière par producteur : elle est ici AUTRE, et le détail des activités "
                             + "tient dans cette description."));
 
-    /** Trois listes, dans l'ordre de {@link #PRODUCTEURS} : 8 + 4 + 8 = 20 récoltes. */
+    /**
+     * Trois listes, dans l'ordre de {@link #PRODUCTEURS} : 8 + 4 + 8 = 20 récoltes. Les stocks de
+     * départ sont larges (de 12 têtes à 300 plateaux) pour que soixante commandes laissent l'essentiel
+     * du catalogue en vente : {@link #PART_MAXIMALE_VENDUE} borne ce qu'une récolte libre peut céder,
+     * et seules les trois récoltes pilotées descendent jusqu'au seuil d'alerte ou jusqu'à zéro.
+     */
     private static final List<List<RecolteDemo>> RECOLTES_PAR_PRODUCTEUR = List.of(
             List.of(
-                    new RecolteDemo("Tomate", "Tomates rondes cueillies le matin", "180.00", "10.00", "100.00", "kg", "800"),
-                    new RecolteDemo("Oignon", "Oignons de Thiaré, filets de 25 kg", "240.00", "10.00", "150.00", "kg", "650"),
+                    new RecolteDemo("Tomate", "Tomates rondes cueillies le matin", "240.00", "10.00", "100.00", "kg", "800"),
+                    new RecolteDemo("Oignon", "Oignons de Thiaré, filets de 25 kg", "300.00", "10.00", "150.00", "kg", "650"),
                     new RecolteDemo("Salade", "Salades vertes en bottes", "22.00", "2.00", "20.00", "botte", "300"),
                     new RecolteDemo("Piment fort", "Piments verts de saison", "12.00", "1.00", "10.00", "kg", "1200"),
-                    new RecolteDemo("Aubergine", "Aubergines violettes", "90.00", "5.00", "60.00", "kg", "500"),
-                    new RecolteDemo("Chou", "Choux cabus", "75.00", "5.00", "50.00", "kg", "400"),
-                    new RecolteDemo("Carotte", "Carottes de pleine terre", "130.00", "10.00", "80.00", "kg", "900"),
-                    new RecolteDemo("Concombre", "Concombres", "45.00", "3.00", "30.00", "botte", "350")),
+                    new RecolteDemo("Aubergine", "Aubergines violettes", "150.00", "5.00", "60.00", "kg", "500"),
+                    new RecolteDemo("Chou", "Choux cabus", "130.00", "5.00", "50.00", "kg", "400"),
+                    new RecolteDemo("Carotte", "Carottes de pleine terre", "180.00", "10.00", "80.00", "kg", "900"),
+                    new RecolteDemo("Concombre", "Concombres", "90.00", "3.00", "30.00", "botte", "350")),
             List.of(
-                    new RecolteDemo("Poulet de chair", "Poulets locaux engraissés", "60.00", "1.00", "30.00", "tete", "3500"),
-                    new RecolteDemo("Oeufs frais", "Plateaux de 30 oeufs", "200.00", "2.00", "100.00", "plateau", "1800"),
-                    new RecolteDemo("Mouton", "Moutons de l'exploitation", "8.00", "1.00", "6.00", "tete", "120000"),
-                    new RecolteDemo("Lait cru", "Lait de la bergerie, en bidon", "50.00", "5.00", "40.00", "litre", "700")),
+                    new RecolteDemo("Poulet de chair", "Poulets locaux engraissés", "120.00", "1.00", "30.00", "tete", "3500"),
+                    new RecolteDemo("Oeufs frais", "Plateaux de 30 oeufs", "300.00", "2.00", "100.00", "plateau", "1800"),
+                    new RecolteDemo("Mouton", "Moutons de l'exploitation", "12.00", "1.00", "6.00", "tete", "120000"),
+                    new RecolteDemo("Lait cru", "Lait de la bergerie, en bidon", "120.00", "5.00", "40.00", "litre", "700")),
             List.of(
-                    new RecolteDemo("Mil", "Mil blanc décortiqué", "150.00", "10.00", "100.00", "kg", "500"),
-                    new RecolteDemo("Arachide", "Arachides en coque séchées", "120.00", "10.00", "80.00", "kg", "900"),
-                    new RecolteDemo("Maïs", "Maïs grain sec", "90.00", "10.00", "60.00", "kg", "450"),
+                    new RecolteDemo("Mil", "Mil blanc décortiqué", "200.00", "10.00", "100.00", "kg", "500"),
+                    new RecolteDemo("Arachide", "Arachides en coque séchées", "180.00", "10.00", "80.00", "kg", "900"),
+                    new RecolteDemo("Maïs", "Maïs grain sec", "150.00", "10.00", "60.00", "kg", "450"),
                     new RecolteDemo("Mangue", "Mangues Kent de fin de saison", "70.00", "5.00", "50.00", "kg", "600"),
-                    new RecolteDemo("Papaye", "Papayes forme soleil", "40.00", "3.00", "30.00", "kg", "350"),
-                    new RecolteDemo("Banane plantain", "Bananes plantain", "35.00", "3.00", "25.00", "kg", "400"),
-                    new RecolteDemo("Bissap", "Feuilles d'hibiscus séchées", "25.00", "2.00", "20.00", "kg", "1500"),
-                    new RecolteDemo("Kinkeliba", "Feuilles de tisane séchées", "18.00", "2.00", "15.00", "kg", "800")));
+                    new RecolteDemo("Papaye", "Papayes forme soleil", "90.00", "3.00", "30.00", "kg", "350"),
+                    new RecolteDemo("Banane plantain", "Bananes plantain", "80.00", "3.00", "25.00", "kg", "400"),
+                    new RecolteDemo("Bissap", "Feuilles d'hibiscus séchées", "60.00", "2.00", "20.00", "kg", "1500"),
+                    new RecolteDemo("Kinkeliba", "Feuilles de tisane séchées", "45.00", "2.00", "15.00", "kg", "800")));
 
     private static final List<AcheteurDemo> ACHETEURS = List.of(
             new AcheteurDemo("acheteur1.demo@sunurecolte.sn", "Diallo", "Amadou", "771000001",
@@ -362,10 +423,14 @@ public class DemoDataInitializer implements CommandLineRunner {
     private int creerCommandes(Random random, List<RecoltePilotee> catalogue,
                                List<CompteProducteur> producteurs, List<CompteAcheteur> acheteurs) {
         List<StatutCommande> statutsCibles = repartitionDesStatuts();
+        int premierRangAnnulation = premierRangAnnulation(statutsCibles);
         int commandesCrees = 0;
         for (int index = 0; index < statutsCibles.size(); index++) {
-            List<Ligne> lignes = choisirLignes(random, catalogue, index,
-                    producteursAMelanger(producteurs, index));
+            AnnulationPilotee annulation = index < premierRangAnnulation ? null
+                    : ANNULATIONS_PILOTEES.get(index - premierRangAnnulation);
+            List<Ligne> lignes = annulation == null
+                    ? choisirLignes(random, catalogue, index, producteursAMelanger(producteurs, index))
+                    : ligneAnnulee(random, catalogue, producteurs.get(annulation.indexProducteur()));
             if (lignes.isEmpty()) {
                 // Plus aucune récolte en stock : mieux vaut une commande de moins qu'une commande vide.
                 continue;
@@ -383,9 +448,25 @@ public class DemoDataInitializer implements CommandLineRunner {
             commandesCrees++;
 
             jouerLeCycle(commande.id(), statutsCibles.get(index), index, mode, acheteur, premier, random);
-            daterCommande(commande.id(), dateEtalee(random));
+            daterCommande(commande.id(), annulation == null
+                    ? dateEtalee(random)
+                    : dateAnnulation(random, annulation.dansLaFenetre()));
         }
         return commandesCrees;
+    }
+
+    /**
+     * Rang du premier {@code ANNULEE} de la répartition. Le plan d'annulations se lit à partir de ce
+     * rang : s'il ne couvre pas exactement les annulations prévues, le générateur s'arrête plutôt que
+     * de produire un jeu dont le taux d'annulation ne veut plus rien dire.
+     */
+    private int premierRangAnnulation(List<StatutCommande> statutsCibles) {
+        int rang = statutsCibles.indexOf(StatutCommande.ANNULEE);
+        if (rang < 0 || statutsCibles.size() - rang != ANNULATIONS_PILOTEES.size()) {
+            throw new IllegalStateException("Le plan d'annulations attend " + ANNULATIONS_PILOTEES.size()
+                    + " commandes ANNULEE en fin de répartition, la répartition réelle est différente.");
+        }
+        return rang;
     }
 
     /**
@@ -466,6 +547,24 @@ public class DemoDataInitializer implements CommandLineRunner {
     }
 
     /**
+     * Date d'une annulation planifiée : à l'intérieur de la fenêtre des {@value
+     * #JOURS_FENETRE_STATISTIQUES} derniers jours, ou franchement dehors. Un taux d'annulation affiché
+     * sur trente jours ne se contrôle que par les commandes qui tombent dans ces trente jours.
+     */
+    private LocalDateTime dateAnnulation(Random random, boolean dansLaFenetre) {
+        int joursAvant = dansLaFenetre
+                ? 1 + random.nextInt(JOURS_FENETRE_STATISTIQUES - 3)
+                : JOURS_FENETRE_STATISTIQUES
+                        + random.nextInt(JOURS_ETALES - JOURS_FENETRE_STATISTIQUES - 1);
+        return LocalDateTime.now()
+                .minusDays(joursAvant)
+                .minusHours(random.nextInt(10))
+                .withMinute(random.nextInt(60))
+                .withSecond(0)
+                .withNano(0);
+    }
+
+    /**
      * Imposer la date après tout le cycle : l'entité relue est l'instance suivie de la transaction,
      * l'UPDATE part donc au vidage automatique, sans écriture SQL directe.
      */
@@ -488,7 +587,8 @@ public class DemoDataInitializer implements CommandLineRunner {
         List<Ligne> lignes = new ArrayList<>();
         for (CompteProducteur compte : producteursAMelanger) {
             auHasard(recoltesEnStock(catalogue, compte.profilId()), random)
-                    .ifPresent(recolte -> lignes.add(tirerQuantite(recolte, random)));
+                    .flatMap(recolte -> tirerQuantite(recolte, random))
+                    .ifPresent(lignes::add);
         }
 
         int nombreVoulu = 1 + random.nextInt(3);
@@ -500,7 +600,7 @@ public class DemoDataInitializer implements CommandLineRunner {
             }
             boolean dejaPrise = lignes.stream().anyMatch(ligne -> ligne.recolte() == recolte);
             if (!dejaPrise) {
-                lignes.add(tirerQuantite(recolte, random));
+                tirerQuantite(recolte, random).ifPresent(lignes::add);
             }
         }
 
@@ -510,6 +610,32 @@ public class DemoDataInitializer implements CommandLineRunner {
             }
         }
         return lignes;
+    }
+
+    /**
+     * Ligne d'une annulation planifiée : une seule récolte, chez le producteur désigné, pour la plus
+     * petite part du jeu. Le quota ne s'y applique pas : {@link CommandeService} rend le stock à
+     * l'annulation, la récolte revient donc en rayon et cette vente ne peut pas creuser d'alerte.
+     */
+    private List<Ligne> ligneAnnulee(Random random, List<RecoltePilotee> catalogue,
+                                     CompteProducteur compte) {
+        List<RecoltePilotee> candidates = catalogue.stream()
+                .filter(recolte -> recolte.stockFinalVise == null)
+                .filter(recolte -> recolte.producteurId.equals(compte.profilId()))
+                .filter(recolte -> recolte.stockRestant.compareTo(PAS_DE_VENTE) >= 0)
+                .collect(Collectors.toCollection(ArrayList::new));
+        return auHasard(candidates, random)
+                .map(recolte -> List.of(vendre(recolte, quantiteAnnulee(recolte))))
+                .orElseThrow(() -> new IllegalStateException("Plus aucune récolte en stock chez le "
+                        + "producteur " + compte.profilId() + " : le plan d'annulations n'est plus "
+                        + "jouable."));
+    }
+
+    /** La part d'annulation, bornée au stock restant et remise sur le pas de 0,5. */
+    private BigDecimal quantiteAnnulee(RecoltePilotee recolte) {
+        BigDecimal quantite = arrondirAuPas(
+                recolte.stockInitial.multiply(FRACTION_ANNULATION).min(recolte.stockRestant));
+        return quantite.signum() > 0 ? quantite : PAS_DE_VENTE;
     }
 
     /**
@@ -526,18 +652,19 @@ public class DemoDataInitializer implements CommandLineRunner {
         return quantite.signum() > 0 ? Optional.of(vendre(recolte, quantite)) : Optional.empty();
     }
 
-    /** Prélèvement libre : une part du reste, la totalité sur un tirage sur dix. */
-    private Ligne tirerQuantite(RecoltePilotee recolte, Random random) {
-        BigDecimal quantite = random.nextInt(10) == 0
-                ? recolte.stockRestant
-                : arrondirAuPas(recolte.stockRestant
-                        .multiply(FRACTIONS_DE_VENTE[random.nextInt(FRACTIONS_DE_VENTE.length)]));
-        if (quantite.signum() <= 0) {
-            // Le reste est plus petit qu'une fraction arrondie : l'acheteur prend le plus petit
-            // prélèvement du jeu, jamais la totalité d'une récolte qui pourrait encore être vendue.
-            quantite = PAS_DE_VENTE;
-        }
-        return vendre(recolte, quantite);
+    /**
+     * Prélèvement libre : une part du stock <b>initial</b> (une part plus franche un acheteur sur huit),
+     * bornée au quota encore vendable de la récolte. Le tirage qui prenait la totalité du reste est
+     * supprimé : c'est lui qui mettait la moitié du catalogue hors stock. Une récolte dont le quota ne
+     * permet plus une demi-unité a déjà été écartée des candidates par {@link #recoltesEnStock}.
+     */
+    private Optional<Ligne> tirerQuantite(RecoltePilotee recolte, Random random) {
+        BigDecimal fraction = random.nextInt(UN_ACHETEUR_SUR_HUIT) == 0
+                ? FRACTION_GROS_ACHETEUR
+                : FRACTIONS_DE_VENTE[random.nextInt(FRACTIONS_DE_VENTE.length)];
+        BigDecimal partSouhaitee = recolte.stockInitial.multiply(fraction);
+        BigDecimal quantite = arrondirAuPas(partSouhaitee.min(recolte.quotaRestant));
+        return quantite.signum() > 0 ? Optional.of(vendre(recolte, quantite)) : Optional.empty();
     }
 
     /**
@@ -560,15 +687,20 @@ public class DemoDataInitializer implements CommandLineRunner {
                     + recolte.stockRestant + ") de la récolte « " + recolte.produit + " ».");
         }
         recolte.stockRestant = recolte.stockRestant.subtract(quantite);
+        recolte.quotaRestant = recolte.quotaRestant.subtract(quantite);
         return new Ligne(new LigneCommandeRequest(recolte.recolteId, quantite), recolte);
     }
 
-    /** Récoltes libres de stock, hors celles dont la vente est pilotée, filtrées par producteur si demandé. */
+    /**
+     * Récoltes libres, hors celles dont la vente est pilotée, encore en stock et pas parvenues à leur
+     * quota de {@link #PART_MAXIMALE_VENDUE} ; filtrées par producteur si demandé.
+     */
     private List<RecoltePilotee> recoltesEnStock(List<RecoltePilotee> catalogue, Long producteurId) {
         return catalogue.stream()
                 .filter(recolte -> recolte.stockFinalVise == null)
                 .filter(recolte -> producteurId == null || recolte.producteurId.equals(producteurId))
                 .filter(recolte -> recolte.stockRestant.signum() > 0)
+                .filter(recolte -> recolte.quotaRestant.compareTo(PAS_DE_VENTE) >= 0)
                 .collect(Collectors.toCollection(ArrayList::new));
     }
 
@@ -622,6 +754,13 @@ public class DemoDataInitializer implements CommandLineRunner {
     private record RecolteDemo(String produit, String description, String quantiteDisponible,
                                String quantiteMin, String quantiteMax, String unite, String prixUnitaire) {}
 
+    /**
+     * Annulation planifiée : index dans {@link #PRODUCTEURS} pour l'unique ligne de la commande, et
+     * présence dans la fenêtre des {@value #JOURS_FENETRE_STATISTIQUES} derniers jours lus par l'écran
+     * statistiques.
+     */
+    private record AnnulationPilotee(int indexProducteur, boolean dansLaFenetre) {}
+
     private record CompteProducteur(UtilisateurPrincipal principal, Long profilId, String localisation) {}
 
     private record CompteAcheteur(UtilisateurPrincipal principal, Long profilId,
@@ -631,8 +770,9 @@ public class DemoDataInitializer implements CommandLineRunner {
     private record Ligne(LigneCommandeRequest request, RecoltePilotee recolte) {}
 
     /**
-     * Récolte telle que le générateur la suit. {@code stockRestant} ne sert qu'à ne jamais demander au
-     * service plus que ce qu'il reste : l'autorité du stock reste la colonne de la base, décrémentée
+     * Récolte telle que le générateur la suit. {@code stockRestant} et {@code quotaRestant} ne servent
+     * qu'à ne jamais demander au service plus que ce qu'il reste, ni plus que la part de départ qu'une
+     * récolte libre a le droit de céder : l'autorité du stock reste la colonne de la base, décrémentée
      * par {@link CommandeService}.
      */
     private static final class RecoltePilotee {
@@ -640,6 +780,8 @@ public class DemoDataInitializer implements CommandLineRunner {
         private final Long producteurId;
         private final String produit;
         private final BigDecimal stockFinalVise;
+        private final BigDecimal stockInitial;
+        private BigDecimal quotaRestant;
         private BigDecimal stockRestant;
 
         private RecoltePilotee(Long recolteId, Long producteurId, String produit, BigDecimal stockInitial,
@@ -647,7 +789,9 @@ public class DemoDataInitializer implements CommandLineRunner {
             this.recolteId = recolteId;
             this.producteurId = producteurId;
             this.produit = produit;
+            this.stockInitial = stockInitial;
             this.stockRestant = stockInitial;
+            this.quotaRestant = stockInitial.multiply(PART_MAXIMALE_VENDUE);
             this.stockFinalVise = stockFinalVise;
         }
     }

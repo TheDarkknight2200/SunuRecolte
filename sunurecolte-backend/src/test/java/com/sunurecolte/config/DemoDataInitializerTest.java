@@ -26,8 +26,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.StandardEnvironment;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
@@ -45,13 +49,18 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
  *
  * Les effectifs attendus (3 producteurs, 6 acheteurs, 20 récoltes, 60 commandes, 4 paiements
  * remboursés) viennent de la construction du composant, pas d'un tirage au sort : la graine est
- * fixe et la répartition des statuts est écrite.
+ * fixe et la répartition des statuts est écrite. De même écriture, le plan des huit annulations
+ * (producteur désigné et date dans ou hors de la fenêtre des statistiques) et le quota de 45 % du
+ * stock initial, qui laissent le catalogue en vente et chaque producteur visible sur l'écran
+ * statistiques : les trois tests ajoutés le vérifient sur les données réellement produites.
  */
 class DemoDataInitializerTest extends IntegrationTestSupport {
 
     private static final String MOT_DE_PASSE = "MotDePasse-Demo-2026";
     private static final String SUFFIXE_DEMO = "%.demo@sunurecolte.sn";
     private static final String EMAIL_PREMIER_PRODUCTEUR = "producteur1.demo@sunurecolte.sn";
+    private static final String EMAIL_DEUXIEME_PRODUCTEUR = "producteur2.demo@sunurecolte.sn";
+    private static final String EMAIL_TROISIEME_PRODUCTEUR = "producteur3.demo@sunurecolte.sn";
 
     /** Seuil d'alerte de stock faible de LOT STAT-1 : deux récoltes de démonstration doivent finir dessous. */
     private static final BigDecimal SEUIL_STOCK_FAIBLE = new BigDecimal("5");
@@ -128,8 +137,10 @@ class DemoDataInitializerTest extends IntegrationTestSupport {
         assertThat(commandesMelangees).hasSizeGreaterThanOrEqualTo(3);
 
         assertThat(stockMinimalDesRecoltesDemo()).isGreaterThanOrEqualTo(BigDecimal.ZERO);
-        assertThat(recoltesAuStatut(StatutRecolte.EPUISEE)).isGreaterThanOrEqualTo(1);
-        assertThat(recoltesDisponiblesSousLeSeuil()).isGreaterThanOrEqualTo(2);
+        // Effectifs resserrés par l'ajustement du jeu : les ventes libres ne descendent plus sous leur
+        // quota, donc une seule récolte finit épuisée (Piment fort) et deux sous le seuil (Salade, Mangue).
+        assertThat(recoltesAuStatut(StatutRecolte.EPUISEE)).isEqualTo(1);
+        assertThat(recoltesDisponiblesSousLeSeuil()).isEqualTo(2);
     }
 
     @Test
@@ -183,6 +194,47 @@ class DemoDataInitializerTest extends IntegrationTestSupport {
         // ne s'écrit nulle part, et une quantité fractionnaire rendrait les totaux illisibles à l'écran.
         assertThat(quantites)
                 .allMatch(quantite -> quantite.remainder(PAS_DE_VENTE).signum() == 0);
+    }
+
+    @Test
+    void lesRecoltesLibresGardentUnStockEtDeuxAlertesAuPlusParProducteur() {
+        generateur(MOT_DE_PASSE, "demo").run();
+
+        // Les trois récoltes à cible (Piment fort, Salade, Mangue) sont les seules à descendre : le quota
+        // de vente libre laisse toutes les autres largement au-dessus du seuil de 5.
+        assertThat(recoltesEnAlerteParProducteur())
+                .containsEntry(EMAIL_PREMIER_PRODUCTEUR, 2L)
+                .containsEntry(EMAIL_TROISIEME_PRODUCTEUR, 1L)
+                .doesNotContainKey(EMAIL_DEUXIEME_PRODUCTEUR);
+        assertThat(recoltesEnAlerteParProducteur().values())
+                .allMatch(nb -> nb.compareTo(2L) <= 0);
+    }
+
+    @Test
+    void chaqueProducteurAGardeUneCommandeAnnuleeDansLaFenetreDesStatistiques() {
+        generateur(MOT_DE_PASSE, "demo").run();
+
+        for (String email : List.of(EMAIL_PREMIER_PRODUCTEUR, EMAIL_DEUXIEME_PRODUCTEUR,
+                EMAIL_TROISIEME_PRODUCTEUR)) {
+            assertThat(commandesAnnuleesDansLaFenetre(email))
+                    .as("annulations visibles sur trente derniers jours pour %s", email)
+                    .isGreaterThanOrEqualTo(1L);
+        }
+    }
+
+    @Test
+    void leTauxAnnulationDuPremierProducteurResteDansLaFourchetteVueACran() {
+        generateur(MOT_DE_PASSE, "demo").run();
+
+        long annulees = commandesAnnuleesDansLaFenetre(EMAIL_PREMIER_PRODUCTEUR);
+        long toutes = commandesToucheesDansLaFenetre(EMAIL_PREMIER_PRODUCTEUR);
+        // La formule de StatistiquesProducteurService : annulées ÷ toutes les commandes de la période,
+        // deux décimales. Le test refuse un taux hors de la fourchette plutôt que de le constater.
+        BigDecimal taux = BigDecimal.valueOf(annulees)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(toutes), 2, RoundingMode.HALF_UP);
+
+        assertThat(taux).isBetween(new BigDecimal("8.00"), new BigDecimal("15.00"));
     }
 
     @Test
@@ -301,6 +353,54 @@ class DemoDataInitializerTest extends IntegrationTestSupport {
                 + "and r.statut = :statut and r.quantiteDisponible < :seuil")
                 .setParameter("statut", StatutRecolte.DISPONIBLE)
                 .setParameter("seuil", SEUIL_STOCK_FAIBLE)
+                .getSingleResult();
+    }
+
+    /**
+     * Récoltes de démonstration en alerte pour l'écran statistiques (épuisées ou sous le seuil de 5),
+     * comptées par producteur. Un producteur sans aucune alerte n'apparaît pas dans la carte.
+     */
+    private Map<String, Long> recoltesEnAlerteParProducteur() {
+        return entityManager.createQuery("select u.email, count(r) from Recolte r "
+                        + "join r.producteur p join p.utilisateur u "
+                        + "where u.email like :suffixe and (r.statut = :epuisee "
+                        + "or r.quantiteDisponible < :seuil) group by u.email", Object[].class)
+                .setParameter("suffixe", SUFFIXE_DEMO)
+                .setParameter("epuisee", StatutRecolte.EPUISEE)
+                .setParameter("seuil", SEUIL_STOCK_FAIBLE)
+                .getResultList().stream()
+                .collect(Collectors.toMap(ligne -> (String) ligne[0], ligne -> (Long) ligne[1]));
+    }
+
+    /**
+     * Fenêtre civile des trente derniers jours, bornée comme celle de
+     * {@code StatistiquesProducteurService} : du jour présent moins vingt-neuf au lendemain à zéro heure.
+     */
+    private LocalDate debutFenetreStatistiques() {
+        return LocalDate.now().minusDays(29);
+    }
+
+    private long commandesToucheesDansLaFenetre(String email) {
+        return entityManager
+                .createQuery("select count(distinct c.id) from Commande c join c.lignes l "
+                        + "where l.recolte.producteur.utilisateur.email = :email "
+                        + "and c.dateCreation >= :debut and c.dateCreation < :fin", Long.class)
+                .setParameter("email", email)
+                .setParameter("debut", debutFenetreStatistiques().atStartOfDay())
+                .setParameter("fin", debutFenetreStatistiques().plusDays(30).atStartOfDay())
+                .getSingleResult();
+    }
+
+    private long commandesAnnuleesDansLaFenetre(String email) {
+        return entityManager
+                .createQuery("select count(distinct c.id) from Commande c join c.lignes l "
+                        + "where l.recolte.producteur.utilisateur.email = :email "
+                        + "and c.statut = :statut and c.dateCreation >= :debut and c.dateCreation < :fin",
+                        Long.class)
+                .setParameter("email", email)
+                .setParameter("statut", StatutCommande.ANNULEE)
+                .setParameter("debut", debutFenetreStatistiques().atStartOfDay())
+                .setParameter("fin", debutFenetreStatistiques().plusDays(30).atStartOfDay())
                 .getSingleResult();
     }
 

@@ -332,27 +332,43 @@ L'identité visuelle, les tokens de design et les règles d'interface font foi d
 quoi parcourir les écrans et préparer les captures du mémoire — **3 producteurs**, **6 acheteurs**,
 **20 récoltes** et **60 commandes étalées sur les 60 derniers jours**.
 
+> **Avertissement — ne jamais lancer le profil `demo` sur une base contenant des données réelles.** Le
+> jeu passe par les services réels et écrit commandes, paiements et notifications comme s'ils étaient
+> réels : rien ne le distingue ni ne le nettoie, sinon une recréation de base. Il vise donc une base
+> dédiée, `sunurecolte_demo`, **jamais** la base `sunurecolte` des tests d'intégration et du
+> développement courant.
+
+```powershell
+# Windows PowerShell — base de démonstration dédiée
+cd sunurecolte-backend
+$env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5432/sunurecolte_demo"
+$env:SPRING_PROFILES_ACTIVE = "demo"
+$env:APP_DEMO_MOT_DE_PASSE = "un_mot_de_passe_local_d_au_moins_8_caracteres"
+$env:APP_ADMIN_EMAIL = "admin.demo@sunurecolte.sn"
+$env:APP_ADMIN_PASSWORD = "un_mot_de_passe_admin_d_au_moins_6_caracteres"
+.\mvnw.cmd spring-boot:run
+```
+
 ```bash
 # Git Bash / Linux / macOS
 cd sunurecolte-backend
+SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/sunurecolte_demo" \
+SPRING_PROFILES_ACTIVE="demo" \
 APP_DEMO_MOT_DE_PASSE="un_mot_de_passe_local_d_au_moins_8_caracteres" \
-  ./mvnw spring-boot:run -Dspring-boot.run.arguments=--spring.profiles.active=demo
+APP_ADMIN_EMAIL="admin.demo@sunurecolte.sn" \
+APP_ADMIN_PASSWORD="un_mot_de_passe_admin_d_au_moins_6_caracteres" \
+  ./mvnw spring-boot:run
 ```
 
-```powershell
-# Windows PowerShell
-cd sunurecolte-backend
-$env:APP_DEMO_MOT_DE_PASSE = "un_mot_de_passe_local_d_au_moins_8_caracteres"
-.\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--spring.profiles.active=demo"
-```
+`SPRING_DATASOURCE_URL` prend le pas sur l'URL d'`application-local.properties` ; le mot de passe
+PostgreSQL continue de venir de ce fichier hors Git. Le profil peut aussi se passer de la variable
+d'environnement, et le mot de passe de démonstration de la ligne `app.demo.mot-de-passe`
+d'`application-local.properties`. Cette valeur sert aussi à **se connecter** aux comptes de
+démonstration : elle doit faire au moins 8 caractères, comme à l'inscription publique.
 
-Le profil peut aussi venir de `SPRING_PROFILES_ACTIVE=demo`, et le mot de passe de la ligne
-`app.demo.mot-de-passe` d'`application-local.properties` (hors Git) plutôt que d'une variable
-d'environnement. Cette valeur sert aussi à **se connecter** aux comptes de démonstration : elle doit
-faire au moins 8 caractères, comme à l'inscription publique.
-
-**Comptes créés** (tous avec le mot de passe fourni — le profil demo ne crée **aucun** ADMIN, l'amorçage
-du §4 reste nécessaire) :
+**Comptes créés** (tous avec le mot de passe fourni — le profil `demo` ne crée **aucun** ADMIN : le
+compte administrateur vient de l'amorçage du §4, d'où `APP_ADMIN_EMAIL` et `APP_ADMIN_PASSWORD`
+ci-dessus) :
 
 - `producteur1.demo@sunurecolte.sn`, `producteur2.demo@sunurecolte.sn`, `producteur3.demo@sunurecolte.sn`
   — maraîchère, élevage, et une exploitation céréalière et fruitière ;
@@ -360,13 +376,23 @@ du §4 reste nécessaire) :
   restaurateurs, deux particuliers.
 
 **Ce que contient le jeu** : 8 + 4 + 8 récoltes selon le producteur, avec un prix unitaire, des
-quantités min/max et une unité réalistes (kg, botte, tête, plateau, litre) ; `EN_ATTENTE` (10),
-`CONFIRMEE` (12), `PRETE` (8), `LIVREE` (22) et `ANNULEE` (8) parmi les commandes ; les trois premières
-commandes mélangent deux producteurs ; les paiements portent `WAVE` et `ORANGE_MONEY`, **simulés** sous
-référence `SIMU-…` comme partout dans le projet ; une récolte est `EPUISEE` et deux sont sous le seuil
-d'alerte de stock faible de l'écran statistiques ; `imageUrl` est vide, donc le catalogue rend son état
-« sans image ». Les dates de commande viennent d'une **graine fixe** : deux bases vides obtiennent les
-mêmes commandes, les mêmes quantités et les mêmes statuts.
+quantités min/max et une unité réalistes (kg, botte, tête, plateau, litre) et des stocks de départ
+larges — de 12 à 300 selon le produit ; `EN_ATTENTE` (10), `CONFIRMEE` (12), `PRETE` (8), `LIVREE` (22)
+et `ANNULEE` (8) parmi les commandes ; les trois premières commandes mélangent deux producteurs ; les
+paiements portent `WAVE` et `ORANGE_MONEY`, **simulés** sous référence `SIMU-…` comme partout dans le
+projet ; `imageUrl` est vide, donc le catalogue rend son état « sans image ». Les dates de commande
+viennent d'une **graine fixe** : deux bases vides obtiennent les mêmes commandes, les mêmes quantités et
+les mêmes statuts.
+
+**Deux mécanismes rendent l'écran statistiques lisible** sans toucher aux règles métier : une récolte ne
+peut céder en ventes libres que **45 % de son stock initial** (les `ANNULEE` en sont dispensées, puisque
+l'annulation rend la quantité au stock), et les huit `ANNULEE` sont **planifiées** — quatre dans la
+fenêtre des trente derniers jours, au moins une chez chaque producteur, les quatre autres franchement
+dehors. Une annulation sur deux (par rang pair) laisse un paiement `REMBOURSE` derrière elle, soit
+**quatre** dans le jeu, les quatre autres étant annulées avant tout paiement. Valeurs mesurées sur le jeu :
+**au plus deux récoltes par producteur** `EPUISEE` ou sous le seuil d'alerte de stock faible (Piment fort
+`EPUISEE`, Salade 3,5 bottes, Mangue 4 kg) et **11,11 %** de taux d'annulation pour le premier
+producteur sur la fenêtre de trente jours. Ces chiffres sont verrouillés par `DemoDataInitializerTest`.
 
 **Trois garde-fous** : rien ne s'exécute tant que le profil `demo` n'est pas explicitement activé ;
 `demo` et `prod` actifs ensemble sont **refusés au démarrage**, même si aucun
@@ -377,11 +403,13 @@ services réels avec leurs règles métier.
 
 **Idempotence et remise à zéro** : si `producteur1.demo@sunurecolte.sn` existe déjà, un redémarrage ne
 crée rien, ne supprime rien et journalise une ligne INFO. Repartir d'une base vide se fait donc en
-recréant la base locale — **opération destructive, qui efface aussi les données de test déjà saisies** :
+recréant **la base de démonstration** — **opération destructive, qui efface aussi les saisies faites
+dans cette base, et qui ne concerne jamais `sunurecolte`** :
 
-```bash
-psql -U postgres -c "DROP DATABASE sunurecolte;"
-psql -U postgres -c "CREATE DATABASE sunurecolte;"
+```powershell
+# Windows PowerShell
+psql -U postgres -c "DROP DATABASE sunurecolte_demo;"
+psql -U postgres -c "CREATE DATABASE sunurecolte_demo;"
 ```
 
 Les migrations Flyway se réappliquent au démarrage suivant.
